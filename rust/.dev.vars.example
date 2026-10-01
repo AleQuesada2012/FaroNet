@@ -1,0 +1,3 @@
+# Local-only secret template; no secrets are needed by the scaffold.
+# Copy to .dev.vars only when a feature requires local secrets.
+# Add agreed names then; never put real values in this example.

@@ -1,0 +1,25 @@
+{
+  "name": "faronet-edge-tooling",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Wrangler tooling for the FaroNet Rust Worker",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "setup": "cargo install worker-build --version 0.8.7 --locked --root .tools",
+    "build": ".tools/bin/worker-build --release",
+    "check": "cargo fmt --check && cargo clippy --locked --target wasm32-unknown-unknown -- -D warnings",
+    "dev": "wrangler dev --local --ip 127.0.0.1 --port 8787",
+    "dry-run": "wrangler deploy --dry-run --outdir build/dry-run",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.146.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20261001.1": true,
+    "fsevents": false
+  }
+}

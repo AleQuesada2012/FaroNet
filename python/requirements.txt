@@ -1,0 +1,7 @@
+# Run inside python/.venv: python -m pip install -r requirements.txt
+# Editable install: changes under src/ are available without reinstalling.
+-e .
+
+# The scaffold has no third-party runtime dependencies yet.
+# Select and pin GPIO, cryptography, and transport packages after their
+# corresponding decisions in docs/decisions.md have been confirmed.

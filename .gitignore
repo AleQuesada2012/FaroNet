@@ -1,0 +1,50 @@
+# macOS, Windows, and local IDE settings
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# Python environments, bytecode, packaging, and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+
+# Rust/WASM build output and project-local tools
+target/
+build/
+.tools/
+
+# Wrangler and npm local state
+node_modules/
+.wrangler/
+*.log
+npm-debug.log*
+
+# Local secrets and runtime data; keep only empty examples
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+*.pem
+*.key
+secrets/
+runtime/
+
+# Generated documentation and temporary files
+output/
+tmp/
+*.swp
+*~
+
+# Cargo.lock and package-lock.json are intentionally versioned.

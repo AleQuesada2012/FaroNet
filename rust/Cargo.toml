@@ -1,0 +1,19 @@
+[package]
+name = "faronet-edge"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.91"
+publish = false
+description = "FaroNet Rust Cloudflare Worker development scaffold"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+worker = "=0.8.7"
+
+[profile.release]
+# Preserve the WASM metadata needed by wasm-bindgen.
+opt-level = "s"
+lto = true
+codegen-units = 1

@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "faronet-edge",
+  "main": "build/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "send_metrics": false,
+  "build": {
+    "command": "npm run build",
+    "watch_dir": "src"
+  },
+  // The assignment requires no persisted traffic/identity logs.
+  "observability": {
+    "enabled": false,
+    "logs": { "enabled": false },
+    "traces": { "enabled": false }
+  }
+  // Add Durable Objects and storage bindings after the design is confirmed.
+  // This starter has no account IDs, secrets, routes, or remote resources.
+}
