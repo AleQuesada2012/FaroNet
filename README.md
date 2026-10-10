@@ -4,9 +4,11 @@ Beginner-friendly development scaffold for Proyecto 1, Redes de Computadoras,
 II semestre 2026. The edge application uses **Rust on Cloudflare Workers**;
 nodes, the gateway, and Raspberry Pi Faro control use **Python**.
 
-This repository currently provides development environments and entry points.
-The optical protocol, mesh, encryption, GPIO control, and public application
-features still need to be designed and implemented.
+The first software milestone implements the optical frame/Manchester codec,
+a laptop simulator, and matching Python/Rust gateway-authentication helpers.
+GPIO control, autonomous optical negotiation, fragmentation, mesh encryption,
+private chat and live public application services remain later work.
+See [the milestone guide](docs/milestone-1.md) for demonstrations and tests.
 
 ## Repository map
 
@@ -25,6 +27,7 @@ FaroNet/
     requirements.txt      Install the local package in a virtual environment
     pyproject.toml        Python package metadata
   docs/                   Source decisions, development guide, RFC workspace
+  fixtures/               Shared synthetic protocol/authentication examples
   hardware/               Schematics, BOM, photographs, measurement workspace
   .gitignore              Excludes environments, build output, and secrets
 ```
@@ -77,10 +80,12 @@ See [the Rust guide](rust/README.md) for builds and deployment preparation.
 ## Before implementing features
 
 Read [decisions and sources](docs/decisions.md), then
-[the development guide](docs/development.md). Hardware, protocol, crypto, and
-storage choices marked pending must be settled before their implementations.
+[the development guide](docs/development.md) and
+[the accepted first-milestone contract](docs/rfc/0001-first-milestone-proposal.md).
+Hardware, protocol, crypto, and storage choices still marked pending must be
+settled before their implementations.
 
-The scaffold prints only static status text and does not store traffic.
+The tools print status and anonymous synthetic simulation counters.
 Never add private keys, IP addresses, physical addresses, user identifiers, or
 message contents to persistent debug logs. Real circuit tests and privacy
 verification are still required as implementation progresses.
@@ -93,5 +98,22 @@ local checks and the agreed circuit simulation or physical tests before
 publishing changes, as described in the kick-off.
 
 No commit, remote push, or deployment is part of this scaffold setup. The
-repository owner will review, commit, and push. At the owner's request, hardware
-dependencies, CI, and licensing are deferred until the scaffold is reviewed.
+repository owner will review, commit, and push. The accepted GPIO backend is
+an optional Linux dependency; circuit-specific additions await selection.
+CI and licensing remain deferred.
+
+## Current hardware direction
+
+The team has two Raspberry Pi 3 Model B rev 1.2 boards using Ubuntu Server.
+The inspected board's environment and controller are recorded in
+[the Pi profile](hardware/pi-environment.md). The accepted backend is official
+libgpiod v2 with BCM numbering; [the Python guide](python/README.md) explains
+the optional installation. Exact pin roles and physical I/O remain pending.
+The preferred optical link is a visible-light laser and matching receiver,
+with a matching IR emitter/receiver pair as fallback.
+The receiver approach uses a comparator with hysteresis and digital GPIO input
+without an ADC; its circuit and emitter/detector pairing still need validation.
+The first iteration includes the required hardware and RGB debugging. LCD and
+speaker/buzzer are enhancements only after minimum requirements are met.
+See [the current decisions](docs/decisions.md) for source conflicts and open
+choices. Both teammates must contribute meaningful Python and Rust work.

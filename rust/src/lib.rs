@@ -1,7 +1,11 @@
-//! Starter HTTP handler. Public application features remain to be implemented.
+//! Offline authentication foundation and the existing Worker health handler.
 
+pub mod gateway_auth;
+
+#[cfg(target_arch = "wasm32")]
 use worker::{event, Context, Env, Method, Request, Response, Result};
 
+#[cfg(target_arch = "wasm32")]
 #[event(fetch)]
 async fn fetch(request: Request, _env: Env, _context: Context) -> Result<Response> {
     match (request.method(), request.path().as_str()) {

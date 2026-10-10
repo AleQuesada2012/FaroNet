@@ -1,5 +1,5 @@
-"""Future gateway implementation bridging FaroNet with the Rust edge Worker.
+"""Gateway authentication foundation; live HTTPS forwarding remains pending.
 
 Only explicitly public messages may be relayed to public application routes.
-Authentication, replay prevention, and HTTPS/WSS are pending design decisions.
+The offline HMAC/replay contract does not authorize forwarding private chat.
 """

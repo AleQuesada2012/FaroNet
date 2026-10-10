@@ -24,16 +24,16 @@ as the working directory. `faronet info` also works after installation.
 
 ## Code map
 
-- `src/faronet/cli.py`: terminal entry point; currently reports scaffold status.
+- `src/faronet/cli.py`: terminal status and local simulation/authentication demos.
 - `src/faronet/node/`: future mesh routing, directory, and private application.
-- `src/faronet/gateway/`: future authenticated bridge to the Rust Worker.
+- `src/faronet/gateway/`: offline HMAC/replay helpers; live bridge remains pending.
 - `src/faronet/faro/`: future GPIO, light transmission, indicators, and panic button.
 - `src/faronet/dispositivo_luz_adaptador/`: location for the required
-  `DispositivoLuzAdaptador` library.
+  `DispositivoLuzAdaptador` library, frame/Manchester codec and simulated link.
 
-The component packages currently contain only documentation. The CLI does not
-open GPIO, communicate with peers, or send messages. No protocol interface is
-fixed by this scaffold.
+The first milestone exchanges synthetic frames locally and tests offline
+authentication. The CLI does not open GPIO or connect to real peers. The
+Node and hardware Faro packages remain placeholders.
 
 ## Dependencies
 
@@ -44,20 +44,81 @@ future runtime dependencies; pip installs its declared dependencies through
 Keep hardware-only packages in a separately documented optional dependency
 group so laptop development stays usable.
 
-The Raspberry Pi model/OS and GPIO backend are pending. The specification
-requires a recognized cryptographic library but does not select one; PyNaCl is
-a candidate. GPIO packages, PyNaCl, USB-serial libraries, WebSocket clients, and
-Scapy are not installed speculatively. The gateway's HTTPS/WSS choice is also
-pending.
+The inspected hardware target is Raspberry Pi 3 Model B rev 1.2 with Ubuntu
+Server 26.04.1 LTS, ARM64, kernel `7.0.0-1020-raspi`, system Python 3.14.4.
+See [the Pi environment](../hardware/pi-environment.md); tests on that board
+are still pending. Create a fresh virtual environment on the Pi, rather than
+copying the Mac environment. SSH metadata queries identify `/dev/gpiochip0`
+as `pinctrl-bcm2835`, with 54 lines. The team accepted the official libgpiod v2
+Python backend and BCM numbering; physical header positions must accompany
+the eventual role assignments. A GPIO backend is the low-level implementation
+that reads/writes pins. Python binding/line I/O tests, exact pins and the laser
+receiver circuit remain pending.
+
+For the Pi, from `python/` with its virtual environment active:
+
+```bash
+python -m pip install -r requirements-gpio.txt
+```
+
+This installs the optional `gpio` extra, pinned to `gpiod==2.5.0` in
+`pyproject.toml`. A Linux environment marker keeps the package out of macOS
+installs. The default `requirements.txt` remains sufficient for laptop work.
+The package release has a Python 3.14/ARM64 wheel; installation and use on
+this Pi still need verification. [Official release](https://pypi.org/project/gpiod/2.5.0/)
+Keep GPIO7-11 reserved for the existing SPI bus; GPIO0/1 are identification
+pins, and lines 28-53 are outside the header. No project role is assigned yet.
+
+The first iteration targets the laser link, with IR fallback, RGB debugging,
+TX/RX indication, and the physical panic button alongside required software
+features. LCD and speaker/buzzer code are deferred until minimum requirements
+are met. The selected receiver approach uses a comparator with hysteresis and
+digital GPIO input rather than an ADC. Its component pairing, conditioning,
+logic levels, and measured timing remain unresolved.
+
+The team selected PyNaCl for cryptography and HTTPS with HMAC-SHA-256 for
+gateway requests. PyNaCl primitives and key lifecycle still need their
+contract; the optical/HMAC foundation can use Python's standard library.
+Install runtime packages when their implementation slice needs them. The
+approved GPIO package is optional; USB-serial, WebSocket-client and Scapy
+dependencies have not been selected.
+See [the decisions](../docs/decisions.md) and
+[the first-milestone proposal](../docs/rfc/0001-first-milestone-proposal.md).
 
 ## Local checks
 
 ```bash
+python -m unittest discover -s tests -v
 python -m compileall -q src
 python -m faronet --help
 python -m faronet info
 python -m pip check
 ```
 
-These check the environment and starter entry point. They do not validate a
-mesh protocol, circuit, anonymity, or cryptographic implementation.
+The tests validate the first-milestone frame, waveform and offline HMAC/replay
+contract using shared synthetic fixtures. They do not establish a working
+circuit, mesh protocol, deployed replay protection or anonymity.
+
+## First-milestone demonstrations
+
+With the virtual environment active, run:
+
+```bash
+python -m faronet simulate
+python -m faronet simulate --scenario lost-ack
+python -m faronet auth-demo
+```
+
+The simulator exchanges Manchester-encoded frames between two synthetic
+Faros, with scripted turns and a known virtual clock. It demonstrates loss,
+corruption, duplicate suppression and bounded retries. The authentication
+demo admits one synthetic request and rejects its replay using a fake store.
+Both demonstrations run without hardware or network connections.
+
+`dispositivo_luz_adaptador/frame.py` defines the accepted wire format;
+`manchester.py` handles logical light levels; `simulation.py` provides the
+simulated `DispositivoLuzAdaptador`, including `send_frame()` for externally
+constructed frames. `gateway/auth.py` implements request signing/admission;
+`gateway/testing.py` is an explicitly fake replay store. Shared examples live
+in the root `fixtures/` folder. See [the milestone guide](../docs/milestone-1.md)
+for boundaries and validation instructions.

@@ -1,0 +1,61 @@
+{
+  "note": "Public synthetic test keys and bodies only. Never use these keys for deployment.",
+  "vectors": [
+    {
+      "name": "post-binary",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "audience": "faronet-test",
+      "key_id": "gateway-test",
+      "method": "POST",
+      "path": "/v1/relay",
+      "timestamp": "1791561600",
+      "nonce": "000102030405060708090a0b0c0d0e0f",
+      "body_hex": "0073796e7468657469630aff",
+      "body_sha256": "00c07558e3fe3ae786ad008ccd04ca76e4688dad75ca48f49747061531c96ad0",
+      "canonical": "FARONET-GATEWAY-HMAC-V1\nfaronet-test\ngateway-test\nPOST\n/v1/relay\n1791561600\n000102030405060708090a0b0c0d0e0f\n00c07558e3fe3ae786ad008ccd04ca76e4688dad75ca48f49747061531c96ad0\n",
+      "signature_hex": "212e334587ab8b60434f395509985a7ea933482da7b5a4cecf739898d92ae7bf"
+    },
+    {
+      "name": "get-empty",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "audience": "faronet-test",
+      "key_id": "gateway-test",
+      "method": "GET",
+      "path": "/",
+      "timestamp": "1791561600",
+      "nonce": "11111111111111111111111111111111",
+      "body_hex": "",
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical": "FARONET-GATEWAY-HMAC-V1\nfaronet-test\ngateway-test\nGET\n/\n1791561600\n11111111111111111111111111111111\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n",
+      "signature_hex": "b23a92cdbf3198e0bfb8943495e0235a6698bf51069ed31c6b5d0224dc3456f2"
+    },
+    {
+      "name": "timestamp-zero",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "audience": "faronet-test",
+      "key_id": "gateway-test",
+      "method": "POST",
+      "path": "/v1/test",
+      "timestamp": "0",
+      "nonce": "22222222222222222222222222222222",
+      "body_hex": "7b7d",
+      "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "canonical": "FARONET-GATEWAY-HMAC-V1\nfaronet-test\ngateway-test\nPOST\n/v1/test\n0\n22222222222222222222222222222222\n44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\n",
+      "signature_hex": "92adce5c7ee0d57f6d2e16b15fc2d059d3b4e5d9d53759ae26d40d4284d3a280"
+    },
+    {
+      "name": "timestamp-u64-max",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "audience": "faronet-test",
+      "key_id": "gateway-test",
+      "method": "POST",
+      "path": "/v1/test",
+      "timestamp": "18446744073709551615",
+      "nonce": "33333333333333333333333333333333",
+      "body_hex": "7b7d",
+      "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "canonical": "FARONET-GATEWAY-HMAC-V1\nfaronet-test\ngateway-test\nPOST\n/v1/test\n18446744073709551615\n33333333333333333333333333333333\n44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\n",
+      "signature_hex": "fbcb955d27244b65c0c695434990d64a13b071933e29d668a6944c98f7bbee49"
+    }
+  ]
+}

@@ -7,10 +7,17 @@ publish = false
 description = "FaroNet Rust Cloudflare Worker development scaffold"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+hmac = "=0.13.0"
+sha2 = "=0.11.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
 worker = "=0.8.7"
+
+[dev-dependencies]
+serde_json = "1.0"
 
 [profile.release]
 # Preserve the WASM metadata needed by wasm-bindgen.

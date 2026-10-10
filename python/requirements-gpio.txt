@@ -1,0 +1,4 @@
+# Optional Linux/Pi setup; run from python/ with the Pi's .venv active:
+# python -m pip install -r requirements-gpio.txt
+# The exact gpiod version lives in pyproject.toml's gpio extra.
+-e .[gpio]

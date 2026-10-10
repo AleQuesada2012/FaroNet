@@ -12,10 +12,13 @@ to one Git repository. IDE settings are local and are not shared.
 
 ## Suggested implementation order
 
-1. Complete the threat model and settle the pending hardware/protocol choices
-   in `decisions.md` and the RFC before writing the protocol implementation.
-2. Implement and measure the GPIO/optical link and DispositivoLuzAdaptador.
-3. Build node routing, signed directory entries, private messaging, and privacy
+1. Use the threat model and settle the software contracts in `decisions.md`
+   and the RFC. Prototype the optical protocol and adapter with a simulator
+   while GPIO and receiver details remain pending. The inspected Pi's
+   software environment is recorded in `hardware/pi-environment.md`.
+2. Bring up and measure the real GPIO/optical link once its hardware profile
+   is confirmed, keeping the simulator usable for repeatable software tests.
+3. Build node routing, signed directory entries, terminal private chat, and privacy
    controls with the approved cryptographic library.
 4. Implement the gateway's authenticated relay and public-only forwarding.
 5. Implement the Rust public application and its agreed bindings.
@@ -23,12 +26,16 @@ to one Git repository. IDE settings are local and are not shared.
    documentation, and privacy verification.
 
 This order is development guidance, not a replacement for the assignment.
+See [the development plan](development-plan.md) for the deadline, capacity,
+and approved provisional cross-language ownership. Both teammates contribute
+Python and Rust; simulator success does not establish physical-link performance.
 
 ## Check changes before sharing
 
 From `python/` with `.venv` active:
 
 ```bash
+python -m unittest discover -s tests -v
 python -m compileall -q src
 python -m faronet info
 python -m pip check
@@ -37,13 +44,15 @@ python -m pip check
 From `rust/` after setup:
 
 ```bash
+cargo test --locked
 npm run check
 npm run dry-run
 ```
 
-Add behavior tests as real implementations arrive. These initial checks
-establish that the environments work; they do not replace the kick-off's
-simulation or physical-circuit tests before publication.
+The first-milestone tests exercise protocol failures and shared authentication
+fixtures. Continue adding meaningful behavior tests with later features.
+These checks do not replace physical-circuit tests before publication.
+See [the milestone guide](milestone-1.md) for demonstrations and limitations.
 
 ## Keep development output private
 

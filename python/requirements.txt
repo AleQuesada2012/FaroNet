@@ -2,6 +2,6 @@
 # Editable install: changes under src/ are available without reinstalling.
 -e .
 
-# The scaffold has no third-party runtime dependencies yet.
-# Select and pin GPIO, cryptography, and transport packages after their
-# corresponding decisions in docs/decisions.md have been confirmed.
+# Laptop simulations use only the standard library.
+# On the Pi, requirements-gpio.txt installs the approved optional GPIO backend.
+# Cryptography and transport packages await their implementation contracts.

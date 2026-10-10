@@ -24,15 +24,29 @@ The development server listens on `http://127.0.0.1:8787` in local mode.
 `GET /health` returns a fixed readiness message; `GET /` describes the
 starter; all other requests return 404. No message endpoints exist yet.
 
+`src/gateway_auth.rs` now implements the accepted offline authentication
+contract, including canonicalization, HMAC verification, freshness and a
+nonce-store interface. It is not connected to an HTTP route yet. Synthetic
+fixtures and the fake store establish policy/interoperability, not deployed
+replay protection. Future admission uses a Durable Object coordinator.
+
 ## Check and build
 
 ```bash
+cargo test --locked
 npm run check
 npm run build
 npm run dry-run
 ```
 
 `check` checks Rust formatting and compiles/lints for the Worker WASM target.
+`cargo test` runs authentication tests on your laptop using the root
+`fixtures/gateway-auth-v1.json`, also consumed by the Python tests. The Worker
+dependency/handler is WASM-specific so these pure tests need no browser,
+provider login or WASM test runner. RustCrypto
+[hmac 0.13.0](https://docs.rs/hmac/0.13.0/hmac/) and
+[sha2 0.11.0](https://docs.rs/sha2/0.11.0/sha2/) provide the cryptographic
+operations; application code does not implement HMAC or SHA-256 itself.
 `build` generates the Worker bundle. `dry-run` checks Wrangler packaging
 without deploying. Keep `Cargo.lock` and `package-lock.json` in Git so your
 teammate can install the same resolved dependencies.
@@ -58,8 +72,9 @@ Wrangler secret operation and are not uploaded from `.dev.vars`.
 - Fixed-size encrypted dead-drop blobs with TTL and delete-on-read behavior.
 - Read-only signed public node directory and rate limiting.
 
-No resource bindings are declared until their implementation and storage
-choice are settled. Worker logs and traces are disabled to follow the
+No resource bindings are declared in this milestone. The future replay-store
+direction is accepted; its live integration remains later work. Worker logs
+and traces are disabled to follow the
 assignment's no-records requirement. This does not establish that the
 provider cannot observe metadata; address that in the threat model.
 

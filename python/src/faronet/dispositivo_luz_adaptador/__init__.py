@@ -1,6 +1,6 @@
-"""Workspace for the specification's DispositivoLuzAdaptador library.
+"""Faro frame codec and simulated adapter; physical GPIO integration is pending."""
 
-Its interface and framing belong in the RFC before implementation. Frames
-must not exceed 128 bytes and need integrity, medium access, versioning, and
-rotatable physical addressing. No frame format is invented by this scaffold.
-"""
+from faronet.dispositivo_luz_adaptador.frame import Frame, FrameError, FrameType
+from faronet.dispositivo_luz_adaptador.simulation import DispositivoLuzAdaptador
+
+__all__ = ["DispositivoLuzAdaptador", "Frame", "FrameError", "FrameType"]

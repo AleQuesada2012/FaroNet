@@ -4,6 +4,10 @@ Create the Faro physical protocol and FaroNet RFC here after the design
 decisions are agreed. The specification requires the RFC, including diagrams,
 to contain ASCII only. This README is not the RFC.
 
+[Accepted first-milestone contract](0001-first-milestone-proposal.md) is a bounded
+contract accepted in Q16-Q20 on 2026-10-09. It distinguishes the first
+implementation slice from future design work; it is not the complete assignment RFC.
+
 The future RFC must document versioning, frame/packet fields and explicit
 lengths, integrity, medium access, addressing, routing, and the threat model,
 with Privacy Considerations and Security Considerations. The assignment
