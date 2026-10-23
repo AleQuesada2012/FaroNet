@@ -50,9 +50,11 @@ npm run dry-run
 ```
 
 The first-milestone tests exercise protocol failures and shared authentication
-fixtures. Continue adding meaningful behavior tests with later features.
+fixtures; the node tests exercise the proposed directory, fragmentation,
+onion envelope and mesh simulation contract (`python -m faronet mesh-demo`). Continue adding meaningful behavior tests with later features.
 These checks do not replace physical-circuit tests before publication.
-See [the milestone guide](milestone-1.md) for demonstrations and limitations.
+See [the milestone guide](milestone-1.md) and [the node slice guide](milestone-2.md)
+for demonstrations and limitations.
 
 ## Keep development output private
 

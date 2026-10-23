@@ -1,7 +1,11 @@
 # Faro hardware workspace
 
-The current team direction uses two Raspberry Pi 3 Model B rev 1.2 boards
-with Ubuntu Server and a GPIO extension/header connection. Visible-light laser
+The current team direction uses one Raspberry Pi 3 Model B rev 1.2 with
+Ubuntu Server and one Raspberry Pi 2 Model B v1.1 (updated 2026-10-22), each
+with a GPIO extension/header connection. The two boards share the 40-pin
+header and BCM numbering, so [the breadboard guide](breadboard/README.md)
+applies to both; the Pi 2's 32-bit operating system, Python environment and
+network adapter still need confirmation. Visible-light laser
 transmission and a matching receiver are preferred; an IR emitter/phototransistor
 pair is the fallback. LDR is excluded. The inspected Pi runs Ubuntu Server
 26.04.1 LTS on ARM64, kernel `7.0.0-1020-raspi`, Python 3.14.4; see

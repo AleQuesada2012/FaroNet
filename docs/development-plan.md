@@ -1,6 +1,6 @@
 # Development plan
 
-Updated 2026-10-09. Confirmed constraints are distinguished from proposals.
+Updated 2026-10-22. Confirmed constraints are distinguished from proposals.
 Source decisions remain in [decisions.md](decisions.md).
 
 ## Confirmed constraints
@@ -11,11 +11,21 @@ Source decisions remain in [decisions.md](decisions.md).
 - Both are strong in Python, new to Rust, and beginners at networking. The
   owner has some simple circuit design/build/soldering experience.
 - Both must implement meaningful Python and Rust portions.
-- Software-first optical simulation is approved. The inspected Pi's environment
-  is Ubuntu Server 26.04.1 LTS/ARM64, kernel `7.0.0-1020-raspi`, Python 3.14.4;
-  exact versions on the second Pi and real hardware tests remain pending.
+- Software-first optical simulation is approved. The inspected Pi 3's
+  environment is Ubuntu Server 26.04.1 LTS/ARM64, kernel `7.0.0-1020-raspi`,
+  Python 3.14.4; real hardware tests remain pending.
+- Boards, updated 2026-10-22: one Raspberry Pi 3 Model B rev 1.2 and one
+  Raspberry Pi 2 Model B v1.1, no longer two Pi 3 units. The Pi 2 B v1.1
+  (BCM2836, ARMv7) is 32-bit only, has no onboard Wi-Fi/Bluetooth and shares
+  the same 40-pin header and BCM numbering. The 64-bit image used on the
+  Pi 3 cannot boot on it; its operating system, Python version, PyNaCl and
+  gpiod availability and network access (Ethernet or USB adapter) must be
+  confirmed before planning Pi-side tests. The breadboard layout already
+  covers both boards.
 - Each Pi can host its Node and Faro control; one also hosts the Gateway.
-  Laptop processes can supply additional mesh participants.
+  Proposal: the Pi 3 hosts the Gateway because it has onboard Wi-Fi and a
+  verified environment; confirm. Laptop processes can supply additional
+  mesh participants.
 - Private application: terminal chat. Hardware indicators: TX, RX, RGB, plus
   the physical panic control. LCD and speaker/buzzer are enhancements after
   the assignment minimum is complete; LCD assists rather than replaces chat.
@@ -133,6 +143,24 @@ The inspected Ubuntu/kernel/Python is recorded in
 libgpiod v2 Python backend and BCM numbering after successful controller
 metadata checks. Python binding/line I/O tests, pin roles and the receiver
 profile still need validation. No role assignment or bitrate is guessed.
-Turn bootstrap/recovery, fragmentation/reassembly, real replay-state storage,
-mesh/key/directory contracts, TTL/panic behavior, dead-drop semantics and
-public services must be agreed before their respective implementation slices.
+Turn bootstrap/recovery, real replay-state storage, TTL/panic behavior,
+dead-drop semantics and public services must be agreed before their
+respective implementation slices.
+
+## Second slice (Teammate B): proposed contract, implemented for review
+
+On 2026-10-22 Teammate B drafted [proposal 0002](rfc/0002-mesh-envelope-proposal.md)
+covering PyNaCl primitives, 16-byte node IDs, signed directory entries,
+fragmentation of a 492-byte envelope into six Faro frames, three-relay onion
+layers and a 190-byte padded private message, and implemented it in
+`python/src/faronet/node/` with a laptop mesh simulation that reuses the
+milestone-1 optical link. See [the slice guide](milestone-2.md) for entry
+points, commands and the 79-test evidence. The proposal is not accepted:
+its numbered decisions need A's and the owner's confirmation before the LAN
+transport, terminal chat, gateway client and Rust directory/dead drop build
+on it. No Rust was added because no Rust toolchain was available on the
+machine used; the shared directory fixture is ready for that work.
+
+Checkpoint note: the Oct 21 optical smoke test depends on hardware that is
+still being assembled per the breadboard guide; the Oct 25 feature freeze
+stands. Record actual human hours for this slice before rebalancing.

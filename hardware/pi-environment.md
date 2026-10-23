@@ -1,8 +1,9 @@
 # Raspberry Pi reference environment
 
 Recorded from the owner's command output on 2026-10-09. This describes the
-inspected Pi; the second Pi's exact software versions have not been checked.
-The boards' agreed model is Raspberry Pi 3 Model B rev 1.2.
+inspected Raspberry Pi 3 Model B rev 1.2. Since 2026-10-22 the second board
+is a Raspberry Pi 2 Model B v1.1, not another Pi 3; see the section at the
+end. Its software has not been checked.
 
 | Detail | Reported value | Evidence |
 | --- | --- | --- |
@@ -114,3 +115,23 @@ PyPI. These packaging checks do not exercise the Pi's hardware or Python binding
 See [project decisions](../docs/decisions.md) and the
 [hardware workspace](README.md). The first-milestone simulator requires no
 GPIO package.
+
+## Second board: Raspberry Pi 2 Model B v1.1
+
+Hardware facts for this model: BCM2836 with four Cortex-A7 cores (ARMv7,
+32-bit only), 1 GB RAM, no onboard Wi-Fi or Bluetooth, the same 40-pin
+header and BCM GPIO numbering as the Pi 3 B. Consequences to settle during
+bring-up, none of which has been verified on the board:
+
+- The 64-bit Ubuntu 26.04 image used on the Pi 3 cannot boot on it. Choose
+  and record a 32-bit operating system, its kernel and Python version; the
+  project declares Python >= 3.11.
+- PyNaCl 1.6.2 and gpiod 2.5.0 may have no prebuilt ARMv7 wheels; expect a
+  distribution package or a source build (compiler, libsodium/libgpiod
+  development headers). Record which path worked.
+- Re-identify the GPIO character device and controller label with
+  `gpiodetect`; do not assume `gpiochip0`.
+- Provide Ethernet or a USB Wi-Fi adapter for SSH, the LAN mesh links and
+  any gateway role; the Pi 3 is proposed as the Gateway host.
+- The slower CPU may change achievable bit timing; measure instead of
+  reusing Pi 3 numbers.

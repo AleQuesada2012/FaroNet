@@ -8,7 +8,9 @@ version = "0.1.0"
 description = "Development scaffold for FaroNet nodes, gateway, and Raspberry Pi control"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "pynacl==1.6.2",
+]
 
 [project.optional-dependencies]
 gpio = ["gpiod==2.5.0; sys_platform == 'linux'"]

@@ -1,7 +1,8 @@
 # Sources and implementation decisions
 
-Reviewed on 2026-10-09. These sources describe the project; this repository
-setup does not mean their deliverables have been implemented.
+Reviewed on 2026-10-09, board change recorded on 2026-10-22. These sources
+describe the project; this repository setup does not mean their deliverables
+have been implemented.
 
 ## Sources
 
@@ -22,6 +23,11 @@ setup does not mean their deliverables have been implemented.
   and Rust; Raspberry Pi 3 Model B rev 1.2 with Ubuntu Server; laser preferred,
   IR fallback; required features and RGB debugging in the first iteration;
   LCD and speaker/buzzer only after minimum requirements are met.
+- Owner's 2026-10-22 update and the team's breadboard guide
+  (`hardware/breadboard/README.md`): the boards are now one Raspberry Pi 3
+  Model B rev 1.2 and one Raspberry Pi 2 Model B v1.1, which share the
+  40-pin header and BCM numbering. This supersedes the "two Pi 3" entries
+  in the parts list and earlier owner direction.
 - Owner's Pi command output: Ubuntu 26.04.1 LTS, `aarch64`, kernel
   `7.0.0-1020-raspi`, Python 3.14.4 and `getconf LONG_BIT` = 64; GPIO character
   devices and permissions recorded in [the Pi profile](../hardware/pi-environment.md).
@@ -45,11 +51,12 @@ SPI/I2C/GPIO wiring is not an approved project pin map.
 | Edge IDE | RustRover | Kick-off |
 | Node language | Python | Owner |
 | Faro control | Python on GNU/Linux, Raspberry Pi, GPIO connection | Kick-off |
-| Available boards | Two Raspberry Pi 3 Model B rev 1.2 units | Owner; parts list |
-| Operating system | Inspected Pi: Ubuntu Server 26.04.1 LTS, Resolute Raccoon; installed using Raspberry Pi Imager on macOS | Owner's setup and `/etc/os-release` output |
-| Pi architecture | `aarch64`/ARM64; `getconf LONG_BIT` = 64 | Owner's command output |
-| Pi kernel | `7.0.0-1020-raspi` | Owner's `uname -r` output |
-| Pi Python | System Python 3.14.4; satisfies declared >=3.11 minimum, Pi tests pending | Owner's command output; Python project metadata |
+| Available boards | One Raspberry Pi 3 Model B rev 1.2 and one Raspberry Pi 2 Model B v1.1 (updated 2026-10-22; previously two Pi 3) | Owner; breadboard guide |
+| Operating system | Inspected Pi 3: Ubuntu Server 26.04.1 LTS, Resolute Raccoon; installed using Raspberry Pi Imager on macOS. Pi 2 B v1.1 is ARMv7/32-bit only and cannot boot that image; its OS is pending | Owner's setup and `/etc/os-release` output; Pi 2 hardware facts |
+| Pi architecture | Pi 3: `aarch64`/ARM64; `getconf LONG_BIT` = 64. Pi 2 B v1.1: 32-bit ARMv7, to be confirmed on the board | Owner's command output; Pi 2 model facts |
+| Pi kernel | Pi 3: `7.0.0-1020-raspi`; Pi 2 pending | Owner's `uname -r` output |
+| Pi Python | Pi 3: system Python 3.14.4, satisfies declared >=3.11 minimum, Pi tests pending; Pi 2 pending | Owner's command output; Python project metadata |
+| Pi networking | Pi 3 has onboard Wi-Fi; Pi 2 B v1.1 needs Ethernet or a USB adapter for SSH, LAN mesh links and any gateway role | Pi model facts; confirm the adapter |
 | GPIO device/controller | `/dev/gpiochip0`, `pinctrl-bcm2835`, 54 lines; chip/line metadata queries succeed through SSH; no filesystem access to chips 1/2 | Owner's access probe, `gpiodetect` and `gpioinfo`; see Pi profile |
 | GPIO backend | Official libgpiod v2 Python API, optional Linux-only `gpiod==2.5.0`; Python binding and line I/O tests pending | Owner accepted recommendation on 2026-10-09; official package release |
 | Pin numbering | BCM GPIO numbers; document physical header positions alongside approved role assignments | Owner accepted recommendation on 2026-10-09; exact assignments pending |
@@ -82,8 +89,8 @@ SPI/I2C/GPIO wiring is not an approved project pin map.
 | Private application | One-to-one private terminal conversations initially; public topic rooms remain required edge scope | Owner's Q14 answer |
 | Laser acceptance | Assumed for planning; use IR fallback if grader rejects the substitution | Owner's round-1 answer |
 | Gateway transport/authentication | HTTPS requests use the accepted versioned HMAC contract with environment/key scope, method/path/body, timestamp and nonce; browser public rooms still use WebSockets | Owner's Q12 and Q18 answers; live HTTP/storage integration pending |
-| Python cryptography | PyNaCl; exact primitives, trust bootstrap and key lifecycle remain to be specified | Owner's Q13 answer |
-| Mesh privacy direction | Negotiated onion paths with at least three mesh hops; laptop Nodes supplement the two Pis | Owner's Q15 answer; route/trust contract pending |
+| Python cryptography | PyNaCl 1.6.2 now declared; proposal 0002 names Ed25519 signatures, SealedBox hop layers and Box end-to-end; trust bootstrap and key lifecycle remain to be specified | Owner's Q13 answer; proposal 0002 (PROPOSED) |
+| Mesh privacy direction | Negotiated onion paths with at least three mesh hops; laptop Nodes supplement the two Pis. Proposal 0002 implements exactly three relays with sender-chosen routes and asks whether that satisfies the direction | Owner's Q15 answer; proposal 0002 (PROPOSED) |
 | Procurement status | No emitter, receiver or comparator acquired yet; plans to acquire them Oct 10, draft the remaining order Oct 10, estimated arrival Oct 13 | Owner's Q9 answer, 2026-10-09; dates are estimates |
 
 The starter uses a standard Python src layout, separate language folders,
@@ -117,6 +124,15 @@ These are scaffold choices, not newly inferred network protocol rules.
 - Mesh routing/circuit design, packet sizes/padding, PyNaCl primitives,
   directory trust bootstrap, key lifecycle, panic zeroization scope, and
   message TTL values. The library and three-hop direction are settled.
+  [Proposal 0002](rfc/0002-mesh-envelope-proposal.md) offers concrete
+  numbers (492-byte envelope, six frames, three relays, 190-byte padded
+  message, 30-day signed entries) and is implemented for review; its
+  section 9 lists the decisions still needed from A and the owner.
+- Pi 2 Model B v1.1 bring-up: operating system (32-bit), Python version,
+  PyNaCl and gpiod installation path on ARMv7 (wheels may be unavailable,
+  requiring distro packages or source builds), network adapter, gpiochip
+  identification and bit timing on the slower CPU. Which Pi hosts the
+  Gateway (Pi 3 proposed).
 - Live HTTPS route/header contract, atomic durable replay-state integration
   and operation retry/idempotency. Canonical signing, clock tolerance and
   offline replay policy are accepted; future nonce storage uses Durable Objects.

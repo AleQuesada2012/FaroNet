@@ -4,6 +4,9 @@ from faronet.dispositivo_luz_adaptador import DispositivoLuzAdaptador
 from faronet.dispositivo_luz_adaptador.simulation import Fault, FaultPlan, SimulatedLink
 from faronet.gateway.auth import GatewayRequest, ReplayError, sign_request, verify_and_admit
 from faronet.gateway.testing import FakeNonceStore
+from faronet.node.envelope import PrivateMessage
+from faronet.node.fragment import FRAGMENT_COUNT
+from faronet.node.mesh import MeshSimulation
 
 SCENARIOS = {
     "clean": FaultPlan(),
@@ -62,3 +65,30 @@ def authentication() -> int:
         print("Offline fake store only; no HTTP request or deployed replay guarantee.")
         return 0
     raise RuntimeError("Authentication demonstration did not reject a replay")
+
+
+def mesh() -> int:
+    """Pi-3 Node reaches a laptop Node through three relays; first hop is optical."""
+    simulation = MeshSimulation()
+    pi_3, pi_2 = simulation.add_node("pi-3"), simulation.add_node("pi-2")
+    laptops = [simulation.add_node(f"laptop-{index}") for index in range(1, 5)]
+    optical = simulation.connect_optical(pi_3, pi_2)
+    for laptop in laptops:
+        simulation.connect(pi_2, laptop)
+    for index, laptop in enumerate(laptops):
+        for other in laptops[index + 1:]:
+            simulation.connect(laptop, other)
+    destination = laptops[-1]
+    for sender, receiver, label in ((pi_3, destination, "request"), (destination, pi_3, "reply")):
+        route = simulation.find_route(sender, receiver)
+        message = PrivateMessage("synthetic private text", simulation.clock() + 300)
+        delivered = sender.send(route, message)
+        relays = sum(node.counters["relayed"] for node in simulation.nodes.values())
+        print(
+            f"{label}: first_hop_accepted={delivered} relays={len(route.relays)} "
+            f"relayed_total={relays} delivered_total={sum(n.counters['delivered'] for n in simulation.nodes.values())} "
+            f"optical_envelopes={optical.envelopes_carried} optical_frames={optical.frames_attempted} "
+            f"frames_per_envelope={FRAGMENT_COUNT} virtual_half_bits={optical.link.clock_units}"
+        )
+    print("Simulation only: shared directory, in-memory LAN links, scripted optical turns, no sockets.")
+    return 0

@@ -4,4 +4,5 @@
 
 # Laptop simulations use only the standard library.
 # On the Pi, requirements-gpio.txt installs the approved optional GPIO backend.
-# Cryptography and transport packages await their implementation contracts.
+# PyNaCl is declared in pyproject.toml for the node slice (proposal 0002).
+# Transport packages still await their implementation contracts.

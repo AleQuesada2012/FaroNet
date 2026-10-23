@@ -19,14 +19,17 @@ def main() -> int:
     simulator = commands.add_parser("simulate", help="Run synthetic optical waveform scenarios.")
     simulator.add_argument("--scenario", choices=["all", *demos.SCENARIOS], default="all")
     commands.add_parser("auth-demo", help="Demonstrate synthetic HMAC and replay admission.")
+    commands.add_parser("mesh-demo", help="Relay a padded onion message across a simulated mesh.")
     args = parser.parse_args()
     if args.command == "simulate":
         return demos.simulate(args.scenario)
     if args.command == "auth-demo":
         return demos.authentication()
+    if args.command == "mesh-demo":
+        return demos.mesh()
 
     print(f"FaroNet Python {__version__}: development scaffold ready")
-    print("node: mesh and private application implementation pending")
+    print("node: signed directory, onion envelopes and mesh simulation ready; transport/chat UI pending")
     print("gateway: offline HMAC/replay helpers ready; live HTTPS relay pending")
     print("faro: Raspberry Pi GPIO and autonomous link implementation pending")
     print("DispositivoLuzAdaptador: frame/Manchester codec and simulator ready")

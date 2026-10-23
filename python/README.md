@@ -25,7 +25,9 @@ as the working directory. `faronet info` also works after installation.
 ## Code map
 
 - `src/faronet/cli.py`: terminal status and local simulation/authentication demos.
-- `src/faronet/node/`: future mesh routing, directory, and private application.
+- `src/faronet/node/`: identities/signed directory, fragmentation, onion
+  envelopes and a mesh simulation following proposal 0002; LAN transport
+  and the interactive private chat remain pending.
 - `src/faronet/gateway/`: offline HMAC/replay helpers; live bridge remains pending.
 - `src/faronet/faro/`: future GPIO, light transmission, indicators, and panic button.
 - `src/faronet/dispositivo_luz_adaptador/`: location for the required
@@ -37,8 +39,9 @@ Node and hardware Faro packages remain placeholders.
 
 ## Dependencies
 
-`requirements.txt` installs this package in editable mode. The starter itself
-uses only the standard library. `pyproject.toml` is the source of truth for
+`requirements.txt` installs this package in editable mode. The optical and
+gateway modules use only the standard library; the node modules require
+`pynacl==1.6.2`, declared in `pyproject.toml`. `pyproject.toml` is the source of truth for
 future runtime dependencies; pip installs its declared dependencies through
 `-e .`. Add exact approved versions there when implementations need them.
 Keep hardware-only packages in a separately documented optional dependency
@@ -46,7 +49,10 @@ group so laptop development stays usable.
 
 The inspected hardware target is Raspberry Pi 3 Model B rev 1.2 with Ubuntu
 Server 26.04.1 LTS, ARM64, kernel `7.0.0-1020-raspi`, system Python 3.14.4.
-See [the Pi environment](../hardware/pi-environment.md); tests on that board
+The second board is now a Raspberry Pi 2 Model B v1.1, 32-bit only; its OS,
+Python and the PyNaCl/gpiod installation path there are unconfirmed, so keep
+the code free of 3.12+-only syntax. See
+[the Pi environment](../hardware/pi-environment.md); tests on both boards
 are still pending. Create a fresh virtual environment on the Pi, rather than
 copying the Mac environment. SSH metadata queries identify `/dev/gpiochip0`
 as `pinctrl-bcm2835`, with 54 lines. The team accepted the official libgpiod v2
@@ -77,8 +83,9 @@ digital GPIO input rather than an ADC. Its component pairing, conditioning,
 logic levels, and measured timing remain unresolved.
 
 The team selected PyNaCl for cryptography and HTTPS with HMAC-SHA-256 for
-gateway requests. PyNaCl primitives and key lifecycle still need their
-contract; the optical/HMAC foundation can use Python's standard library.
+gateway requests. Proposal 0002 names the PyNaCl primitives now in use; key
+lifecycle still needs its contract. The optical/HMAC foundation uses
+Python's standard library.
 Install runtime packages when their implementation slice needs them. The
 approved GPIO package is optional; USB-serial, WebSocket-client and Scapy
 dependencies have not been selected.
@@ -107,9 +114,12 @@ With the virtual environment active, run:
 python -m faronet simulate
 python -m faronet simulate --scenario lost-ack
 python -m faronet auth-demo
+python -m faronet mesh-demo
 ```
 
-The simulator exchanges Manchester-encoded frames between two synthetic
+The mesh demo sends one padded message from a Pi-3 Node to a laptop Node
+through three relays, with the first hop over the simulated optical link,
+then a reply; it prints anonymous counters only. The simulator exchanges Manchester-encoded frames between two synthetic
 Faros, with scripted turns and a known virtual clock. It demonstrates loss,
 corruption, duplicate suppression and bounded retries. The authentication
 demo admits one synthetic request and rejects its replay using a fake store.
@@ -120,5 +130,7 @@ Both demonstrations run without hardware or network connections.
 simulated `DispositivoLuzAdaptador`, including `send_frame()` for externally
 constructed frames. `gateway/auth.py` implements request signing/admission;
 `gateway/testing.py` is an explicitly fake replay store. Shared examples live
-in the root `fixtures/` folder. See [the milestone guide](../docs/milestone-1.md)
-for boundaries and validation instructions.
+in the root `fixtures/` folder. `node/identity.py`, `node/fragment.py`,
+`node/envelope.py` and `node/mesh.py` implement proposal 0002. See
+[the milestone guide](../docs/milestone-1.md) and
+[the node slice guide](../docs/milestone-2.md) for boundaries and validation.

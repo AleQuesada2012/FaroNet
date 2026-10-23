@@ -6,9 +6,13 @@ nodes, the gateway, and Raspberry Pi Faro control use **Python**.
 
 The first software milestone implements the optical frame/Manchester codec,
 a laptop simulator, and matching Python/Rust gateway-authentication helpers.
-GPIO control, autonomous optical negotiation, fragmentation, mesh encryption,
+The second slice adds the node foundation: signed directory entries,
+fragmentation, fixed-size onion envelopes and a laptop mesh simulation that
+reuses the optical link, following a contract that is still a proposal.
+GPIO control, autonomous optical negotiation, the LAN transport, interactive
 private chat and live public application services remain later work.
-See [the milestone guide](docs/milestone-1.md) for demonstrations and tests.
+See [the milestone guide](docs/milestone-1.md) and
+[the node slice guide](docs/milestone-2.md) for demonstrations and tests.
 
 ## Repository map
 
@@ -45,8 +49,9 @@ python -m faronet --help
 python -m faronet info
 ```
 
-Use Python 3.11 or newer. The starter uses the standard library, so it works
-without a Raspberry Pi. In PyCharm, open `python/`, choose the interpreter
+Use Python 3.11 or newer. The optical and gateway modules use the standard
+library; the node modules need PyNaCl, installed by `requirements.txt`. All
+of it runs without a Raspberry Pi. In PyCharm, open `python/`, choose the interpreter
 `python/.venv/bin/python`, and mark `src/` as a Sources Root if needed.
 See [the Python guide](python/README.md) before adding runtime dependencies.
 
@@ -104,8 +109,11 @@ CI and licensing remain deferred.
 
 ## Current hardware direction
 
-The team has two Raspberry Pi 3 Model B rev 1.2 boards using Ubuntu Server.
-The inspected board's environment and controller are recorded in
+The team has one Raspberry Pi 3 Model B rev 1.2 running Ubuntu Server and
+one Raspberry Pi 2 Model B v1.1 (updated 2026-10-22). Both share the 40-pin
+header and BCM numbering; the Pi 2 is 32-bit only, has no onboard Wi-Fi, and
+its operating system and Python environment are still to be confirmed. The
+inspected Pi 3's environment and controller are recorded in
 [the Pi profile](hardware/pi-environment.md). The accepted backend is official
 libgpiod v2 with BCM numbering; [the Python guide](python/README.md) explains
 the optional installation. Exact pin roles and physical I/O remain pending.
