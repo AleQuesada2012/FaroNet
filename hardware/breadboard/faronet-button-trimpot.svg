@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="control-view" viewBox="0 0 1600 720" width="1600" height="720" role="img" aria-label="Detalle de contactos S1 y RV1 en la protoboard"><style>.control-view text{font-family:system-ui,sans-serif;fill:#213f56;font-size:22px}.control-view .title{font-size:28px;font-weight:750}.control-view .sub{font-size:20px}.control-view .label{font-size:24px;font-weight:700}.control-view .tiny{font-size:18px}</style><rect width="1600" height="720" rx="14" fill="#f3f8fa"/>
+<text x="45" y="48" class="title">S1 · vista superior del montaje</text><text x="825" y="48" class="title">RV1 · estilo vertical RM063</text>
+<text x="45" y="86" class="sub">Numeración de ficha girada 90° en sentido horario.</text><text x="825" y="86" class="sub">Ajuste lateral mirando hacia la fila j (abajo).</text>
+<rect x="110" y="243" width="560" height="110" rx="9" fill="#e4e6dd"/><text x="125" y="299" class="tiny">Ranura</text>
+<rect x="258" y="210" width="264" height="175" rx="12" fill="#d2dce0" stroke="#657d89" stroke-width="3"/>
+<path d="M290 175 V420" stroke="#aa467d" stroke-width="6"/><path d="M490 175 V420" stroke="#425261" stroke-width="6"/>
+<rect x="350" y="265" width="80" height="70" rx="8" fill="#9a5040"/><text x="390" y="310" text-anchor="middle" style="fill:white" class="label">S1</text>
+<circle cx="290" cy="175" r="9" fill="#aa467d"/><circle cx="290" cy="420" r="9" fill="#aa467d"/><circle cx="490" cy="175" r="9" fill="#425261"/><circle cx="490" cy="420" r="9" fill="#425261"/>
+<text x="290" y="144" text-anchor="middle" class="label">3 → e14</text><text x="490" y="144" text-anchor="middle" class="label">1 → e16</text>
+<text x="290" y="466" text-anchor="middle" class="label">4 → f14</text><text x="490" y="466" text-anchor="middle" class="label">2 → f16</text>
+<text x="290" y="512" text-anchor="middle" class="label">PANIC</text><text x="490" y="512" text-anchor="middle" class="label">GND</text>
+<text x="45" y="559">Líneas verticales = uniones internas del botón.</text><text x="45" y="594">No añadir cables entre las parejas: pulsar las une.</text>
+<text x="45" y="637" class="sub">Huella original: 6,5 × 4,5 mm. Rejilla: 7,62 × 5,08 mm.</text><text x="45" y="674" class="sub">Ajustar patas con suavidad o conectar con jumpers.</text>
+<path d="M1100 352 V338 M1260 352 V338 M1180 210 V247" stroke="#8499a3" stroke-width="3" fill="none"/>
+<rect x="1068" y="245" width="224" height="104" rx="14" fill="#1886c2" stroke="#166594" stroke-width="2"/>
+<ellipse cx="1180" cy="294" rx="79" ry="47" fill="#eef1ed" stroke="#8aa0a7" stroke-width="2"/><path d="M1134 294 H1226" stroke="#5e777e" stroke-width="8"/>
+<circle cx="1100" cy="352" r="9" fill="#986300"/><circle cx="1260" cy="352" r="9" fill="#425261"/><circle cx="1180" cy="210" r="9" fill="#986300"/>
+<text x="1180" y="158" text-anchor="middle" class="label">2 · cursor → c44 / VTH</text><text x="1180" y="190" text-anchor="middle" class="tiny">Pata centrada detrás de los extremos</text>
+<text x="1075" y="397" text-anchor="middle" class="label">1 → d43</text><text x="1285" y="397" text-anchor="middle" class="label">3 → d45</text>
+<text x="1075" y="433" text-anchor="middle">VBIAS</text><text x="1285" y="433" text-anchor="middle">GND</text>
+<text x="1180" y="479" text-anchor="middle" class="sub">5 mm entre extremos; cursor desplazado 2,5 mm.</text>
+<text x="825" y="531">Medir aislado: extremos ≈10 kΩ constantes;</text><text x="825" y="566">cursor–extremo cambia al girar.</text>
+<text x="825" y="614" class="sub">RM065 horizontal (otra huella): cursor → b44.</text><text x="825" y="651" class="sub">Extremos d43/d45; una sola pieza, sin forzar patas.</text><text x="825" y="688" class="tiny">AD8289 es un SKU; confirmar estilo y contactos reales.</text>
+</svg>

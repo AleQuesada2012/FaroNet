@@ -1,0 +1,569 @@
+{
+  "pins": [
+    [
+      1,
+      1,
+      "3V3",
+      "3V3",
+      "Alimentación de lógica y pull-ups"
+    ],
+    [
+      2,
+      2,
+      "5V",
+      "5V",
+      "Alimentación de IR y LM393"
+    ],
+    [
+      3,
+      6,
+      "GND",
+      "GND",
+      "Tierra común local"
+    ],
+    [
+      4,
+      11,
+      "GPIO17",
+      "TX",
+      "Salida: alto = emisor IR encendido"
+    ],
+    [
+      5,
+      13,
+      "GPIO27",
+      "OPT_RX",
+      "Entrada: alto = luz recibida, tras calibrar"
+    ],
+    [
+      6,
+      15,
+      "GPIO22",
+      "LED_TX",
+      "Salida: LED verde"
+    ],
+    [
+      7,
+      16,
+      "GPIO23",
+      "LED_RX",
+      "Salida: LED amarillo"
+    ],
+    [
+      8,
+      18,
+      "GPIO24",
+      "PANIC",
+      "Entrada: pulsado = bajo"
+    ],
+    [
+      9,
+      29,
+      "GPIO5",
+      "RGB_R",
+      "Salida RGB directa: alto = rojo encendido"
+    ],
+    [
+      10,
+      31,
+      "GPIO6",
+      "RGB_G",
+      "Salida RGB directa: alto = verde encendido"
+    ],
+    [
+      11,
+      33,
+      "GPIO13",
+      "RGB_B",
+      "Salida RGB directa: alto = azul encendido"
+    ]
+  ],
+  "components": [
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "1": "3V3"
+      },
+      "block": "Base",
+      "note": "Pi físico 1; 3V3; Alimentación de lógica y pull-ups"
+    },
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "2": "5V"
+      },
+      "block": "Base",
+      "note": "Pi físico 2; 5V; Alimentación de IR y LM393"
+    },
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "3": "GND"
+      },
+      "block": "Base",
+      "note": "Pi físico 6; GND; Tierra común local"
+    },
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "4": "TX"
+      },
+      "block": "Base",
+      "note": "Pi físico 11; GPIO17; Salida: alto = emisor IR encendido"
+    },
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "5": "OPT_RX"
+      },
+      "block": "Base",
+      "note": "Pi físico 13; GPIO27; Entrada: alto = luz recibida, tras calibrar"
+    },
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "6": "LED_TX"
+      },
+      "block": "Base",
+      "note": "Pi físico 15; GPIO22; Salida: LED verde"
+    },
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "7": "LED_RX"
+      },
+      "block": "Base",
+      "note": "Pi físico 16; GPIO23; Salida: LED amarillo"
+    },
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "8": "PANIC"
+      },
+      "block": "Base",
+      "note": "Pi físico 18; GPIO24; Entrada: pulsado = bajo"
+    },
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "9": "RGB_R"
+      },
+      "block": "RGB",
+      "note": "Pi físico 29; GPIO5; RGB directo activo alto, con resistencia de 1 kΩ"
+    },
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "10": "RGB_G"
+      },
+      "block": "RGB",
+      "note": "Pi físico 31; GPIO6; RGB directo activo alto, con resistencia de 1 kΩ"
+    },
+    {
+      "ref": "J1",
+      "value": "Header de placa",
+      "pins": {
+        "11": "RGB_B"
+      },
+      "block": "RGB",
+      "note": "Pi físico 33; GPIO13; RGB directo activo alto, con resistencia de 1 kΩ"
+    },
+    {
+      "ref": "R1",
+      "value": "330 Ω",
+      "pins": {
+        "1": "5V",
+        "2": "IR_A"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R2",
+      "value": "1 kΩ",
+      "pins": {
+        "1": "TX",
+        "2": "Q_BASE"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R3",
+      "value": "10 kΩ",
+      "pins": {
+        "1": "Q_BASE",
+        "2": "GND"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R4",
+      "value": "10 kΩ",
+      "pins": {
+        "1": "VBIAS",
+        "2": "SENSE"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R5",
+      "value": "4,7 kΩ",
+      "pins": {
+        "1": "3V3",
+        "2": "OPT_RX"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R6",
+      "value": "100 kΩ",
+      "pins": {
+        "1": "OPT_RX",
+        "2": "VTH"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R8",
+      "value": "1 kΩ",
+      "pins": {
+        "1": "3V3",
+        "2": "VBIAS"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R9",
+      "value": "2,2 kΩ",
+      "pins": {
+        "1": "VBIAS",
+        "2": "GND"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R10",
+      "value": "1 kΩ",
+      "pins": {
+        "1": "LED_TX",
+        "2": "GREEN_A"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R11",
+      "value": "1 kΩ",
+      "pins": {
+        "1": "LED_RX",
+        "2": "YELLOW_A"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R12",
+      "value": "10 kΩ",
+      "pins": {
+        "1": "3V3",
+        "2": "PANIC"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "R13",
+      "value": "1 kΩ",
+      "pins": {
+        "1": "RGB_R",
+        "2": "RGB_R_A"
+      },
+      "block": "RGB",
+      "note": "Resistencia independiente de 1 kΩ entre GPIO y ánodo del color; cátodo común a GND"
+    },
+    {
+      "ref": "R14",
+      "value": "1 kΩ",
+      "pins": {
+        "1": "RGB_G",
+        "2": "RGB_G_A"
+      },
+      "block": "RGB",
+      "note": "Resistencia independiente de 1 kΩ entre GPIO y ánodo del color; cátodo común a GND"
+    },
+    {
+      "ref": "R15",
+      "value": "1 kΩ",
+      "pins": {
+        "1": "RGB_B",
+        "2": "RGB_B_A"
+      },
+      "block": "RGB",
+      "note": "Resistencia independiente de 1 kΩ entre GPIO y ánodo del color; cátodo común a GND"
+    },
+    {
+      "ref": "D1",
+      "value": "LED IR",
+      "pins": {
+        "A": "IR_A",
+        "K": "IR_K"
+      },
+      "block": "Base",
+      "note": "Modelo/polaridad por comprobar; 330 Ω provisional, empezar con 1 kΩ si no hay ficha."
+    },
+    {
+      "ref": "Q1",
+      "value": "2N2222 A331",
+      "pins": {
+        "B": "Q_BASE",
+        "C": "IR_K",
+        "E": "GND"
+      },
+      "block": "Base",
+      "note": "B/C/E son funciones; no números físicos del encapsulado."
+    },
+    {
+      "ref": "Q2",
+      "value": "PT333",
+      "pins": {
+        "C": "SENSE",
+        "E": "GND"
+      },
+      "block": "Base",
+      "note": "Verificar patillaje físico y sufijo; el esquema usa C/E funcionales."
+    },
+    {
+      "ref": "RV1",
+      "value": "Trimpot 10 kΩ · AD8289 candidato / estilo RM063",
+      "pins": {
+        "1 extremo": "VBIAS",
+        "2 cursor": "VTH",
+        "3 extremo": "GND"
+      },
+      "block": "Base",
+      "note": "AD8289 es SKU MicroJPM; foto se parece al estilo vertical RM063, no identifica fabricante. Vista con ajuste hacia j: extremo 1=d43, cursor 2=c44, extremo 3=d45. Verificar extremos ≈10k constantes y cursor variable, desconectado. RM063: 5×2,5 mm; variante horizontal RM065: 5×5 mm, cursor b44 en lugar de c44. Invertir extremos solo cambia sentido de giro."
+    },
+    {
+      "ref": "U1",
+      "value": "LM393 DIP8",
+      "pins": {
+        "1 OUT1": "OPT_RX",
+        "2 IN1−": "SENSE",
+        "3 IN1+": "VTH",
+        "4 GND": "GND",
+        "5 IN2+": "GND",
+        "6 IN2−": "VBIAS",
+        "7 OUT2": "NC_U1_7",
+        "8 VCC": "5V"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "C1",
+      "value": "100 µF / 63 V",
+      "pins": {
+        "+": "5V",
+        "−": "GND"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "C2",
+      "value": "100 nF / 50 V",
+      "pins": {
+        "1": "5V",
+        "2": "GND"
+      },
+      "block": "Base",
+      "note": "Junto a U1.8 y U1.4"
+    },
+    {
+      "ref": "C3",
+      "value": "100 nF / 50 V",
+      "pins": {
+        "1": "VBIAS",
+        "2": "GND"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "D2",
+      "value": "LED verde TX",
+      "pins": {
+        "A": "GREEN_A",
+        "K": "GND"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "D3",
+      "value": "LED amarillo RX",
+      "pins": {
+        "A": "YELLOW_A",
+        "K": "GND"
+      },
+      "block": "Base",
+      "note": ""
+    },
+    {
+      "ref": "S1",
+      "value": "Pulsador DTS-6 / DTS-644R candidato · verificar pieza",
+      "pins": {
+        "1": "GND",
+        "2": "GND",
+        "3": "PANIC",
+        "4": "PANIC"
+      },
+      "block": "Base",
+      "note": "Según ficha Diptronics, vista superior girada 90° horario: 1=e16, 2=f16, 3=e14, 4=f14. 1–2 y 3–4 unidos en reposo; pulsar une parejas. Confirmar con multímetro. Huella 6,5×4,5 mm requiere ajustar suavemente a 7,62×5,08 mm; no forzar. Modelo exacto aún candidato.",
+      "internal_connections": [
+        [
+          "1",
+          "2"
+        ],
+        [
+          "3",
+          "4"
+        ]
+      ]
+    },
+    {
+      "ref": "DL1",
+      "value": "RGB 4 patas · cátodo común L2 confirmado por equipo",
+      "pins": {
+        "L1": "RGB_R_A",
+        "L2": "GND",
+        "L3": "RGB_G_A",
+        "L4": "RGB_B_A"
+      },
+      "block": "RGB",
+      "note": "Prueba reportada: negra fija L2; roja L1=rojo, L3=verde, L4=azul. L1–L4 conservan la orientación de esa prueba; no se deduce una cara del encapsulado. Un LED por Faro; verificar la otra unidad por separado."
+    }
+  ],
+  "rgb_revision": {
+    "date": "2026-10-18",
+    "evidence": "Equipo: prueba de diodo con negra fija L2, roja L1 rojo/L3 verde/L4 azul",
+    "topology": "GPIO 3,3 V activo alto, una resistencia de 1 kΩ por ánodo; L2 GND",
+    "replaces": "RGB condicional de ánodo común con SN74LS125; U2/C4/R16–R18 ya no se montan"
+  },
+  "pi_header_compatibility": {
+    "models": [
+      "Raspberry Pi 2 Model B v1.1",
+      "Raspberry Pi 3 Model B"
+    ],
+    "connector": "40-pin J8",
+    "physical_and_bcm_mapping": "same for every Faro connection in pins",
+    "breadboard_changes": false,
+    "scope": "Header wiring and 3.3 V GPIO only; software verification deferred by user",
+    "sources": [
+      "https://www.raspberrypi.com/products/raspberry-pi-2-model-b/",
+      "https://pip-assets.raspberrypi.com/categories/685-whitepapers-app-notes-compliance-guides/documents/RP-006553-WP/A-history-of-GPIO-usage-on-Raspberry-Pi-devices-and-current-best-practices",
+      "https://datasheets.raspberrypi.com/rpi2/raspberry-pi-2-b-reduced-schematics.pdf",
+      "https://datasheets.raspberrypi.com/rpi3/raspberry-pi-3-b-reduced-schematics.pdf"
+    ]
+  },
+  "optical_mounting": {
+    "revision": 4,
+    "face_direction": "east/right in individual board drawing",
+    "Q2": {
+      "E": "c60",
+      "C": "c61",
+      "signal_jumper": [
+        "b61",
+        "c41"
+      ],
+      "ground_jumper": [
+        "a60",
+        "TG:49"
+      ]
+    },
+    "D1": {
+      "A": "i60",
+      "K": "i61"
+    },
+    "peer_alignment": "Rotate the second whole Faro 180 degrees; align each D1 with the peer Q2 at equal optical height. Test one direction at a time.",
+    "electrical_topology_changed": false,
+    "additional_jumpers_per_faro": 1,
+    "qualification": "Physical proposal. Connectivity verified separately; optical tests pending."
+  },
+  "mounting_identification": {
+    "revision": 6,
+    "S1": {
+      "candidate": "DTS-644R / DTS-6 family; exact owned unit not confirmed",
+      "datasheet_internal_pairs": [
+        [
+          "1",
+          "2"
+        ],
+        [
+          "3",
+          "4"
+        ]
+      ],
+      "datasheet_top_view_rotated_clockwise_degrees": 90,
+      "holes": {
+        "1": "e16",
+        "2": "f16",
+        "3": "e14",
+        "4": "f14"
+      },
+      "native_pitch_mm": [
+        6.5,
+        4.5
+      ],
+      "target_pitch_mm": [
+        7.62,
+        5.08
+      ],
+      "condition": "Gently adjust free lead portions only if practical; otherwise use existing jumpers to the same clips. Check released/pressed continuity before Pi connection."
+    },
+    "RV1": {
+      "seller_sku": "MicroJPM AD8289",
+      "candidate_style": "RM063 upright / vertical body, side adjustment, as stock photo",
+      "exact_manufacturer_unconfirmed": true,
+      "holes": {
+        "1 extremo": "d43",
+        "2 cursor": "c44",
+        "3 extremo": "d45"
+      },
+      "native_pitch_mm": [
+        5,
+        2.5
+      ],
+      "target_pitch_mm": [
+        5.08,
+        2.54
+      ],
+      "alternate": "RM065 horizontal body: native pitch 5×5 mm; place cursor 2 in b44 instead of c44, all other wiring unchanged. Identify actual style first.",
+      "condition": "Isolated resistance test; ends stable near 10k, cursor-to-end changes. No assumed clockwise direction."
+    },
+    "sources": [
+      "https://www.microjpm.com/products/trimpot-potenciometro-miniatura-10-k%CF%89/",
+      "https://docs.rs-online.com/331f/A700000011971633.pdf",
+      "https://www.tokiwaelenet.jp/html/upload/pdf/product/0000032005DTS-6_Spec_02.pdf",
+      "https://www.yourduino.ru/RM065.pdf"
+    ],
+    "offboard_drawing_reason": "Replaced functional external cards with conditional on-board footprints based on candidate parts; actual continuity and fit still require bench checks."
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "valid": true,
+  "base_placement_unchanged_with_rgb": true,
+  "switch": "DTS-6 internal pairs 1-2 and 3-4 included; at rest PANIC separate from GND; pressed PANIC reaches GND without shorting 3V3 through copper",
+  "trimpot": "RM063 candidate footprint; RM065 wiper b44 reaches the same VTH clip; actual parts require measurement",
+  "rgb": "User-confirmed common cathode L2; L1 red, L3 green, L4 blue; 3.3 V GPIO through individual 1 kΩ; active high",
+  "mutations": [
+    {
+      "mutation": "5 V joined to 3.3 V",
+      "rejected": true
+    },
+    {
+      "mutation": "TX jumper in base clip",
+      "rejected": true
+    },
+    {
+      "mutation": "3.3 V half-rail bridge removed",
+      "rejected": true
+    },
+    {
+      "mutation": "RGB common cathode joined to 5 V",
+      "rejected": true
+    },
+    {
+      "mutation": "Front phototransistor collector shorted to emitter",
+      "rejected": true
+    },
+    {
+      "mutation": "Button contact pairs bypassed by a jumper",
+      "rejected": true
+    },
+    {
+      "mutation": "Switch rotated 90 degrees across PANIC and GND",
+      "rejected": true
+    },
+    {
+      "mutation": "Potentiometer wiper shorted to grounded end",
+      "rejected": true
+    }
+  ],
+  "plans": {
+    "basic": {
+      "parts": 22,
+      "jumpers": 35,
+      "holes": 830,
+      "occupied_breadboard_holes": 116
+    },
+    "rgb": {
+      "parts": 26,
+      "jumpers": 42,
+      "holes": 830,
+      "occupied_breadboard_holes": 137
+    }
+  },
+  "limits": "Copper connectivity and correspondence only. No physical measurements, optical qualification or BER test."
+}
