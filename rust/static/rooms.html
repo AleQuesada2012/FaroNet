@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FaroNet · Public room test</title>
+<style>
+body{font:17px/1.5 system-ui;margin:3rem auto;padding:0 1rem;max-width:46rem;background:#101b28;color:#e5f0fa}h1{line-height:1.2}label{display:block;margin-top:1rem}input,button,textarea{font:inherit;padding:.6rem;border-radius:.4rem;border:1px solid #8596a7}input,textarea{background:#182b3d;color:inherit}button{cursor:pointer;background:#afe0cd;color:#10291f}button:disabled{opacity:.5}textarea{box-sizing:border-box;width:100%;min-height:6rem}#messages{min-height:8rem;max-height:20rem;overflow:auto;border-block:1px solid #4b627a;padding:1rem 0;list-style:none}#messages li{padding:.5rem;white-space:pre-wrap;overflow-wrap:anywhere}.notice{padding:1rem;border-left:4px solid #ecbe73;background:#292b2a}#status{min-height:1.5em;color:#afe0cd}
+</style>
+<h1>FaroNet public room</h1>
+<p class="notice">Local development test. Everything sent here is public. Use synthetic text only. Messages have no end-to-end encryption or server history. This page does not connect to the private mesh.</p>
+<form id="join"><label for="room">Room</label><input id="room" value="demo" maxlength="32" pattern="[a-z0-9-]+" required> <button id="connect">Connect</button> <button id="disconnect" type="button" disabled>Disconnect</button></form>
+<p id="status" role="status">Disconnected</p>
+<ul id="messages" aria-label="Public messages" aria-live="polite"></ul>
+<form id="publish"><label for="message">Public test message · 1,024 UTF-8 bytes maximum</label><textarea id="message" maxlength="1024" required disabled></textarea><button id="send" disabled>Send publicly</button></form>
+<p>Up to 16 connections per room, five messages per connection per ten seconds. Reconnecting creates a new connection; these are demonstration limits.</p>
+<script src="/rooms.js" defer></script>
+</html>

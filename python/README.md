@@ -5,10 +5,14 @@ Python; this scaffold does not introduce Arduino or C/C++ firmware.
 
 ## Create your environment
 
-Run these commands from `python/` on macOS or GNU/Linux:
+Both Pis already have the repository cloned. First update that existing
+clone to the owner's reviewed/published revision using
+[the Pi update procedure](../docs/optical-bringup.md#software-preparation-on-each-pi).
+Run these commands from that clone's `python/` on macOS or GNU/Linux,
+reusing this machine's `.venv` if present:
 
 ```bash
-python3 -m venv .venv
+if [ ! -d .venv ]; then python3 -m venv .venv; fi
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 python -m faronet info
@@ -17,6 +21,11 @@ python -m faronet info
 Use `python -m pip` so packages go into the active interpreter. Run
 `python -c "import sys; print(sys.executable)"` to check that it points to
 `.venv/`. Run `deactivate` when you are done.
+Inspect an existing broken or incompatible venv before changing it. Each
+Pi creates/maintains its own environment; never copy venvs between machines.
+On Pis install `requirements-gpio.txt` as described below. Worker tooling
+and Rust/WASM compilation belong on the Mac, even though the full cloned
+monorepo also contains `rust/` on each Pi.
 
 In PyCharm, select `.venv/bin/python` as the project interpreter. A run
 configuration can use module name `faronet`, parameters `info`, and this folder
@@ -29,13 +38,16 @@ as the working directory. `faronet info` also works after installation.
   envelopes and a mesh simulation following proposal 0002; LAN transport
   and the interactive private chat remain pending.
 - `src/faronet/gateway/`: offline HMAC/replay helpers; live bridge remains pending.
-- `src/faronet/faro/`: future GPIO, light transmission, indicators, and panic button.
+- `src/faronet/faro/`: libgpiod v2 GPIO backend, timestamped-edge acquisition,
+  current breadboard pin profile, indicators and latched panic stop.
 - `src/faronet/dispositivo_luz_adaptador/`: location for the required
   `DispositivoLuzAdaptador` library, frame/Manchester codec and simulated link.
 
-The first milestone exchanges synthetic frames locally and tests offline
-authentication. The CLI does not open GPIO or connect to real peers. The
-Node and hardware Faro packages remain placeholders.
+The simulation commands have no GPIO side effects. Physical commands are
+explicit (`gpio-monitor`, `optical-send`, `optical-listen`) and require
+`--hardware-ready`; `gpio-preflight` reads metadata without requesting lines.
+See [the optical bring-up guide](../docs/optical-bringup.md) for both Pis,
+copyable commands, electrical checks, recovery and measurement limits.
 
 ## Dependencies
 
@@ -49,17 +61,18 @@ group so laptop development stays usable.
 
 The inspected hardware target is Raspberry Pi 3 Model B rev 1.2 with Ubuntu
 Server 26.04.1 LTS, ARM64, kernel `7.0.0-1020-raspi`, system Python 3.14.4.
-The second board is now a Raspberry Pi 2 Model B v1.1, 32-bit only; its OS,
+The second board is now a Raspberry Pi 2 Model B running PiOS; its exact
 Python and the PyNaCl/gpiod installation path there are unconfirmed, so keep
 the code free of 3.12+-only syntax. See
-[the Pi environment](../hardware/pi-environment.md); tests on both boards
-are still pending. Create a fresh virtual environment on the Pi, rather than
+[the Pi environment](../hardware/pi-environment.md); the suite passes on A,
+while B's software tests are still pending. Create a fresh virtual environment on the Pi, rather than
 copying the Mac environment. SSH metadata queries identify `/dev/gpiochip0`
 as `pinctrl-bcm2835`, with 54 lines. The team accepted the official libgpiod v2
 Python backend and BCM numbering; physical header positions must accompany
-the eventual role assignments. A GPIO backend is the low-level implementation
-that reads/writes pins. Python binding/line I/O tests, exact pins and the laser
-receiver circuit remain pending.
+the current role assignments. A GPIO backend is the low-level implementation
+that reads/writes pins. The current breadboard profile is implemented;
+binding installation and metadata access have been verified on A's Pi,
+while physical line I/O, analog operation and optical timing remain pending.
 
 For the Pi, from `python/` with its virtual environment active:
 
@@ -70,10 +83,12 @@ python -m pip install -r requirements-gpio.txt
 This installs the optional `gpio` extra, pinned to `gpiod==2.5.0` in
 `pyproject.toml`. A Linux environment marker keeps the package out of macOS
 installs. The default `requirements.txt` remains sufficient for laptop work.
-The package release has a Python 3.14/ARM64 wheel; installation and use on
-this Pi still need verification. [Official release](https://pypi.org/project/gpiod/2.5.0/)
+The Python 3.14/ARM64 wheel was installed on A's Pi on October 25 and the
+metadata API was exercised with `sudo`, without requesting lines.
+[Official release](https://pypi.org/project/gpiod/2.5.0/)
 Keep GPIO7-11 reserved for the existing SPI bus; GPIO0/1 are identification
-pins, and lines 28-53 are outside the header. No project role is assigned yet.
+pins, and lines 28-53 are outside the header. The exact role mapping follows
+`hardware/breadboard/circuit-reference.json` and is checked by a test.
 
 The first iteration targets the laser link, with IR fallback, RGB debugging,
 TX/RX indication, and the physical panic button alongside required software

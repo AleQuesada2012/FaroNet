@@ -6,7 +6,9 @@ compiles it to WebAssembly; `worker-build` generates the runtime glue and
 
 ## Setup and local development
 
-Prerequisites: rustup, Node.js 22+, and npm. From `rust/`:
+Run these steps on the Mac, from the existing clone's `rust/` folder.
+The Pis run the Python side; their cloned `rust/` files do not require a
+Pi-side Worker build. Prerequisites: rustup, Node.js 22+, and npm:
 
 ```bash
 npm ci
@@ -22,7 +24,40 @@ the build tool and can take several minutes.
 
 The development server listens on `http://127.0.0.1:8787` in local mode.
 `GET /health` returns a fixed readiness message; `GET /` describes the
-starter; all other requests return 404. No message endpoints exist yet.
+starter. Public-room routes are disabled by default. For Student A's local
+browser/WebSocket baseline, run on the **Mac**, from `rust/`:
+
+```bash
+npm run dev:rooms
+```
+
+Open `http://127.0.0.1:8787/rooms` in two browser tabs, connect both to `demo`,
+and send synthetic public text. Messages broadcast only to the same room,
+including the sender, without server history. In another Mac terminal:
+
+```bash
+npm run test:rooms
+```
+
+The runtime test checks relay, room isolation, same-origin upgrade policy,
+input/rate/connection limits, close/reconnect and HTTP routes. `ws==8.21.0`
+is a pinned development-only test client, already present transitively in
+the existing Wrangler lockfile. Rust business logic stays in Rust.
+
+`src/public_rooms.rs` exports one hibernating `PublicRoom` Durable Object
+per canonical room slug. Message size is capped at 1,024 UTF-8 bytes, with
+16 connections per room and five messages per connection per ten seconds.
+Only the count/window is attached to a socket; no message history, identity
+or IP is written by application code. These are local-demo limits: reconnect
+can bypass the per-connection rate budget, and global admission/authentication
+and gateway relay integration remain pending. Origin checking is not user
+authentication. The opt-in demo must not be treated as a production service.
+
+Wrangler's installed schema supports the declarative `exports` block for
+the SQLite-backed class. Editing config, local development and `dry-run`
+create no remote resource. `PUBLIC_ROOMS_ENABLED` is `false` in versioned
+configuration; `dev:rooms` overrides it only for the local run. Worker code,
+toolchains, compilation and tests stay on the Mac, separate from the Pis.
 
 `src/gateway_auth.rs` now implements the accepted offline authentication
 contract, including canonicalization, HMAC verification, freshness and a
@@ -67,13 +102,14 @@ Wrangler secret operation and are not uploaded from `.dev.vars`.
 ## Features to design and implement
 
 - Authenticated gateway relay with replay protection.
-- Public topic rooms using Durable Objects and WebSockets.
+- Integrate the local public-room baseline with the authenticated gateway.
 - Atom or RSS feeds for public topics.
 - Fixed-size encrypted dead-drop blobs with TTL and delete-on-read behavior.
 - Read-only signed public node directory and rate limiting.
 
-No resource bindings are declared in this milestone. The future replay-store
-direction is accepted; its live integration remains later work. Worker logs
+The local public-room binding is declared; no live resource was provisioned.
+The future replay-store direction is accepted; its live integration remains
+later work. Worker logs
 and traces are disabled to follow the
 assignment's no-records requirement. This does not establish that the
 provider cannot observe metadata; address that in the threat model.
@@ -81,3 +117,6 @@ provider cannot observe metadata; address that in the threat model.
 The starter follows [Cloudflare's Rust guide](https://developers.cloudflare.com/workers/languages/rust/)
 and [workers-rs](https://github.com/cloudflare/workers-rs), with configuration
 based on [Wrangler's reference](https://developers.cloudflare.com/workers/wrangler/configuration/).
+The new slice also follows [WebSocket hibernation](https://developers.cloudflare.com/durable-objects/best-practices/websockets/)
+and [declarative class exports](https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/),
+checked against workers-rs 0.8.7 and Wrangler 4.149.0 installed in this project.

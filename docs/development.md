@@ -10,6 +10,17 @@ Rust build output, npm dependencies, and local secret files; Git ignores them.
 The repository is a monorepo: both languages and shared documentation belong
 to one Git repository. IDE settings are local and are not shared.
 
+Both Pis already have clones. Update them through Git after the owner has
+reviewed, committed and pushed the source; do not use a new clone or archive
+extraction as their default setup. Check local changes first, fast-forward
+only, and verify both Pis use the same reviewed commit. Reuse each Pi's own
+`python/.venv`, creating it only if absent, and reinstall declared requirements
+after source updates. The exact commands are in
+[the optical guide](optical-bringup.md#software-preparation-on-each-pi).
+Source, tests and guides belong in the repository; venvs, runtime data and
+build outputs stay local and ignored. Worker compilation/testing runs on
+the Mac from `rust/`, while the Pis run the Python side from their clones.
+
 ## Suggested implementation order
 
 1. Use the threat model and settle the software contracts in `decisions.md`
@@ -70,3 +81,7 @@ disabled.
 `git status --short` lists changes, including untracked new files. The owner
 can inspect those files in the IDE before choosing what to stage and commit.
 There are no automatic commit, push, deploy, or CI actions in this scaffold.
+This applies to new source, tests and setup/runbook changes too. Include
+the intended new files in the owner's review; generated transfer archives,
+venvs and build outputs are not contributions to stage. Once published,
+the Pis fetch the approved branch/commit through their existing clones.

@@ -2,8 +2,37 @@
 
 Recorded from the owner's command output on 2026-10-09. This describes the
 inspected Raspberry Pi 3 Model B rev 1.2. Since 2026-10-22 the second board
-is a Raspberry Pi 2 Model B v1.1, not another Pi 3; see the section at the
-end. Its software has not been checked.
+is a Raspberry Pi 2 Model B, not another Pi 3. The owner confirmed PiOS on
+October 25; its exact versions have not been checked. The latest evidence
+below supersedes the historical permission/install status in this profile.
+
+## October 25 update and live checks
+
+- A installed Ubuntu using the direct image and balenaEtcher after problems
+  with Raspberry Pi Imager. B used Imager for PiOS. A now has a proper
+  5 V, 2.5 A supply. The circuit is assembled but disconnected until Oct 26.
+- SSH as `ubuntu` confirmed Pi 3 Model B rev 1.2, Ubuntu Server 26.04.1,
+  `aarch64`, Python 3.14.4. Existing `~/FaroNet` was clean and left unchanged.
+- Separate copy: `~/faronet-baseline-20261025`, with its own Python venv,
+  PyNaCl 1.6.2 and gpiod 2.5.0 installed from pinned requirements.
+  This was a pre-publication verification copy. Both Pis already have clones;
+  the normal update/run path is each existing clone's `python/`, using Git
+  after the owner's review/commit/push. See the meeting guide for commands.
+- Unlike the old access report, the current `ubuntu` account is not in
+  `dialout` and cannot open `/dev/gpiochip0` directly. `sudo` metadata-only
+  preflight succeeds. No permission/group/device or SPI configuration changed.
+- The Python binding identifies `pinctrl-bcm2835` on chip 0; BCM17, 27, 22,
+  23, 24, 5, 6 and 13 are all unclaimed. No lines were requested or driven.
+  The standalone `gpiodetect`/`gpioinfo` programs are absent from current PATH.
+- Current assignments and polarities follow revision 6 of
+  [the breadboard guide](breadboard/README.md), including direct active-high
+  common-cathode RGB. Older HTML LS125 RGB wiring is superseded.
+- The Python suite and mesh simulation pass on A's Pi; final counts and
+  commands are recorded in [MERGER.md](../MERGER.md). Physical I/O, timing,
+  optical exchange, panic wiring and B's environment remain unverified.
+
+Use [the meeting runbook](../docs/optical-bringup.md). Historical notes below
+retain the original observations and must not override this dated update.
 
 | Detail | Reported value | Evidence |
 | --- | --- | --- |
@@ -85,8 +114,9 @@ The release provides a Python 3.14/ARM64 wheel and vendors libgpiod, so the
 Python package and Ubuntu's inspection tools can have different versions.
 [Official release](https://pypi.org/project/gpiod/2.5.0/)
 
-After transferring the repository to the Pi, create its own virtual environment
-using [the Python setup guide](../python/README.md). From `python/` with that
+In the Pi's existing repository clone, update to the reviewed source revision
+and reuse its local virtual environment, creating one only if absent, using
+[the Python setup guide](../python/README.md). From `python/` with that
 environment active, install the optional backend:
 
 ```bash
@@ -123,8 +153,8 @@ Hardware facts for this model: BCM2836 with four Cortex-A7 cores (ARMv7,
 header and BCM GPIO numbering as the Pi 3 B. Consequences to settle during
 bring-up, none of which has been verified on the board:
 
-- The 64-bit Ubuntu 26.04 image used on the Pi 3 cannot boot on it. Choose
-  and record a 32-bit operating system, its kernel and Python version; the
+- The owner has chosen PiOS for this board. Record its actual architecture,
+  OS release, kernel and Python version during bring-up; the
   project declares Python >= 3.11.
 - PyNaCl 1.6.2 and gpiod 2.5.0 may have no prebuilt ARMv7 wheels; expect a
   distribution package or a source build (compiler, libsodium/libgpiod

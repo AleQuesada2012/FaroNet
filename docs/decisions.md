@@ -1,6 +1,7 @@
 # Sources and implementation decisions
 
-Reviewed on 2026-10-09, board change recorded on 2026-10-22. These sources
+Reviewed on 2026-10-09, board change recorded on 2026-10-22, environment and
+hardware authority refreshed on 2026-10-25. These sources
 describe the project; this repository setup does not mean their deliverables
 have been implemented.
 
@@ -34,6 +35,19 @@ have been implemented.
 
 ## Source precedence for the current direction
 
+The owner's October 25 update confirms A's Ubuntu Pi 3/direct-image plus
+balenaEtcher installation and 5 V/2.5 A supply; B uses a Pi 2 with PiOS
+installed by Imager. For current circuit pins and polarities, the revision-6
+breadboard HTML/SVGs and `circuit-reference.json` supersede stale hardware
+descriptions here and in the older handoff, including the LS125 RGB branch.
+The current test board is the IR/PT333 comparator circuit shown there.
+Physical operation still requires measurements. The Student A baseline
+uses explicit manual turns for the Oct 26 test, without settling autonomous
+medium access or accepting proposal 0002's pending choices. Its local-only
+public-room prototype is disabled in the default Worker configuration.
+Worker development/builds/tests stay on the owner's Mac. See
+[the meeting runbook](optical-bringup.md) and [Pi profile](../hardware/pi-environment.md).
+
 The owner's 2026-10-09 decisions supersede the earlier LED/LDR plan and the
 parts list's IR-first ordering. No LDR implementation is planned. The native
 Google Docs are reference sources and have not been edited in this session.
@@ -52,14 +66,14 @@ SPI/I2C/GPIO wiring is not an approved project pin map.
 | Node language | Python | Owner |
 | Faro control | Python on GNU/Linux, Raspberry Pi, GPIO connection | Kick-off |
 | Available boards | One Raspberry Pi 3 Model B rev 1.2 and one Raspberry Pi 2 Model B v1.1 (updated 2026-10-22; previously two Pi 3) | Owner; breadboard guide |
-| Operating system | Inspected Pi 3: Ubuntu Server 26.04.1 LTS, Resolute Raccoon; installed using Raspberry Pi Imager on macOS. Pi 2 B v1.1 is ARMv7/32-bit only and cannot boot that image; its OS is pending | Owner's setup and `/etc/os-release` output; Pi 2 hardware facts |
+| Operating system | A/Pi 3: Ubuntu Server 26.04.1 LTS, direct image with balenaEtcher. B/Pi 2: PiOS installed with Imager; exact release pending | Owner's Oct 25 correction; live A `/etc/os-release` |
 | Pi architecture | Pi 3: `aarch64`/ARM64; `getconf LONG_BIT` = 64. Pi 2 B v1.1: 32-bit ARMv7, to be confirmed on the board | Owner's command output; Pi 2 model facts |
 | Pi kernel | Pi 3: `7.0.0-1020-raspi`; Pi 2 pending | Owner's `uname -r` output |
-| Pi Python | Pi 3: system Python 3.14.4, satisfies declared >=3.11 minimum, Pi tests pending; Pi 2 pending | Owner's command output; Python project metadata |
+| Pi Python | A: Python 3.14.4; full Python suite and mesh demo pass. B: exact version/install/tests pending | Oct 25 SSH checks; MERGER.md |
 | Pi networking | Pi 3 has onboard Wi-Fi; Pi 2 B v1.1 needs Ethernet or a USB adapter for SSH, LAN mesh links and any gateway role | Pi model facts; confirm the adapter |
-| GPIO device/controller | `/dev/gpiochip0`, `pinctrl-bcm2835`, 54 lines; chip/line metadata queries succeed through SSH; no filesystem access to chips 1/2 | Owner's access probe, `gpiodetect` and `gpioinfo`; see Pi profile |
-| GPIO backend | Official libgpiod v2 Python API, optional Linux-only `gpiod==2.5.0`; Python binding and line I/O tests pending | Owner accepted recommendation on 2026-10-09; official package release |
-| Pin numbering | BCM GPIO numbers; document physical header positions alongside approved role assignments | Owner accepted recommendation on 2026-10-09; exact assignments pending |
+| GPIO device/controller | A: chip0, `pinctrl-bcm2835`; current account requires sudo for metadata access; no lines requested | Oct 25 Python metadata preflight; Pi profile |
+| GPIO backend | Official libgpiod v2 Python API, optional Linux-only `gpiod==2.5.0`; installed on A, metadata verified, physical line I/O pending | Owner's accepted backend; Oct 25 live setup |
+| Pin numbering | BCM with physical header positions from revision-6 breadboard profile; code mapping checked against JSON reference | Owner's hardware authority update; breadboard guide |
 | Existing GPIO reservations | GPIO7/8 claimed by SPI0; keep GPIO7-11 out of project roles while SPI remains enabled; reserve ID GPIO0/1 and exclude internal lines 28-53 | Owner's metadata output; official Pi header/SPI reference |
 | Python IDE | PyCharm | Kick-off |
 | Edge provider | Cloudflare Workers, free plan | Assignment p. 5; kick-off threat model |
@@ -99,9 +113,9 @@ These are scaffold choices, not newly inferred network protocol rules.
 
 ## Pending decisions
 
-- Approved BCM/physical header assignments and Python binding/line I/O tests.
-  The inspected Pi's controller, metadata access, backend direction and
-  numbering are settled. Check the second Pi during bring-up rather than
+- Physical line I/O and optical timing on the assigned breadboard pins.
+  A's binding installation/controller/metadata and the current pin profile
+  are verified; no physical lines have been requested. Check B during bring-up rather than
   assume its exact versions or chip number match.
 - Laser wavelength and matching receiver; emitter modulation interface,
   detector/load conditioning, comparator model, hysteresis thresholds,
@@ -128,7 +142,7 @@ These are scaffold choices, not newly inferred network protocol rules.
   numbers (492-byte envelope, six frames, three relays, 190-byte padded
   message, 30-day signed entries) and is implemented for review; its
   section 9 lists the decisions still needed from A and the owner.
-- Pi 2 Model B v1.1 bring-up: operating system (32-bit), Python version,
+- Pi 2 Model B bring-up: exact PiOS release/architecture, Python version,
   PyNaCl and gpiod installation path on ARMv7 (wheels may be unavailable,
   requiring distro packages or source builds), network adapter, gpiochip
   identification and bit timing on the slower CPU. Which Pi hosts the
@@ -149,8 +163,9 @@ These are scaffold choices, not newly inferred network protocol rules.
 The inspected Pi's Ubuntu release/architecture/kernel/Python is confirmed from
 the owner's output in [the Pi profile](../hardware/pi-environment.md).
 The successful chip/line metadata queries identify the header controller.
-Python binding/line I/O validation, role assignments and optical timing
-remain open; metadata access does not establish their behavior.
+Binding installation and current assignments are recorded in the Oct 25
+update; physical line I/O and optical timing remain open. Metadata access
+does not establish their behavior.
 The approved provisional allocation and checkpoints are in
 [the development plan](development-plan.md). Time envelopes and checkpoint
 dates were accepted in Q19 and remain adjustable targets, not guarantees of

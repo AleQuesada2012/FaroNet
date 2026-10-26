@@ -1,7 +1,26 @@
 # Development plan
 
-Updated 2026-10-22. Confirmed constraints are distinguished from proposals.
+Updated 2026-10-25. Confirmed constraints are distinguished from proposals.
 Source decisions remain in [decisions.md](decisions.md).
+
+## Immediate Student A priority: Oct 26 optical meeting
+
+The Oct 25 slice implements the current breadboard GPIO profile, libgpiod
+v2 transmission and timestamped-edge reception, manual sender/listener
+turns, matching ACKs, bounded retries, duplicate suppression, indicators
+and panic stop. [The meeting guide](optical-bringup.md) provides setup,
+synthetic two-direction tests, recovery and measurement recording.
+Pre-publication Pi-3 validation used a separate copy; normal setup on both
+Pis uses their existing repository clones after owner review/commit/push,
+with each Pi's own `python/.venv`. Physical tests wait until the boards are
+connected at the meeting.
+Student B's Pi 2 runs PiOS, while A's Pi 3 runs Ubuntu installed with
+balenaEtcher and has a proper 5 V/2.5 A supply. Worker work stays entirely
+on the Mac: opt-in public browser rooms/WebSockets are locally implemented,
+without deployment or live gateway integration. Autonomous turns, physical
+qualification, full panic integration and private terminal/LAN transport
+remain required follow-up work. The earlier checkpoints below are historical
+targets, not evidence that their hardware checks happened.
 
 ## Confirmed constraints
 
@@ -18,8 +37,8 @@ Source decisions remain in [decisions.md](decisions.md).
   Raspberry Pi 2 Model B v1.1, no longer two Pi 3 units. The Pi 2 B v1.1
   (BCM2836, ARMv7) is 32-bit only, has no onboard Wi-Fi/Bluetooth and shares
   the same 40-pin header and BCM numbering. The 64-bit image used on the
-  Pi 3 cannot boot on it; its operating system, Python version, PyNaCl and
-  gpiod availability and network access (Ethernet or USB adapter) must be
+  Pi 3 cannot boot on it; it now runs PiOS. Its exact release, Python version,
+  PyNaCl/gpiod availability and network access (Ethernet or USB adapter) must be
   confirmed before planning Pi-side tests. The breadboard layout already
   covers both boards.
 - Each Pi can host its Node and Faro control; one also hosts the Gateway.
@@ -141,8 +160,9 @@ foundation. Both review shared vectors and account for their actual time.
 The inspected Ubuntu/kernel/Python is recorded in
 [the Pi profile](../hardware/pi-environment.md). The owner accepted the
 libgpiod v2 Python backend and BCM numbering after successful controller
-metadata checks. Python binding/line I/O tests, pin roles and the receiver
-profile still need validation. No role assignment or bitrate is guessed.
+metadata checks. The current breadboard profile supplies pin roles; A's
+binding installation and metadata are verified. Physical line I/O, receiver
+operation and measured bitrate still need validation.
 Turn bootstrap/recovery, real replay-state storage, TTL/panic behavior,
 dead-drop semantics and public services must be agreed before their
 respective implementation slices.

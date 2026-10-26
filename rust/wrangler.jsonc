@@ -5,6 +5,13 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
   "send_metrics": false,
+  "vars": { "PUBLIC_ROOMS_ENABLED": "false" },
+  "durable_objects": {
+    "bindings": [{ "name": "PUBLIC_ROOMS", "class_name": "PublicRoom" }]
+  },
+  "exports": {
+    "PublicRoom": { "type": "durable-object", "storage": "sqlite" }
+  },
   "build": {
     "command": "npm run build",
     "watch_dir": "src"
@@ -15,6 +22,6 @@
     "logs": { "enabled": false },
     "traces": { "enabled": false }
   }
-  // Add Durable Objects and storage bindings after the design is confirmed.
-  // This starter has no account IDs, secrets, routes, or remote resources.
+  // Public rooms are opt-in for local testing. No remote resources are created
+  // by editing this file or running wrangler dev --local.
 }

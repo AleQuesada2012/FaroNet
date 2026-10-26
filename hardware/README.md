@@ -1,11 +1,21 @@
 # Faro hardware workspace
 
+Current Oct 25 instructions: use [the revision-6 breadboard guide](breadboard/README.md)
+and its HTML/SVGs for all pin and polarity decisions; its common-cathode
+active-high RGB supersedes the older LS125 HTML branch. A uses Ubuntu on
+Pi 3 (direct image/balenaEtcher, 5 V/2.5 A supply); B uses PiOS on Pi 2
+(Raspberry Pi Imager). The circuit is assembled but disconnected from A's
+Pi until the Oct 26 meeting. Software setup/metadata checks are recorded in
+[the updated Pi profile](pi-environment.md), and the runnable physical-test
+sequence is in [the optical guide](../docs/optical-bringup.md). The older
+planning notes below are not physical qualification evidence.
+
 The current team direction uses one Raspberry Pi 3 Model B rev 1.2 with
 Ubuntu Server and one Raspberry Pi 2 Model B v1.1 (updated 2026-10-22), each
 with a GPIO extension/header connection. The two boards share the 40-pin
 header and BCM numbering, so [the breadboard guide](breadboard/README.md)
-applies to both; the Pi 2's 32-bit operating system, Python environment and
-network adapter still need confirmation. Visible-light laser
+applies to both; the Pi 2 now runs PiOS, with its exact Python environment
+and network adapter still to check. Visible-light laser
 transmission and a matching receiver are preferred; an IR emitter/phototransistor
 pair is the fallback. LDR is excluded. The inspected Pi runs Ubuntu Server
 26.04.1 LTS on ARM64, kernel `7.0.0-1020-raspi`, Python 3.14.4; see
@@ -13,8 +23,9 @@ pair is the fallback. LDR is excluded. The inspected Pi runs Ubuntu Server
 Successful SSH metadata queries identify `gpiochip0` as `pinctrl-bcm2835`.
 The team accepted the official libgpiod v2 Python backend and BCM numbering;
 GPIO7/8 are claimed by SPI, and GPIO7-11 remain reserved for that bus.
-Python binding/line I/O tests, role assignments and receiver conditioning
-remain pending. Use Python control code in
+A's Python binding is installed, metadata checked, and role assignments
+follow the current breadboard profile. Physical line I/O and receiver
+conditioning remain unverified. Use Python control code in
 `python/src/faronet/faro/` and consult [the decisions](../docs/decisions.md).
 
 The first iteration includes the assignment's hardware requirements, physical

@@ -9,8 +9,11 @@ a laptop simulator, and matching Python/Rust gateway-authentication helpers.
 The second slice adds the node foundation: signed directory entries,
 fragmentation, fixed-size onion envelopes and a laptop mesh simulation that
 reuses the optical link, following a contract that is still a proposal.
-GPIO control, autonomous optical negotiation, the LAN transport, interactive
-private chat and live public application services remain later work.
+The Student A slice adds a GPIO optical smoke-test adapter with explicit
+sender/listener turns, ACK/retry handling, indicators and panic stop, plus
+an opt-in local Rust public-room/WebSocket demo. Autonomous optical
+negotiation, LAN transport, private terminal chat and live gateway services
+remain pending. Start with [the October 26 optical test guide](docs/optical-bringup.md).
 See [the milestone guide](docs/milestone-1.md) and
 [the node slice guide](docs/milestone-2.md) for demonstrations and tests.
 
@@ -42,7 +45,7 @@ From the repository root on macOS or GNU/Linux:
 
 ```bash
 cd python
-python3 -m venv .venv
+if [ ! -d .venv ]; then python3 -m venv .venv; fi
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 python -m faronet --help
@@ -57,8 +60,9 @@ See [the Python guide](python/README.md) before adding runtime dependencies.
 
 ## Start with Rust
 
+Run Worker development on the Mac, using its existing repository clone.
 Install Rust through [rustup](https://rustup.rs/) and Node.js 22 or newer.
-From the repository root:
+From that clone's repository root:
 
 ```bash
 cd rust
@@ -106,6 +110,11 @@ No commit, remote push, or deployment is part of this scaffold setup. The
 repository owner will review, commit, and push. The accepted GPIO backend is
 an optional Linux dependency; circuit-specific additions await selection.
 CI and licensing remain deferred.
+
+Both Pis already have clones: after publication, update those clones with
+Git and use their own `python/.venv` environments. Follow
+[the clone-based Pi setup](docs/optical-bringup.md#software-preparation-on-each-pi).
+Worker dependencies, compilation and tests stay on the Mac.
 
 ## Current hardware direction
 
