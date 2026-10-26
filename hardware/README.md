@@ -28,9 +28,11 @@ follow the current breadboard profile. Physical line I/O and receiver
 conditioning remain unverified. Use Python control code in
 `python/src/faronet/faro/` and consult [the decisions](../docs/decisions.md).
 
-The first iteration includes the assignment's hardware requirements, physical
-panic button, TX/RX indicators, and RGB debugging LED. Separate green/yellow
-debugging LEDs are omitted. LCD and speaker/buzzer belong to a later
+Both current breadboard plans include the physical panic button and TX/RX
+indicators. The RGB plan adds an optional debugging LED; the basic Faro
+works without it. Software defaults to basic, and `--rgb` enables the RGB
+pins locally, including in metadata preflight. Debugging patterns remain
+provisional and are independent of optical communication. LCD and speaker/buzzer belong to a later
 enhancement iteration, after minimum requirements are met. The LCD will be
 an aid for status/short messages; the terminal remains the chat interface.
 

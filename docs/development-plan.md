@@ -45,8 +45,9 @@ targets, not evidence that their hardware checks happened.
   Proposal: the Pi 3 hosts the Gateway because it has onboard Wi-Fi and a
   verified environment; confirm. Laptop processes can supply additional
   mesh participants.
-- Private application: terminal chat. Hardware indicators: TX, RX, RGB, plus
-  the physical panic control. LCD and speaker/buzzer are enhancements after
+- Private application: terminal chat. Both breadboard variants have TX/RX
+  indicators and physical panic. RGB is optional local debugging; patterns
+  can be decided later and never control communication. LCD and speaker/buzzer are enhancements after
   the assignment minimum is complete; LCD assists rather than replaces chat.
 - Assume laser acceptance for planning, with a matched IR fallback if needed.
 - Commit/push ownership and deferred CI/licensing remain as previously agreed.

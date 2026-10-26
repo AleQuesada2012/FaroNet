@@ -8,7 +8,7 @@ import sys
 import time
 
 from faronet.dispositivo_luz_adaptador.physical import PhysicalDispositivoLuzAdaptador
-from faronet.faro.profile import PINS, inspect_chip
+from faronet.faro.profile import inspect_chip, pins_for
 
 
 def test_payload(index: int) -> bytes:
@@ -26,6 +26,7 @@ def add_commands(commands):
     preflight = commands.add_parser("gpio-preflight", help="Inspect metadata without requesting GPIO.")
     preflight.add_argument("--chip", default="/dev/gpiochip0")
     preflight.add_argument("--profile-only", action="store_true", help="Show pins without importing gpiod.")
+    preflight.add_argument("--rgb", action="store_true", help="Include the optional breadboard RGB pins.")
     for name in ("gpio-monitor", "optical-send", "optical-listen"):
         parser = commands.add_parser(name, help="Physical optical bring-up (requires prepared circuit).")
         parser.add_argument("--chip", default="/dev/gpiochip0")
@@ -55,11 +56,12 @@ def run(args) -> int:
         print(secrets.token_hex(8))
         return 0
     if args.command == "gpio-preflight" and args.profile_only:
-        _print({"pins": [vars(pin) for pin in PINS]})
+        _print({"variant": "rgb" if args.rgb else "basic",
+                "pins": [vars(pin) for pin in pins_for(args.rgb)]})
         return 0
     try:
         if args.command == "gpio-preflight":
-            report = inspect_chip(args.chip)
+            report = inspect_chip(args.chip, rgb=args.rgb)
             _print(report)
             return int(not report["controller_matches"] or any(p["used"] for p in report["lines"]))
         from faronet.faro.gpio import GpioFrameIO

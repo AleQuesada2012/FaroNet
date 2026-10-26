@@ -9,7 +9,7 @@ from unittest.mock import patch
 from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
 from faronet.faro import commands
 from faronet.faro.gpio import GpioFrameIO, PanicStop, TimingError
-from faronet.faro.profile import PANIC, RX, TX, inspect_chip
+from faronet.faro.profile import PANIC, RX, TX, RGB_PINS, inspect_chip
 
 
 class Value(IntEnum):
@@ -22,15 +22,18 @@ class FakeRequest:
         self.values = {RX: Value.INACTIVE, PANIC: Value.INACTIVE}
         self.events = []
         self.released = False
+        self.writes = []
 
     def get_value(self, pin):
         return self.values.get(pin, Value.INACTIVE)
 
     def set_value(self, pin, value):
         self.values[pin] = value
+        self.writes.append((pin, value))
 
     def set_values(self, values):
         self.values.update(values)
+        self.writes.extend(values.items())
 
     def wait_edge_events(self, _):
         return bool(self.events)
@@ -47,6 +50,7 @@ class GpioBackendTests(unittest.TestCase):
     def setUp(self):
         self.request = FakeRequest()
         self.config = None
+        self.occupied = set()
         module = ModuleType("gpiod")
         line = ModuleType("gpiod.line")
         line.Value = Value
@@ -57,6 +61,10 @@ class GpioBackendTests(unittest.TestCase):
 
         def request_lines(path, **kwargs):
             self.config = kwargs["config"]
+            requested = {pin for key in self.config
+                         for pin in (key if isinstance(key, tuple) else (key,))}
+            if requested & self.occupied:
+                raise OSError("GPIO line already owned")
             return self.request
 
         module.request_lines = request_lines
@@ -72,12 +80,36 @@ class GpioBackendTests(unittest.TestCase):
         with GpioFrameIO("/dev/fake", rgb=True) as backend:
             outputs = self.config[tuple(backend.outputs)]
             self.assertEqual(outputs.output_value, Value.INACTIVE)
+            self.assertFalse(outputs.active_low)
             self.assertTrue(self.config[PANIC].active_low)
             self.assertEqual(self.config[RX].edge_detection, 3)
+            self.assertFalse(self.config[RX].active_low)
             self.assertNotIn(RX, backend.outputs)
             self.assertNotIn(PANIC, backend.outputs)
         self.assertTrue(self.request.released)
         self.assertTrue(all(self.request.values[pin] == 0 for pin in backend.outputs))
+
+    def test_basic_faro_transmits_and_cleans_up_with_rgb_lines_unavailable(self):
+        self.occupied = {pin.bcm for pin in RGB_PINS}
+        frame = Frame(FrameType.DATA, b"a" * 8, b"b" * 8, b"s" * 8, 0)
+        with GpioFrameIO("/dev/fake") as backend:
+            self.assertEqual(set(backend.outputs), {17, 22, 23})
+            with patch.object(backend, "_wait_until"), patch(
+                "faronet.faro.gpio.time.monotonic_ns", return_value=0,
+            ):
+                backend.guard()
+                backend.transmit(frame)
+            backend.input_levels()
+            self.assertIsNone(backend.receive(0))
+            backend.status("error")
+            backend.clear()
+        self.assertTrue(self.request.released)
+        self.assertFalse({pin for pin, _ in self.request.writes} & self.occupied)
+
+    def test_explicit_rgb_checks_ownership_of_its_optional_lines(self):
+        self.occupied = {pin.bcm for pin in RGB_PINS}
+        with self.assertRaises(OSError):
+            GpioFrameIO("/dev/fake", rgb=True)
 
     def test_already_pressed_panic_cleans_up_constructor(self):
         self.request.values[PANIC] = Value.ACTIVE
@@ -117,19 +149,35 @@ class GpioBackendTests(unittest.TestCase):
                 GpioFrameIO("/dev/fake")
         self.assertIsNone(self.config)
 
-    def test_preflight_only_reads_metadata(self):
+    def test_preflight_ignores_busy_rgb_unless_selected_and_never_requests_lines(self):
+        inspected = []
+        occupied = {pin.bcm for pin in RGB_PINS}
+
         class FakeChip:
             def __init__(self, path): pass
             def __enter__(self): return self
             def __exit__(self, *_): pass
             def get_info(self): return SimpleNamespace(label="pinctrl-bcm2835")
             def get_line_info(self, pin):
-                return SimpleNamespace(name=f"GPIO{pin}", used=False, consumer=None)
+                inspected.append(pin)
+                return SimpleNamespace(name=f"GPIO{pin}", used=pin in occupied,
+                                       consumer="another-program" if pin in occupied else None)
 
         import gpiod
         gpiod.Chip = FakeChip
         report = inspect_chip("/dev/fake")
         self.assertTrue(report["controller_matches"])
+        self.assertEqual(report["variant"], "basic")
+        self.assertEqual(set(inspected), {17, 27, 22, 23, 24})
+        self.assertFalse(any(line["used"] for line in report["lines"]))
+        report = inspect_chip("/dev/fake", rgb=True)
+        self.assertEqual(report["variant"], "rgb")
+        self.assertEqual({line["bcm"] for line in report["lines"] if line["used"]}, occupied)
+        for rgb, expected_exit in ((False, 0), (True, 1)):
+            with self.subTest(rgb=rgb), patch("sys.stdout", io.StringIO()):
+                self.assertEqual(commands.run(SimpleNamespace(
+                    command="gpio-preflight", profile_only=False, chip="/dev/fake", rgb=rgb,
+                )), expected_exit)
         self.assertIsNone(self.config)
 
     def test_cli_requires_hardware_ready_and_profile_runs_without_gpio(self):
@@ -140,7 +188,7 @@ class GpioBackendTests(unittest.TestCase):
                 main()
         with patch("sys.stdout", io.StringIO()) as output:
             self.assertEqual(commands.run(SimpleNamespace(
-                command="gpio-preflight", profile_only=True,
+                command="gpio-preflight", profile_only=True, rgb=False,
             )), 0)
             self.assertIn('"bcm": 17', output.getvalue())
         self.assertIsNone(self.config)

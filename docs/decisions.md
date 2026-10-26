@@ -48,6 +48,12 @@ public-room prototype is disabled in the default Worker configuration.
 Worker development/builds/tests stay on the owner's Mac. See
 [the meeting runbook](optical-bringup.md) and [Pi profile](../hardware/pi-environment.md).
 
+The owner reaffirmed that both `hardware/breadboard` variants represent
+assembled circuits. The basic no-RGB profile is the default; the RGB branch
+is optional local debugging, with future patterns still open. Its selection
+does not affect the optical protocol or require the peer to use RGB. Only
+selected pins are inspected/requested; basic operation leaves BCM5/6/13 alone.
+
 The owner's 2026-10-09 decisions supersede the earlier LED/LDR plan and the
 parts list's IR-first ordering. No LDR implementation is planned. The native
 Google Docs are reference sources and have not been edited in this session.
@@ -91,7 +97,7 @@ SPI/I2C/GPIO wiring is not an approved project pin map.
 | Git ownership | Owner reviews, commits, and pushes | Owner |
 | Hardware dependencies | GPIO backend accepted as an optional dependency; circuit-specific additions await selection | Owner's setup clarification and subsequent backend acceptance |
 | CI and license | Deferred until scaffold review | Owner's setup clarification |
-| First iteration | Assignment minimum, TX/RX indicators, RGB debugging and physical panic button; separate green/yellow debugging LEDs omitted | Owner, 2026-10-09; assignment |
+| First iteration | Basic breadboard Faro with TX/RX indicators and physical panic; optional RGB debugging branch, with patterns to be decided later | Owner's latest clarification; current breadboard plans |
 | Enhancement iteration | LCD screen and speaker/buzzer, only after minimum requirements are met | Owner, 2026-10-09 |
 | LCD role | Optional status/short-message aid, not a substitute for the terminal application | Owner's round-1 answer |
 | Team distribution | Two people; approved provisional cross-language ownership in the development plan, with effort rebalancing after the first milestone | Owner's Q8 answer |

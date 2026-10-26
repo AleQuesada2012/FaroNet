@@ -155,3 +155,37 @@ local `main` with `origin/main` after pushing. Existing Python/Rust/runtime
 validation is recorded above; subsequent changes only adjust documentation
 and archive packaging. No deployment or Pi checkout update is part of this
 publication request. Both Pis update their existing clones using the guide.
+
+## Follow-up: both assembled breadboard variants
+
+The owner reaffirmed `hardware/breadboard/` as the current circuit authority
+and clarified that RGB is optional debugging; patterns may be chosen later.
+Started from published main `de0ccc417f6de8a8c72549ac2b2604d2062a5aea` on
+local branch `codex/optional-breadboard-rgb`.
+
+Audit: optical TX/RX, indicators, panic, and active-high common-cathode RGB
+mapping already match the breadboard reference. Runtime RGB outputs were
+already opt-in, but metadata preflight inspected all eight GPIOs, so occupied
+optional pins could incorrectly fail a basic-board check. Added shared basic
+and RGB pin selection to both preflight and the driver, with `--rgb` on
+preflight. Default checks five core GPIOs and leaves BCM5/6/13 untouched;
+RGB mode adds those three outputs. A basic board and an RGB board may be
+peers without changing the wire protocol. Existing colors are provisional
+debug output and have no protocol role. No breadboard wiring was changed.
+
+Regression checks compare each software profile with the corresponding
+`layout-data.json` header wiring, exercise a basic-board transmission and
+cleanup with RGB lines already owned, and verify preflight only rejects
+those optional claims when RGB is explicitly selected. Python suite: 102
+passed on the Mac. Both profile-only CLI variants were checked without
+opening GPIO. No physical test or Pi-side change was performed for this
+follow-up.
+
+The owner subsequently reviewed this follow-up and explicitly authorized
+making it available on `main` as well. Publication target: `origin/main`,
+using a normal fast-forward from `codex/optional-breadboard-rgb` and push.
+The commit title is `Support both basic and optional RGB breadboard profiles`.
+The 102-test validation above covers the published code; final publication
+checks are the staged diff and equality of local and remote `main` after
+pushing. Both Pis obtain it through their existing clones. This publication
+does not perform hardware tests, modify either Pi or deploy the Worker.

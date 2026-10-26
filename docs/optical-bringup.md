@@ -30,6 +30,13 @@ the matching basic/RGB SVGs. `circuit-reference.json` supplies these pins.
 Older top-level HTML RGB/LS125 instructions are superseded by the common-
 cathode RGB revision. The implementation does not use SPI or ID pins.
 
+Both assembled breadboard variants are supported. The **basic, no-RGB**
+plan is the default and uses only TX, RX, the two activity indicators and
+panic. `--rgb` selects the same core plus the three optional debugging
+outputs from the RGB plan. Each Faro chooses independently: a basic board
+can communicate with an RGB board using the same optical commands/frame
+format. Pin mapping tests check both variants against `layout-data.json`.
+
 | Role | BCM | Physical header | Logical behavior |
 | --- | ---: | ---: | --- |
 | Optical TX | 17 | 11 | HIGH = emitter on; idle LOW |
@@ -42,8 +49,13 @@ cathode RGB revision. The implementation does not use SPI or ID pins.
 | RGB blue | 13 | 33 | HIGH = on, optional `--rgb` |
 
 All selected outputs are requested atomically with initial LOW values.
-RGB is opt-in: green means ready and blue means transmitting. Cleanup turns
-all requested outputs off. The RX comparator and panic circuit have external
+Without `--rgb`, neither preflight nor the driver inspects, claims or writes
+BCM5/6/13; even another program owning them does not block the basic Faro.
+With `--rgb`, the temporary debug display uses green for ready and blue for
+transmitting. These colors are provisional, and future patterns can be
+chosen separately; optical framing, ACKs, retries and panic never depend on
+RGB state or feedback. Cleanup turns all requested outputs off.
+The RX comparator and panic circuit have external
 pull-ups; the backend does not enable internal pull resistors.
 
 Before connecting signal wires, follow the guide's unpowered continuity and
@@ -127,9 +139,17 @@ cd ~/FaroNet/python
 sudo .venv/bin/python -m faronet gpio-preflight
 ```
 
+This checks the five basic GPIO signals. For the RGB variant, add `--rgb`
+to preflight and to that board's monitor/send/listen command:
+
+```bash
+sudo .venv/bin/python -m faronet gpio-preflight --rgb
+```
+
 Preflight only opens the chip and reads metadata; it never requests lines.
-On A it identifies `/dev/gpiochip0`, `pinctrl-bcm2835`, with all eight roles
-unclaimed. A's current `ubuntu` account lacks chip permission; `sudo` works.
+The Oct 25 check on A identified `/dev/gpiochip0`, `pinctrl-bcm2835`, with
+all eight possible roles unclaimed. Current preflight limits its checks to
+the selected variant. A's `ubuntu` account lacks chip permission; `sudo` works.
 No permission/group/SPI changes were made. On B identify its controller
 using its installed GPIO tools or inspect chip devices with preflight,
 then supply `--chip /dev/gpiochipN` if necessary. Stop on an unexpected
@@ -215,6 +235,8 @@ durations, not measured performance. A clean three-frame run takes roughly
 7. Repeat at three measured distances and record the table below.
 
 Add `--rgb` on boards carrying the revision-6 common-cathode RGB only.
+Omit it for the basic layout or whenever optional RGB debugging is disabled;
+the other Faro does not need to make the same RGB selection.
 Keep the same half-bit setting on both Pis. A TX timing error stops output;
 try 10 ms on both boards and increase listener timeout for the longer run.
 The supported bring-up range is 2–20 ms, with no claim that its fast end

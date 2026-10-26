@@ -6,7 +6,7 @@ import time
 from faronet.dispositivo_luz_adaptador.frame import Frame
 from faronet.dispositivo_luz_adaptador.manchester import encode
 from faronet.faro.profile import (
-    BLUE, CONTROLLER, GREEN, LED_RX, LED_TX, PANIC, RED, RX, TX, inspect_chip,
+    BLUE, CONTROLLER, GREEN, LED_RX, LED_TX, PANIC, RED, RX, TX, inspect_chip, pins_for,
 )
 from faronet.faro.waveform import EdgeDecoder, FRAME_SYMBOLS, GUARD_SYMBOLS
 
@@ -29,10 +29,10 @@ class GpioFrameIO:
         import gpiod
         from gpiod.line import Clock, Direction, Edge, Value
 
-        metadata = inspect_chip(path)
+        metadata = inspect_chip(path, rgb=rgb)
         if metadata["controller"] != CONTROLLER:
             raise ValueError("Unexpected GPIO controller; confirm BCM mapping before use")
-        self.outputs = [TX, LED_TX, LED_RX] + ([RED, GREEN, BLUE] if rgb else [])
+        self.outputs = [pin.bcm for pin in pins_for(rgb) if pin.output]
         self._value = Value
         self.rgb = rgb
         self.half_ns = round(half_bit_ms * 1_000_000)
@@ -46,7 +46,7 @@ class GpioFrameIO:
         self._frames = deque(maxlen=4)
         config = {
             tuple(self.outputs): gpiod.LineSettings(
-                direction=Direction.OUTPUT, output_value=Value.INACTIVE,
+                direction=Direction.OUTPUT, active_low=False, output_value=Value.INACTIVE,
             ),
             RX: gpiod.LineSettings(
                 direction=Direction.INPUT, edge_detection=Edge.BOTH,
@@ -79,6 +79,7 @@ class GpioFrameIO:
         self.request.set_value(pin, self._value.ACTIVE if value else self._value.INACTIVE)
 
     def status(self, state: str):
+        """Provisional debug colors only; never used to decide optical behavior."""
         if self.rgb:
             self.request.set_values({
                 RED: self._value.ACTIVE if state == "error" else self._value.INACTIVE,

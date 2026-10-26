@@ -121,16 +121,16 @@ Worker dependencies, compilation and tests stay on the Mac.
 The team has one Raspberry Pi 3 Model B rev 1.2 running Ubuntu Server and
 one Raspberry Pi 2 Model B v1.1 (updated 2026-10-22). Both share the 40-pin
 header and BCM numbering; the Pi 2 is 32-bit only, has no onboard Wi-Fi, and
-its operating system and Python environment are still to be confirmed. The
+it runs PiOS, with its exact Python environment still to check. The
 inspected Pi 3's environment and controller are recorded in
 [the Pi profile](hardware/pi-environment.md). The accepted backend is official
 libgpiod v2 with BCM numbering; [the Python guide](python/README.md) explains
-the optional installation. Exact pin roles and physical I/O remain pending.
-The preferred optical link is a visible-light laser and matching receiver,
-with a matching IR emitter/receiver pair as fallback.
-The receiver approach uses a comparator with hysteresis and digital GPIO input
-without an ADC; its circuit and emitter/detector pairing still need validation.
-The first iteration includes the required hardware and RGB debugging. LCD and
+the optional installation. Current pins and polarities follow the two plans
+in [hardware/breadboard](hardware/breadboard/README.md), which represent the
+assembled IR/PT333 comparator circuit. Physical I/O and receiver operation
+still need validation. The basic Faro works without RGB; `--rgb` enables
+only the optional debugging branch shown in the RGB plan. Each peer can
+choose either variant independently. LCD and
 speaker/buzzer are enhancements only after minimum requirements are met.
 See [the current decisions](docs/decisions.md) for source conflicts and open
 choices. Both teammates must contribute meaningful Python and Rust work.
