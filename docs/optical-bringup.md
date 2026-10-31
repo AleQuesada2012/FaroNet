@@ -170,6 +170,27 @@ the reviewed source revision in the shared workflow above.
 sudo .venv/bin/python -m faronet gpio-monitor --hardware-ready --seconds 20
 ```
 
+   If `light` never changes, calibrate RV1 with the threshold telemetry.
+   The Pi has no ADC, so it reports the comparator's decisions, not
+   voltages: every 0.5 s one JSON line with the current level, percentage
+   HIGH, a bar and RX edges per second. The yellow indicator mirrors RX so
+   the board can be watched while turning RV1. Monitors and room LEDs emit
+   almost no IR; use a TV remote, an incandescent lamp or `--blink`.
+
+```bash
+sudo .venv/bin/python -m faronet gpio-calibrate --hardware-ready --seconds 180
+sudo .venv/bin/python -m faronet gpio-calibrate --hardware-ready --seconds 180 --blink
+```
+
+   First cover Q2 and turn RV1 until `rx` reads 0 steadily, then slightly
+   past that point. `--blink` toggles D1 and green every second (about
+   10 mA at 50% duty with R1 = 330 Ω); hold white paper 1–3 cm over D1 and
+   Q2 and aim for `rx_matches_ir_pct` near 100. Set RV1 midway between the
+   position where darkness reliably reads 0 and where IR stops reading 1.
+   If no RV1 position reads 0 in darkness, check U1 power/ground, VBIAS,
+   SENSE and VTH with a meter before turning further. Ctrl+C or panic stops
+   it with all outputs LOW. Confirm OPT_RX stays within 0–3.3 V with a meter.
+
 4. Generate a **fresh session** once, and copy its printed 16-character
    lowercase hex value into both terminals. These are synthetic local link
    addresses, not keys or long-term mesh identities.

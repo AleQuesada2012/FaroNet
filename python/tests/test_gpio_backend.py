@@ -8,8 +8,9 @@ from unittest.mock import patch
 
 from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
 from faronet.faro import commands
+from faronet.faro.calibrate import rx_telemetry
 from faronet.faro.gpio import GpioFrameIO, PanicStop, TimingError
-from faronet.faro.profile import PANIC, RX, TX, inspect_chip
+from faronet.faro.profile import LED_RX, LED_TX, PANIC, RX, TX, inspect_chip
 
 # Former RGB lines; the Faro must never inspect, claim or drive them.
 UNRELATED = {5, 6, 13}
@@ -142,6 +143,45 @@ class GpioBackendTests(unittest.TestCase):
                             backend.transmit(frame)
                 self.assertTrue(all(self.request.values[p] == 0 for p in backend.outputs))
 
+    def _calibrate(self, seconds, blink, panic_at=None):
+        """Fake clock; RX follows TX as if a reflector sat over D1 and Q2."""
+        now, reports = [0.0], []
+
+        def sleep(delay):
+            now[0] += delay
+            self.request.values[RX] = self.request.values.get(TX, Value.INACTIVE)
+            if panic_at is not None and now[0] >= panic_at and not self.request.events:
+                self.request.events.append(SimpleNamespace(
+                    global_seqno=1, line_offset=PANIC, event_type=1,
+                    Type=SimpleNamespace(RISING_EDGE=1),
+                ))
+
+        with GpioFrameIO("/dev/fake") as backend:
+            try:
+                rx_telemetry(backend, seconds, blink, reports.append, lambda: now[0], sleep)
+            finally:
+                self.assertTrue(all(self.request.values[p] == 0 for p in backend.outputs))
+        return reports
+
+    def test_calibration_blink_reports_receiver_following_ir_and_ends_low(self):
+        reports = self._calibrate(3, blink=True)
+        self.assertEqual(len(reports), 5)
+        self.assertEqual([r["ir"] for r in reports], [1, 1, 0, 0, 1])
+        self.assertTrue(all(r["rx_matches_ir_pct"] > 95 for r in reports))
+        self.assertTrue(all(r["edges_per_s"] == 0 for r in reports))
+        self.assertIn((LED_RX, Value.ACTIVE), self.request.writes)
+        self.assertEqual({pin for pin, _ in self.request.writes}, {TX, LED_TX, LED_RX})
+        self.assertTrue(self.request.released)
+
+    def test_calibration_without_blink_keeps_ir_off_and_panic_stops_it(self):
+        reports = self._calibrate(2, blink=False)
+        self.assertTrue(all(r["rx"] == 0 and "ir" not in r for r in reports))
+        self.assertNotIn((TX, Value.ACTIVE), self.request.writes)
+        self.request.writes.clear()
+        with self.assertRaises(PanicStop):
+            self._calibrate(10, blink=True, panic_at=1.2)
+        self.assertTrue(self.request.released)
+
     def test_wrong_controller_and_clock_refuse_line_request(self):
         for clock in (0, 1, 21, float("nan")):
             with self.assertRaises(ValueError):
@@ -183,9 +223,10 @@ class GpioBackendTests(unittest.TestCase):
     def test_cli_requires_hardware_ready_and_profile_runs_without_gpio(self):
         from faronet.cli import main
 
-        with patch("sys.argv", ["faronet", "gpio-monitor"]), patch("sys.stderr", io.StringIO()):
-            with self.assertRaises(SystemExit):
-                main()
+        for command in ("gpio-monitor", "gpio-calibrate"):
+            with patch("sys.argv", ["faronet", command]), patch("sys.stderr", io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    main()
         with patch("sys.stdout", io.StringIO()) as output:
             self.assertEqual(commands.run(SimpleNamespace(
                 command="gpio-preflight", profile_only=True,

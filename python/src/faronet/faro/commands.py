@@ -8,6 +8,7 @@ import sys
 import time
 
 from faronet.dispositivo_luz_adaptador.physical import PhysicalDispositivoLuzAdaptador
+from faronet.faro.calibrate import rx_telemetry
 from faronet.faro.profile import PINS, inspect_chip
 
 
@@ -26,7 +27,7 @@ def add_commands(commands):
     preflight = commands.add_parser("gpio-preflight", help="Inspect metadata without requesting GPIO.")
     preflight.add_argument("--chip", default="/dev/gpiochip0")
     preflight.add_argument("--profile-only", action="store_true", help="Show pins without importing gpiod.")
-    for name in ("gpio-monitor", "optical-send", "optical-listen"):
+    for name in ("gpio-monitor", "gpio-calibrate", "optical-send", "optical-listen"):
         parser = commands.add_parser(name, help="Physical optical bring-up (requires prepared circuit).")
         parser.add_argument("--chip", default="/dev/gpiochip0")
         parser.add_argument("--hardware-ready", action="store_true", required=True,
@@ -35,6 +36,10 @@ def add_commands(commands):
         parser.add_argument("--rx-inverted", action="store_true", help="Invert measured RX light polarity.")
         if name == "gpio-monitor":
             parser.add_argument("--seconds", type=float, default=15)
+        elif name == "gpio-calibrate":
+            parser.add_argument("--seconds", type=float, default=120)
+            parser.add_argument("--blink", action="store_true",
+                                help="Toggle IR every second; hold a reflector over D1 and Q2.")
         else:
             parser.add_argument("--local", type=link_id, required=True)
             parser.add_argument("--peer", type=link_id, required=True)
@@ -67,10 +72,10 @@ def run(args) -> int:
             value = getattr(args, field, 1)
             if not math.isfinite(value) or value <= 0:
                 raise ValueError(f"{field} must be finite and positive")
-        if args.command != "gpio-monitor" and not 1 <= args.count <= 1000:
+        if not args.command.startswith("gpio-") and not 1 <= args.count <= 1000:
             raise ValueError("Count must be 1–1000")
         # Validate IDs before requesting lines.
-        if args.command != "gpio-monitor" and args.local == args.peer:
+        if not args.command.startswith("gpio-") and args.local == args.peer:
             raise ValueError("Local and peer addresses must differ")
         with GpioFrameIO(args.chip, args.half_bit_ms, args.rx_inverted) as io:
             if args.command == "gpio-monitor":
@@ -82,6 +87,9 @@ def run(args) -> int:
                         previous = levels
                     time.sleep(0.02)
                 return 0
+            if args.command == "gpio-calibrate":
+                _print({"ready": "gpio-calibrate", "seconds": args.seconds, "blink": args.blink})
+                return rx_telemetry(io, args.seconds, args.blink, _print)
             adapter = PhysicalDispositivoLuzAdaptador(io, args.local, args.peer, args.session)
             try:
                 _print({"ready": args.command, "frame_seconds": io.frame_seconds,

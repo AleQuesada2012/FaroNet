@@ -189,3 +189,29 @@ The 102-test validation above covers the published code; final publication
 checks are the staged diff and equality of local and remote `main` after
 pushing. Both Pis obtain it through their existing clones. This publication
 does not perform hardware tests, modify either Pi or deploy the Worker.
+
+## Follow-up: RV1 calibration telemetry command
+
+Started from published main `e1007e092c324b6d10e8cf57426dba608698f7fb`
+(revision 7). User-reported bench state on A's Pi 3 with the rev-7 board and
+all eight header wires connected: `gpio-preflight` matched
+`pinctrl-bcm2835` with all five lines unclaimed; `gpio-monitor` held
+`light` at 1 with only monitor light or a covering hand; the panic button
+stopped the monitor. No analog voltages were reported for this state.
+
+Added `gpio-calibrate`, a persistent replacement for a pasted one-off
+script. It claims the same five-line request as the monitor, samples
+OPT_RX every 2 ms and prints one JSON line per 0.5 s with level, percentage
+HIGH, a bar and RX edges per second; the yellow indicator mirrors RX.
+`--blink` toggles TX and green every second and reports how often RX
+matched IR, for a reflector held over D1 and Q2. `--seconds` defaults to
+120. Panic (including a latched short press), Ctrl+C and normal completion
+leave every output LOW and release the request. The backend gained
+`sample_rx()` (edge count without decoding) and a public `set_output()`.
+
+Fake-gpiod tests cover blink reports with a simulated reflector, IR staying
+off without `--blink`, the panic stop, cleanup and the CLI readiness flag.
+Python suite: 104 passed on the Mac. The command has not run on physical
+GPIO; RV1 calibration, receiver voltages and optical ACK remain pending.
+The owner authorized pushing this follow-up directly to `origin/main`.
+

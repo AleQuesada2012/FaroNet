@@ -70,7 +70,7 @@ class GpioFrameIO:
             int(self.request.get_value(RX) == self._value.ACTIVE),
         )
 
-    def _set(self, pin: int, value: bool):
+    def set_output(self, pin: int, value: bool):
         self.request.set_value(pin, self._value.ACTIVE if value else self._value.INACTIVE)
 
     def check_panic(self):
@@ -86,7 +86,7 @@ class GpioFrameIO:
         self.check_panic()
 
     def guard(self):
-        self._set(TX, False)
+        self.set_output(TX, False)
         self._wait_until(time.monotonic_ns() + GUARD_SYMBOLS * self.half_ns)
 
     def _events(self):
@@ -111,13 +111,13 @@ class GpioFrameIO:
 
     def transmit(self, frame: Frame):
         self.check_panic()
-        self._set(LED_TX, True)
+        self.set_output(LED_TX, True)
         try:
             start = time.monotonic_ns()
             for index, level in enumerate(encode(frame.encode())):
                 deadline = start + index * self.half_ns
                 self._wait_until(deadline)
-                self._set(TX, bool(level))
+                self.set_output(TX, bool(level))
                 lateness = time.monotonic_ns() - deadline
                 self.max_lateness_ns = max(self.max_lateness_ns, lateness)
                 if lateness > self.half_ns * 0.4:
@@ -127,8 +127,8 @@ class GpioFrameIO:
                 self._events()
             self._wait_until(start + FRAME_SYMBOLS * self.half_ns)
         finally:
-            self._set(TX, False)
-            self._set(LED_TX, False)
+            self.set_output(TX, False)
+            self.set_output(LED_TX, False)
             self._ignore_before = time.monotonic_ns()
             self._decoder = self._new_decoder()
             self._frames.clear()
@@ -141,7 +141,7 @@ class GpioFrameIO:
                 self.request.wait_edge_events(min(remaining, 0.02))
                 # Empty the kernel queue before completing a timestamped frame.
                 self._events()
-                self._set(LED_RX, self._decoder.start is not None)
+                self.set_output(LED_RX, self._decoder.start is not None)
                 if self.request.wait_edge_events(0):
                     continue
                 frame = self._decoder.advance(time.monotonic_ns())
@@ -153,13 +153,26 @@ class GpioFrameIO:
         finally:
             self.rejected += self._decoder.rejected
             self._decoder.rejected = 0
-            self._set(LED_RX, False)
+            self.set_output(LED_RX, False)
 
     def input_levels(self) -> dict:
         self.check_panic()
         self._events()
         return {"light": int(self.request.get_value(RX) == self._value.ACTIVE),
                 "panic_pressed": self._panic}
+
+    def sample_rx(self) -> tuple[int, int]:
+        """Return the RX level and RX edges since the last call, without decoding."""
+        edges = 0
+        if self.request.wait_edge_events(0):
+            for event in self.request.read_edge_events(max_events=4096):
+                self._last_seq = event.global_seqno
+                if event.line_offset == PANIC:
+                    self._panic |= event.event_type == event.Type.RISING_EDGE
+                else:
+                    edges += 1
+        self.check_panic()
+        return int(self.request.get_value(RX) == self._value.ACTIVE), edges
 
     def clear(self):
         self._frames.clear()
