@@ -49,12 +49,9 @@ explicit (`gpio-monitor`, `optical-send`, `optical-listen`) and require
 See [the optical bring-up guide](../docs/optical-bringup.md) for both Pis,
 copyable commands, electrical checks, recovery and measurement limits.
 
-The basic and RGB layouts in `hardware/breadboard/` share the same optical,
-TX/RX indicator and panic pins. Basic is the default: no RGB GPIO is
-inspected, claimed or driven. Add `--rgb` to preflight and the physical
-command only when enabling the optional common-cathode debug LED on that
-board. The peer can use either variant independently. RGB patterns are
-provisional debugging output and do not control the link protocol.
+The revision-7 layout in `hardware/breadboard/` has a single basic profile:
+optical TX/RX, the TX/RX indicators and panic. RGB was removed from the
+design; no other GPIO is inspected, claimed or driven.
 
 ## Dependencies
 
@@ -97,9 +94,8 @@ Keep GPIO7-11 reserved for the existing SPI bus; GPIO0/1 are identification
 pins, and lines 28-53 are outside the header. The exact role mapping follows
 `hardware/breadboard/circuit-reference.json` and is checked by a test.
 
-The current assembled circuits follow `hardware/breadboard/`; their basic
-version includes TX/RX indication and physical panic, and the other version
-adds optional RGB debugging. LCD and speaker/buzzer code are deferred until minimum requirements
+The current circuit follows `hardware/breadboard/`: TX/RX indication and
+physical panic, without RGB. LCD and speaker/buzzer code are deferred until minimum requirements
 are met. The selected receiver approach uses a comparator with hysteresis and
 digital GPIO input rather than an ADC. Its component pairing, conditioning,
 logic levels, and measured timing remain unresolved.

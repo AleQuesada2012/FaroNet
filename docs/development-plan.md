@@ -45,9 +45,8 @@ targets, not evidence that their hardware checks happened.
   Proposal: the Pi 3 hosts the Gateway because it has onboard Wi-Fi and a
   verified environment; confirm. Laptop processes can supply additional
   mesh participants.
-- Private application: terminal chat. Both breadboard variants have TX/RX
-  indicators and physical panic. RGB is optional local debugging; patterns
-  can be decided later and never control communication. LCD and speaker/buzzer are enhancements after
+- Private application: terminal chat. The breadboard Faro has TX/RX
+  indicators and physical panic; RGB was removed on 2026-10-30. LCD and speaker/buzzer are enhancements after
   the assignment minimum is complete; LCD assists rather than replaces chat.
 - Assume laser acceptance for planning, with a matched IR fallback if needed.
 - Commit/push ownership and deferred CI/licensing remain as previously agreed.
@@ -60,7 +59,7 @@ division in Q8 on 2026-10-09; rebalance it after the first working milestone.
 
 | Area | Teammate A leads | Teammate B leads |
 | --- | --- | --- |
-| Python | Optical framing, simulated/real Faro adapter, TX/RX/RGB and panic integration, link measurements | Mesh/routing, private terminal chat, encryption/padding, signed directory, gateway client |
+| Python | Optical framing, simulated/real Faro adapter, TX/RX indicator and panic integration, link measurements | Mesh/routing, private terminal chat, encryption/padding, signed directory, gateway client |
 | Rust | Public rooms, browser/WebSocket interface, topic feed | Gateway authentication/replay protection, encrypted dead drop, public directory |
 | Shared | Protocol/security contracts, hardware bring-up with B, integration, rate limiting, review, RFC/documentation/demo | Same; pair on optical tests and review A's modules |
 

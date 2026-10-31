@@ -1,8 +1,8 @@
 # Faro hardware workspace
 
-Current Oct 25 instructions: use [the revision-6 breadboard guide](breadboard/README.md)
-and its HTML/SVGs for all pin and polarity decisions; its common-cathode
-active-high RGB supersedes the older LS125 HTML branch. A uses Ubuntu on
+Current instructions (Oct 30): use [the revision-7 breadboard guide](breadboard/README.md)
+and its HTML/SVG for all pin, placement and polarity decisions. RGB is no
+longer part of the design; the older top-level HTML files are superseded. A uses Ubuntu on
 Pi 3 (direct image/balenaEtcher, 5 V/2.5 A supply); B uses PiOS on Pi 2
 (Raspberry Pi Imager). The circuit is assembled but disconnected from A's
 Pi until the Oct 26 meeting. Software setup/metadata checks are recorded in
@@ -28,11 +28,8 @@ follow the current breadboard profile. Physical line I/O and receiver
 conditioning remain unverified. Use Python control code in
 `python/src/faronet/faro/` and consult [the decisions](../docs/decisions.md).
 
-Both current breadboard plans include the physical panic button and TX/RX
-indicators. The RGB plan adds an optional debugging LED; the basic Faro
-works without it. Software defaults to basic, and `--rgb` enables the RGB
-pins locally, including in metadata preflight. Debugging patterns remain
-provisional and are independent of optical communication. LCD and speaker/buzzer belong to a later
+The breadboard plan includes the physical panic button and TX/RX
+indicators, and nothing else on the GPIO header. LCD and speaker/buzzer belong to a later
 enhancement iteration, after minimum requirements are met. The LCD will be
 an aid for status/short messages; the terminal remains the chat interface.
 

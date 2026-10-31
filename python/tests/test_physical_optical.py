@@ -11,7 +11,7 @@ from faronet.dispositivo_luz_adaptador.physical import (
     PhysicalDispositivoLuzAdaptador, PhysicalLinkError,
 )
 from faronet.faro.commands import link_id, test_payload as payload_for
-from faronet.faro.profile import PINS, pins_for
+from faronet.faro.profile import PINS
 from faronet.faro.waveform import EdgeDecoder
 
 A, B, SESSION = b"aaaaaaaa", b"bbbbbbbb", b"session1"
@@ -242,13 +242,10 @@ class PhysicalAdapterTests(unittest.TestCase):
         assigned = {row[3]: (int(row[2][4:]), row[1])
                     for row in reference["pins"] if row[2].startswith("GPIO")}
         self.assertEqual({p.role: (p.bcm, p.physical) for p in PINS}, assigned)
-        layouts = json.loads((root / "hardware/breadboard/layout-data.json").read_text())
-        for variant, rgb in (("basic", False), ("rgb", True)):
-            with self.subTest(variant=variant):
-                wired = {wire["net"]: int(wire["a"][3:])
-                         for wire in layouts[variant]["wires"]
-                         if wire["a"].startswith("PI:") and wire["net"] in assigned}
-                self.assertEqual({p.role: p.physical for p in pins_for(rgb)}, wired)
+        layout = json.loads((root / "hardware/breadboard/layout-data.json").read_text())
+        wired = {wire["net"]: int(wire["a"][3:]) for wire in layout["wires"]
+                 if wire["a"].startswith("PI:") and wire["net"] in assigned}
+        self.assertEqual({p.role: p.physical for p in PINS}, wired)
 
 
 if __name__ == "__main__":

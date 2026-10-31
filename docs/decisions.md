@@ -37,9 +37,9 @@ have been implemented.
 
 The owner's October 25 update confirms A's Ubuntu Pi 3/direct-image plus
 balenaEtcher installation and 5 V/2.5 A supply; B uses a Pi 2 with PiOS
-installed by Imager. For current circuit pins and polarities, the revision-6
-breadboard HTML/SVGs and `circuit-reference.json` supersede stale hardware
-descriptions here and in the older handoff, including the LS125 RGB branch.
+installed by Imager. For current circuit pins and polarities, the revision-7
+breadboard guide/SVG and `circuit-reference.json` supersede stale hardware
+descriptions here and in the older handoff, including every RGB branch.
 The current test board is the IR/PT333 comparator circuit shown there.
 Physical operation still requires measurements. The Student A baseline
 uses explicit manual turns for the Oct 26 test, without settling autonomous
@@ -48,11 +48,12 @@ public-room prototype is disabled in the default Worker configuration.
 Worker development/builds/tests stay on the owner's Mac. See
 [the meeting runbook](optical-bringup.md) and [Pi profile](../hardware/pi-environment.md).
 
-The owner reaffirmed that both `hardware/breadboard` variants represent
-assembled circuits. The basic no-RGB profile is the default; the RGB branch
-is optional local debugging, with future patterns still open. Its selection
-does not affect the optical protocol or require the peer to use RGB. Only
-selected pins are inspected/requested; basic operation leaves BCM5/6/13 alone.
+On 2026-10-30 the owner removed RGB from the design for good. Revision 7
+keeps the basic netlist and values and redesigns only the placement: almost
+everything on the A–E half (the team's board prints F–J column numbers in
+reverse), D1/Q2 on mirror rows for exact peer alignment, and fewer jumpers.
+The software has a single profile and never touches BCM5/6/13. Boards built
+from the revision-6 basic plan are electrically the same circuit.
 
 The owner's 2026-10-09 decisions supersede the earlier LED/LDR plan and the
 parts list's IR-first ordering. No LDR implementation is planned. The native
@@ -79,7 +80,7 @@ SPI/I2C/GPIO wiring is not an approved project pin map.
 | Pi networking | Pi 3 has onboard Wi-Fi; Pi 2 B v1.1 needs Ethernet or a USB adapter for SSH, LAN mesh links and any gateway role | Pi model facts; confirm the adapter |
 | GPIO device/controller | A: chip0, `pinctrl-bcm2835`; current account requires sudo for metadata access; no lines requested | Oct 25 Python metadata preflight; Pi profile |
 | GPIO backend | Official libgpiod v2 Python API, optional Linux-only `gpiod==2.5.0`; installed on A, metadata verified, physical line I/O pending | Owner's accepted backend; Oct 25 live setup |
-| Pin numbering | BCM with physical header positions from revision-6 breadboard profile; code mapping checked against JSON reference | Owner's hardware authority update; breadboard guide |
+| Pin numbering | BCM with physical header positions from the revision-7 breadboard profile; code mapping checked against JSON reference | Owner's hardware authority update; breadboard guide |
 | Existing GPIO reservations | GPIO7/8 claimed by SPI0; keep GPIO7-11 out of project roles while SPI remains enabled; reserve ID GPIO0/1 and exclude internal lines 28-53 | Owner's metadata output; official Pi header/SPI reference |
 | Python IDE | PyCharm | Kick-off |
 | Edge provider | Cloudflare Workers, free plan | Assignment p. 5; kick-off threat model |
@@ -97,7 +98,7 @@ SPI/I2C/GPIO wiring is not an approved project pin map.
 | Git ownership | Owner reviews, commits, and pushes | Owner |
 | Hardware dependencies | GPIO backend accepted as an optional dependency; circuit-specific additions await selection | Owner's setup clarification and subsequent backend acceptance |
 | CI and license | Deferred until scaffold review | Owner's setup clarification |
-| First iteration | Basic breadboard Faro with TX/RX indicators and physical panic; optional RGB debugging branch, with patterns to be decided later | Owner's latest clarification; current breadboard plans |
+| First iteration | Basic breadboard Faro with TX/RX indicators and physical panic; no RGB | Owner, 2026-10-30; revision-7 breadboard plan |
 | Enhancement iteration | LCD screen and speaker/buzzer, only after minimum requirements are met | Owner, 2026-10-09 |
 | LCD role | Optional status/short-message aid, not a substitute for the terminal application | Owner's round-1 answer |
 | Team distribution | Two people; approved provisional cross-language ownership in the development plan, with effort rebalancing after the first milestone | Owner's Q8 answer |

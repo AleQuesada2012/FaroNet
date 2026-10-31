@@ -5,9 +5,7 @@ import time
 
 from faronet.dispositivo_luz_adaptador.frame import Frame
 from faronet.dispositivo_luz_adaptador.manchester import encode
-from faronet.faro.profile import (
-    BLUE, CONTROLLER, GREEN, LED_RX, LED_TX, PANIC, RED, RX, TX, inspect_chip, pins_for,
-)
+from faronet.faro.profile import CONTROLLER, LED_RX, LED_TX, PANIC, PINS, RX, TX, inspect_chip
 from faronet.faro.waveform import EdgeDecoder, FRAME_SYMBOLS, GUARD_SYMBOLS
 
 
@@ -22,19 +20,17 @@ class TimingError(RuntimeError):
 class GpioFrameIO:
     """One exclusive line request; outputs start LOW and turn off on close."""
 
-    def __init__(self, path: str, half_bit_ms: float = 5, rgb: bool = False,
-                 rx_inverted: bool = False):
+    def __init__(self, path: str, half_bit_ms: float = 5, rx_inverted: bool = False):
         if not 2 <= half_bit_ms <= 20:
             raise ValueError("Bring-up half-bit must be between 2 and 20 ms")
         import gpiod
         from gpiod.line import Clock, Direction, Edge, Value
 
-        metadata = inspect_chip(path, rgb=rgb)
+        metadata = inspect_chip(path)
         if metadata["controller"] != CONTROLLER:
             raise ValueError("Unexpected GPIO controller; confirm BCM mapping before use")
-        self.outputs = [pin.bcm for pin in pins_for(rgb) if pin.output]
+        self.outputs = [pin.bcm for pin in PINS if pin.output]
         self._value = Value
-        self.rgb = rgb
         self.half_ns = round(half_bit_ms * 1_000_000)
         self.frame_seconds = FRAME_SYMBOLS * self.half_ns / 1e9
         self.max_lateness_ns = 0
@@ -64,7 +60,6 @@ class GpioFrameIO:
         try:
             self._decoder = self._new_decoder()
             self.check_panic()
-            self.status("ready")
         except BaseException:
             self.close()
             raise
@@ -77,15 +72,6 @@ class GpioFrameIO:
 
     def _set(self, pin: int, value: bool):
         self.request.set_value(pin, self._value.ACTIVE if value else self._value.INACTIVE)
-
-    def status(self, state: str):
-        """Provisional debug colors only; never used to decide optical behavior."""
-        if self.rgb:
-            self.request.set_values({
-                RED: self._value.ACTIVE if state == "error" else self._value.INACTIVE,
-                GREEN: self._value.ACTIVE if state == "ready" else self._value.INACTIVE,
-                BLUE: self._value.ACTIVE if state == "busy" else self._value.INACTIVE,
-            })
 
     def check_panic(self):
         if self._panic or self.request.get_value(PANIC) == self._value.ACTIVE:
@@ -125,9 +111,7 @@ class GpioFrameIO:
 
     def transmit(self, frame: Frame):
         self.check_panic()
-        self.status("busy")
         self._set(LED_TX, True)
-        completed = False
         try:
             start = time.monotonic_ns()
             for index, level in enumerate(encode(frame.encode())):
@@ -142,14 +126,12 @@ class GpioFrameIO:
                 self._ignore_before = time.monotonic_ns() + self.half_ns
                 self._events()
             self._wait_until(start + FRAME_SYMBOLS * self.half_ns)
-            completed = True
         finally:
             self._set(TX, False)
             self._set(LED_TX, False)
             self._ignore_before = time.monotonic_ns()
             self._decoder = self._new_decoder()
             self._frames.clear()
-            self.status("ready" if completed else "off")
 
     def receive(self, timeout: float) -> Frame | None:
         deadline = time.monotonic() + timeout

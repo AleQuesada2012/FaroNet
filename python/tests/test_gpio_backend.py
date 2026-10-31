@@ -9,7 +9,10 @@ from unittest.mock import patch
 from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
 from faronet.faro import commands
 from faronet.faro.gpio import GpioFrameIO, PanicStop, TimingError
-from faronet.faro.profile import PANIC, RX, TX, RGB_PINS, inspect_chip
+from faronet.faro.profile import PANIC, RX, TX, inspect_chip
+
+# Former RGB lines; the Faro must never inspect, claim or drive them.
+UNRELATED = {5, 6, 13}
 
 
 class Value(IntEnum):
@@ -77,7 +80,7 @@ class GpioBackendTests(unittest.TestCase):
         self.addCleanup(self.metadata.stop)
 
     def test_outputs_initialized_low_and_inputs_never_driven(self):
-        with GpioFrameIO("/dev/fake", rgb=True) as backend:
+        with GpioFrameIO("/dev/fake") as backend:
             outputs = self.config[tuple(backend.outputs)]
             self.assertEqual(outputs.output_value, Value.INACTIVE)
             self.assertFalse(outputs.active_low)
@@ -89,8 +92,8 @@ class GpioBackendTests(unittest.TestCase):
         self.assertTrue(self.request.released)
         self.assertTrue(all(self.request.values[pin] == 0 for pin in backend.outputs))
 
-    def test_basic_faro_transmits_and_cleans_up_with_rgb_lines_unavailable(self):
-        self.occupied = {pin.bcm for pin in RGB_PINS}
+    def test_faro_transmits_and_cleans_up_with_unrelated_lines_busy(self):
+        self.occupied = set(UNRELATED)
         frame = Frame(FrameType.DATA, b"a" * 8, b"b" * 8, b"s" * 8, 0)
         with GpioFrameIO("/dev/fake") as backend:
             self.assertEqual(set(backend.outputs), {17, 22, 23})
@@ -101,20 +104,19 @@ class GpioBackendTests(unittest.TestCase):
                 backend.transmit(frame)
             backend.input_levels()
             self.assertIsNone(backend.receive(0))
-            backend.status("error")
             backend.clear()
         self.assertTrue(self.request.released)
         self.assertFalse({pin for pin, _ in self.request.writes} & self.occupied)
 
-    def test_explicit_rgb_checks_ownership_of_its_optional_lines(self):
-        self.occupied = {pin.bcm for pin in RGB_PINS}
+    def test_busy_faro_line_refuses_the_request(self):
+        self.occupied = {TX}
         with self.assertRaises(OSError):
-            GpioFrameIO("/dev/fake", rgb=True)
+            GpioFrameIO("/dev/fake")
 
     def test_already_pressed_panic_cleans_up_constructor(self):
         self.request.values[PANIC] = Value.ACTIVE
         with self.assertRaises(PanicStop):
-            GpioFrameIO("/dev/fake", rgb=True)
+            GpioFrameIO("/dev/fake")
         self.assertTrue(self.request.released)
         self.assertEqual(self.request.values[TX], Value.INACTIVE)
 
@@ -135,7 +137,7 @@ class GpioBackendTests(unittest.TestCase):
         for error in (TimingError("late"), KeyboardInterrupt()):
             with self.subTest(error=type(error).__name__):
                 with self.assertRaises(type(error)):
-                    with GpioFrameIO("/dev/fake", rgb=True) as backend:
+                    with GpioFrameIO("/dev/fake") as backend:
                         with patch.object(backend, "_wait_until", side_effect=error):
                             backend.transmit(frame)
                 self.assertTrue(all(self.request.values[p] == 0 for p in backend.outputs))
@@ -149,9 +151,9 @@ class GpioBackendTests(unittest.TestCase):
                 GpioFrameIO("/dev/fake")
         self.assertIsNone(self.config)
 
-    def test_preflight_ignores_busy_rgb_unless_selected_and_never_requests_lines(self):
+    def test_preflight_inspects_only_faro_lines_and_never_requests_them(self):
         inspected = []
-        occupied = {pin.bcm for pin in RGB_PINS}
+        occupied = set(UNRELATED)
 
         class FakeChip:
             def __init__(self, path): pass
@@ -167,16 +169,14 @@ class GpioBackendTests(unittest.TestCase):
         gpiod.Chip = FakeChip
         report = inspect_chip("/dev/fake")
         self.assertTrue(report["controller_matches"])
-        self.assertEqual(report["variant"], "basic")
         self.assertEqual(set(inspected), {17, 27, 22, 23, 24})
         self.assertFalse(any(line["used"] for line in report["lines"]))
-        report = inspect_chip("/dev/fake", rgb=True)
-        self.assertEqual(report["variant"], "rgb")
-        self.assertEqual({line["bcm"] for line in report["lines"] if line["used"]}, occupied)
-        for rgb, expected_exit in ((False, 0), (True, 1)):
-            with self.subTest(rgb=rgb), patch("sys.stdout", io.StringIO()):
+        for busy, expected_exit in ((UNRELATED, 0), ({PANIC}, 1)):
+            occupied.clear()
+            occupied.update(busy)
+            with self.subTest(busy=busy), patch("sys.stdout", io.StringIO()):
                 self.assertEqual(commands.run(SimpleNamespace(
-                    command="gpio-preflight", profile_only=False, chip="/dev/fake", rgb=rgb,
+                    command="gpio-preflight", profile_only=False, chip="/dev/fake",
                 )), expected_exit)
         self.assertIsNone(self.config)
 
@@ -188,7 +188,7 @@ class GpioBackendTests(unittest.TestCase):
                 main()
         with patch("sys.stdout", io.StringIO()) as output:
             self.assertEqual(commands.run(SimpleNamespace(
-                command="gpio-preflight", profile_only=True, rgb=False,
+                command="gpio-preflight", profile_only=True,
             )), 0)
             self.assertIn('"bcm": 17', output.getvalue())
         self.assertIsNone(self.config)

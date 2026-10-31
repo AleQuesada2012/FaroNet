@@ -24,9 +24,9 @@ below supersedes the historical permission/install status in this profile.
 - The Python binding identifies `pinctrl-bcm2835` on chip 0; BCM17, 27, 22,
   23, 24, 5, 6 and 13 are all unclaimed. No lines were requested or driven.
   The standalone `gpiodetect`/`gpioinfo` programs are absent from current PATH.
-- Current assignments and polarities follow revision 6 of
-  [the breadboard guide](breadboard/README.md), including direct active-high
-  common-cathode RGB. Older HTML LS125 RGB wiring is superseded.
+- Current assignments and polarities follow revision 7 of
+  [the breadboard guide](breadboard/README.md), which has no RGB. Older HTML
+  RGB wiring is superseded.
 - The Python suite and mesh simulation pass on A's Pi; final counts and
   commands are recorded in [MERGER.md](../MERGER.md). Physical I/O, timing,
   optical exchange, panic wiring and B's environment remain unverified.
@@ -135,7 +135,7 @@ PyPI. These packaging checks do not exercise the Pi's hardware or Python binding
 ## Remaining hardware decisions
 
 - Explicit BCM and physical header assignments for laser TX, conditioned RX,
-  TX/RX indicators, RGB and panic; Python binding and line I/O validation.
+  TX/RX indicators and panic; Python binding and line I/O validation.
 - Exact emitter/receiver/comparator, signal conditioning, hysteresis and
   GPIO-compatible levels.
 - Real optical timing, clock recovery, throughput/BER and behavior under the

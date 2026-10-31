@@ -1,102 +1,76 @@
-# FaroNet: montaje revisado en protoboard
+# FaroNet: montaje en protoboard (revisión 7)
 
 Abrir [faronet-breadboard-review.html](faronet-breadboard-review.html).
-Contiene la comparación con los archivos recibidos, los dos planos,
-tablas de conexiones, búsqueda por agujero/pieza, resaltado de redes,
-exportación CSV, guías de orientación y pruebas de puesta en marcha.
+Contiene el plano interactivo (clic en un agujero para resaltar su red),
+la tabla de pines de la Pi, la lista de piezas, las orientaciones, los
+únicos agujeros de la mitad F–J y el montaje por etapas con sus pruebas de
+multímetro. El plano solo está en [faronet-breadboard.svg](faronet-breadboard.svg).
 
-**S1 y RV1 ya aparecen dentro del tablero (revisión 6).** Son huellas
-candidatas: el equipo identifica tentativamente el botón como DTS-644R,
-y AD8289 es el código MicroJPM del trimpot de 10 kΩ, no un fabricante.
-La foto de referencia corresponde visualmente al estilo vertical RM063.
-La sección «Botón y RV1» incluye un [detalle de contactos](faronet-button-trimpot.svg),
-fuentes y pruebas de multímetro antes de conectar la Pi.
+**Un Faro por protoboard, sin RGB.** RGB, R13–R15 y GPIO5/6/13 quedan fuera
+del diseño de forma definitiva. El circuito es el básico de la revisión 6:
+mismos componentes, valores, redes y pines de la Pi. Cambia solo la
+colocación.
 
-- S1: vista superior de ficha DTS-6 girada 90° horario. 1=e16 y 2=f16,
-  GND; 3=e14 y 4=f14, PANIC. 1–2 y 3–4 son parejas internas permanentes;
-  pulsar une ambas. El modelo valida esas uniones, sin cerrar el contacto
-  en reposo. Huella original 6,5×4,5 mm frente a rejilla 7,62×5,08 mm:
-  ajustar suavemente las porciones libres de las patas solo si es práctico.
-  No forzar ni asumir que encaja sin ajuste. Si no asienta, usar jumpers.
-- Pi físico18/GPIO24 ahora llega a **d14**, dejando e14 a S1.
-- RV1 vertical RM063: extremo1=d43/VBIAS, cursor2=c44/VTH,
-  extremo3=d45/GND; ajuste hacia j. Jumper b47↔b43 para VBIAS.
-  R6 ahora termina en e44; jumper a44↔a36 para VTH.
-- Si la pieza real es el RM065 horizontal de la otra ficha, colocar solo
-  el cursor en **b44** en lugar de c44; el clip y el resto del circuito
-  son los mismos. El plan principal dibuja únicamente el estilo vertical.
-- Se eliminan los cinco jumpers a terminales externos y se añade uno local:
-  ahora hay 35 jumpers básicos o 42 con RGB por Faro.
+## Por qué se rediseñó la colocación
 
-Verificar las parejas liberadas/pulsadas de S1 y los extremos/cursor de RV1
-fuera del circuito. Los números de las fichas pueden no estar impresos.
-Para RV1, extremos ≈10 kΩ constantes al girar; cursor–extremo variable.
-No se presupone sentido de giro. Los PDFs de fabricante consultados están
-en `sources/`, con sus enlaces de procedencia en la guía y el netlist.
+- **Numeración de F–J invertida.** En el tablero del equipo, la mitad F–J
+  imprime los números de columna al revés. Casi todo va en la mitad A–E; solo
+  usan F–J las patas inferiores del botón, las cuatro tiras justo debajo del
+  LM393 y el emisor IR en las dos últimas tiras del borde derecho. Esos
+  agujeros se ubican por referencia física, no por el número impreso. Las
+  columnas del plano son las de la mitad A–E.
+- **Emisor y receptor en filas espejo.** D1 va en h62/h63 y Q2 en c62/c63.
+  Al girar el segundo Faro 180°, D1 de cada uno queda a la misma altura que
+  Q2 del otro ([colocación de los dos Faros](faronet-facing-layout.svg)).
+- **Bloques de izquierda a derecha:** LEDs (columnas 3–14), pánico (18–20),
+  trimpot RV1 apartado (40–42), LM393 (48–53) y emisor (56–63). 26 jumpers
+  en lugar de 35.
+- **Errores ya vistos:** el validador rechaza Q1, D1 o Q2 invertidos, el
+  botón girado 90°, un cable una columna corrido, una pieza sobre un agujero
+  ocupado y cualquier extremo en F–J fuera de los tres puntos de referencia.
 
-**Pi 2 Model B v1.1 y Pi 3 Model B usan el mismo header de 40 pines.**
-Todas las conexiones del Faro conservan sus pines físicos y números BCM.
-Los dos SVG están rotulados «Raspberry Pi 2/3 B» y la sección «Pi 2 / Pi 3»
-de la guía compara las once conexiones, incluidos RGB y alimentación.
-No se modifica el cableado ni la lista de componentes por este cambio de Pi.
-La revisión de sistema operativo, librerías y temporización queda para
-la fase de software; esta actualización solo aclara el hardware.
+## Piezas con polaridad
 
-**Frente óptico hacia el este (revisión 4):** Q2/PT333 va ahora con E en
-c60 y C en c61; D1 mantiene A en i60 y K en i61. Ambos cuerpos se orientan
-horizontales, con sus lentes hacia la derecha y el frente despejado.
-Q2 deja c40/c41; c41 ahora es el extremo local de un jumper SENSE desde
-b61. Su tierra se lleva de a60 a TG:49. R4 y el LM393 mantienen sus lugares.
-Se añade un jumper por Faro; valores, GPIO y componentes no cambian.
+- **Q1 2N2222:** C–B–E: mirando su cara plana, de izquierda a derecha,
+  colector, base y emisor. Va en d59–d60–d61 con la cara plana hacia el canal
+  central. Confirma la base con el modo diodo antes de insertarlo.
+- **D1 LED IR:** ánodo (pata larga) en h62, cátodo en h63, lente a la derecha.
+- **Q2 PT333:** emisor (pin 1, pata larga según Everlight) en c62, colector en
+  c63, lente a la derecha.
+- **U1 LM393:** muesca a la derecha; pin 1 en e53 y pin 8 justo debajo.
+- **D2/D3:** pata larga en c7/c14, pata corta en el riel GND de arriba.
+- **C1 100 µF:** franja (−) en el riel GND de abajo.
+- **S1:** DTS-6 girado 90°; parejas internas 1–2 (GND, e20/f20) y 3–4
+  (PANIC, e18/f18). En reposo e18–e20 no suenan; al pulsar, sí. La huella de
+  6,5×4,5 mm requiere ajustar las patas a 7,62×5,08 mm sin forzar.
+- **RV1:** vertical RM063 con extremos en d40 y d42 y cursor en c41. Su
+  ranura de ajuste (donde entra el destornillador) mira hacia el canal
+  central; la fila e frente a ella queda libre. Si es el horizontal RM065, el
+  cursor va en b41, que queda libre para eso. Medir fuera del circuito:
+  extremos ≈10 kΩ constantes, cursor variable.
 
-[Colocación de los dos Faros](faronet-facing-layout.svg): construir ambos
-con el mismo plano, girar el segundo montaje completo 180° y alinear cada
-D1 con el Q2 del otro Faro a la misma altura. Los bordes plásticos no
-determinan por sí solos la alineación de las lentes. La guía incluye el
-detalle de montaje y distingue orientación de lente de dirección de luz.
+Q1, Q2, D1, S1 y RV1 se comprueban con el multímetro antes de conectar la Pi.
+El emisor IR sigue sin modelo exacto: R1 = 330 Ω es provisional, sujeto a la
+corriente medida.
 
-- [Básico, sin RGB](faronet-breadboard-basic.svg): un Faro por protoboard.
-- [Básico más RGB](faronet-breadboard-rgb.svg): mismo núcleo, añade tres
-  resistencias de 1 kΩ y un RGB de cuatro patas, **cátodo común confirmado
-  por el equipo**. L1 rojo, L2 común/GND, L3 verde, L4 azul, conservando
-  la orientación usada durante la prueba. En el tablero van a d23–d26.
-  GPIO5/físico29, GPIO6/físico31 y GPIO13/físico33 controlan rojo, verde
-  y azul a través de R13/R14/R15. HIGH enciende y LOW apaga.
-  U2/LS125, C4 y R16–R18 ya no se montan. El DL410 queda fuera.
+## Archivos
 
-La revisión conserva los GPIO y las funciones del circuito anterior.
-`circuit-reference.json` registra esa referencia con la actualización del
-RGB de cátodo común identificado por el equipo. No cambia los archivos
-recibidos. Los HTML anteriores llevan un aviso de que su RGB con LS125
-está sustituido por esta revisión. El inventario y la identificación del
-equipo prevalecen sobre las suposiciones de los documentos recibidos.
+- `circuit-reference.json`: netlist y pines de la Pi (la autoridad eléctrica).
+- `generate_layout.py`: coloca cada terminal y genera el SVG, la guía HTML y
+  `layout-data.json`.
+- `validate_layout.py`: regenera todo, comprueba el plano, inyecta errores
+  conocidos para confirmar que se rechazan y escribe `validation-report.json`.
 
-El circuito RGB usa las salidas de 3,3 V; nunca 5 V con este cableado.
-Inicializar las tres salidas en LOW antes de probar colores. Repetir la
-identificación con el otro RGB antes de usarlo en el segundo Faro.
+```bash
+python3 validate_layout.py
+```
 
-`layout-data.json` contiene direcciones, piezas y cables. El modelo trata
-a–e y f–j como clips separados en cada columna, y los cuatro rieles como
-dos mitades de 25 agujeros que se puentean. Las direcciones de riel
-(T3/TG/B5/BG) se cuentan por separado de las columnas 1–63.
+La validación comprueba conexiones y reglas de colocación del modelo. Trata
+A–E y F–J como clips separados en cada columna y cada riel como dos mitades
+de 25 agujeros puenteadas. No acredita funcionamiento analógico, alcance,
+velocidad ni BER. Medir tensiones y calificar el enlace antes de pasar el
+circuito a perfboard o PCB soldada. Los cuerpos dibujados son ilustrativos,
+no una plantilla mecánica a escala. Los PDFs consultados están en `sources/`.
 
-W04 une **TG:4 con BG:4**, exclusivamente GND superior e inferior.
-Su trazado visual rodea el borde izquierdo para no aparentar conexiones
-con otros agujeros. T3:4 (+3,3 V) y B5:4 (+5 V) no reciben este jumper.
-Las conexiones eléctricas y cantidades no cambian por este ajuste visual.
-
-`validation-report.json` registra las comprobaciones de continuidad y
-rechazo de errores deliberados. Para regenerar y comprobar, ejecutar
-`python3 validate_layout.py` desde esta carpeta. Solo se ejecuta nuestro
-generador, nunca el recibido de terceros.
-
-La validación comprueba conexiones del modelo. No acredita funcionamiento
-analógico, alcance, velocidad ni BER. Contrastar el tablero y los terminales
-reales, medir tensiones/corrientes y calificar el enlace antes de trasladar
-el circuito a perfboard/PCB soldada. Los cuerpos dibujados son ilustrativos,
-no una plantilla mecánica a escala.
-
-Q1 usa E–B–C según la orientación indicada por el equipo, cara plana hacia j.
-PT333 usa pin1 emisor/largo y pin2 colector/corto según Everlight; comprobar
-que corresponde a las piezas reales. El emisor IR sigue sin modelo exacto:
-primera prueba con 1 kΩ; 330 Ω es provisional, sujeto a corriente medida.
+Pi 2 Model B v1.1 y Pi 3 Model B usan el mismo header de 40 pines; las ocho
+conexiones conservan sus pines físicos y números BCM.

@@ -1,16 +1,48 @@
 {
   "valid": true,
-  "base_placement_unchanged_with_rgb": true,
-  "switch": "DTS-6 internal pairs 1-2 and 3-4 included; at rest PANIC separate from GND; pressed PANIC reaches GND without shorting 3V3 through copper",
-  "trimpot": "RM063 candidate footprint; RM065 wiper b44 reaches the same VTH clip; actual parts require measurement",
-  "rgb": "User-confirmed common cathode L2; L1 red, L3 green, L4 blue; 3.3 V GPIO through individual 1 kΩ; active high",
+  "revision": 7,
+  "rgb": "Removed from the design: no RGB parts, resistors or GPIO5/6/13.",
+  "plan": {
+    "parts": 22,
+    "jumpers": 26,
+    "holes": 830,
+    "occupied_breadboard_holes": 98,
+    "fj_holes": [
+      "f18",
+      "f20",
+      "f50",
+      "f51",
+      "f52",
+      "f53",
+      "g51",
+      "g63",
+      "h50",
+      "h51",
+      "h62",
+      "h63",
+      "i50",
+      "i53",
+      "j50",
+      "j51",
+      "j53",
+      "j62"
+    ]
+  },
+  "checks": [
+    "Every component terminal from circuit-reference.json placed once",
+    "One terminal per hole; no occupied hole under a part body",
+    "Each net continuous through clips, jumpers and S1 internal pairs",
+    "No clip joins different nets; 3.3 V, 5 V and GND separate",
+    "No GPIO joined to 5 V; no resistor bridged by a clip",
+    "S1 open at rest, PANIC to GND when pressed",
+    "RV1 terminals on three nets; RM065 wiper hole and adjustment side kept free",
+    "U1.7 isolated",
+    "F-J holes only at the button, under U1 and at the IR emitter",
+    "D1 and Q2 on mirror rows at columns 62-63"
+  ],
   "mutations": [
     {
       "mutation": "5 V joined to 3.3 V",
-      "rejected": true
-    },
-    {
-      "mutation": "TX jumper in base clip",
       "rejected": true
     },
     {
@@ -18,39 +50,45 @@
       "rejected": true
     },
     {
-      "mutation": "RGB common cathode joined to 5 V",
+      "mutation": "Q1 inserted reversed (E-B-C)",
       "rejected": true
     },
     {
-      "mutation": "Front phototransistor collector shorted to emitter",
+      "mutation": "D1 inserted reversed",
       "rejected": true
     },
     {
-      "mutation": "Button contact pairs bypassed by a jumper",
+      "mutation": "Q2 inserted reversed",
       "rejected": true
     },
     {
-      "mutation": "Switch rotated 90 degrees across PANIC and GND",
+      "mutation": "Button rotated 90 degrees across PANIC and GND",
       "rejected": true
     },
     {
-      "mutation": "Potentiometer wiper shorted to grounded end",
+      "mutation": "Button pairs bypassed by a jumper",
+      "rejected": true
+    },
+    {
+      "mutation": "Trimpot wiper shorted to its grounded end",
+      "rejected": true
+    },
+    {
+      "mutation": "TX jumper one column off, in the Q1 base clip",
+      "rejected": true
+    },
+    {
+      "mutation": "Part under a resistor body",
+      "rejected": true
+    },
+    {
+      "mutation": "Extra jumper end on the F-J half by printed number",
+      "rejected": true
+    },
+    {
+      "mutation": "U1 output shorted to GND",
       "rejected": true
     }
   ],
-  "plans": {
-    "basic": {
-      "parts": 22,
-      "jumpers": 35,
-      "holes": 830,
-      "occupied_breadboard_holes": 116
-    },
-    "rgb": {
-      "parts": 26,
-      "jumpers": 42,
-      "holes": 830,
-      "occupied_breadboard_holes": 137
-    }
-  },
-  "limits": "Copper connectivity and correspondence only. No physical measurements, optical qualification or BER test."
+  "limits": "Copper connectivity and placement rules only. No physical measurement, optical qualification or BER test."
 }

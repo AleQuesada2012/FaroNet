@@ -8,7 +8,7 @@ import sys
 import time
 
 from faronet.dispositivo_luz_adaptador.physical import PhysicalDispositivoLuzAdaptador
-from faronet.faro.profile import inspect_chip, pins_for
+from faronet.faro.profile import PINS, inspect_chip
 
 
 def test_payload(index: int) -> bytes:
@@ -26,14 +26,12 @@ def add_commands(commands):
     preflight = commands.add_parser("gpio-preflight", help="Inspect metadata without requesting GPIO.")
     preflight.add_argument("--chip", default="/dev/gpiochip0")
     preflight.add_argument("--profile-only", action="store_true", help="Show pins without importing gpiod.")
-    preflight.add_argument("--rgb", action="store_true", help="Include the optional breadboard RGB pins.")
     for name in ("gpio-monitor", "optical-send", "optical-listen"):
         parser = commands.add_parser(name, help="Physical optical bring-up (requires prepared circuit).")
         parser.add_argument("--chip", default="/dev/gpiochip0")
         parser.add_argument("--hardware-ready", action="store_true", required=True,
                             help="Confirm circuit continuity and 0–3.3 V receiver levels first.")
         parser.add_argument("--half-bit-ms", type=float, default=5)
-        parser.add_argument("--rgb", action="store_true", help="Enable revision-6 common-cathode RGB.")
         parser.add_argument("--rx-inverted", action="store_true", help="Invert measured RX light polarity.")
         if name == "gpio-monitor":
             parser.add_argument("--seconds", type=float, default=15)
@@ -56,12 +54,11 @@ def run(args) -> int:
         print(secrets.token_hex(8))
         return 0
     if args.command == "gpio-preflight" and args.profile_only:
-        _print({"variant": "rgb" if args.rgb else "basic",
-                "pins": [vars(pin) for pin in pins_for(args.rgb)]})
+        _print({"pins": [vars(pin) for pin in PINS]})
         return 0
     try:
         if args.command == "gpio-preflight":
-            report = inspect_chip(args.chip, rgb=args.rgb)
+            report = inspect_chip(args.chip)
             _print(report)
             return int(not report["controller_matches"] or any(p["used"] for p in report["lines"]))
         from faronet.faro.gpio import GpioFrameIO
@@ -75,7 +72,7 @@ def run(args) -> int:
         # Validate IDs before requesting lines.
         if args.command != "gpio-monitor" and args.local == args.peer:
             raise ValueError("Local and peer addresses must differ")
-        with GpioFrameIO(args.chip, args.half_bit_ms, args.rgb, args.rx_inverted) as io:
+        with GpioFrameIO(args.chip, args.half_bit_ms, args.rx_inverted) as io:
             if args.command == "gpio-monitor":
                 end, previous = time.monotonic() + args.seconds, None
                 while time.monotonic() < end:

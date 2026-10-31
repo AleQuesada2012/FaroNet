@@ -1,83 +1,116 @@
-"""Check the plans and prove selected wiring mistakes are rejected.
+"""Check the revision-7 plan and prove known wiring mistakes are rejected.
 
-This imports our own generator, which also refreshes its HTML/SVG outputs.
-It never executes the received third-party generator.
+Importing the generator builds and validates the plan; running this file also
+refreshes the generated SVG/HTML/JSON outputs and the validation report.
 """
 import json
 import xml.etree.ElementTree as ET
+
 import generate_layout as g
 
-def rejects(label, change, rgb=False):
-    plan=g.make(rgb)
+
+def rejects(label, change):
+    plan = g.make()
     change(plan)
     try:
         plan.validate()
     except AssertionError:
-        return {'mutation':label,'rejected':True}
-    raise AssertionError('Validator accepted: '+label)
+        return {"mutation": label, "rejected": True}
+    raise AssertionError("Validator accepted: " + label)
 
-results=[]
-results.append(rejects('5 V joined to 3.3 V',lambda l:l.wire('T3:49','B5:49','5V','power','Injected short')))
-results.append(rejects('TX jumper in base clip',lambda l:l.wire('g52','i56','TX','tx','Injected wrong clip')))
-results.append(rejects('3.3 V half-rail bridge removed',lambda l:setattr(l,'wires',[w for w in l.wires if w['a']!='T3:25'])))
-results.append(rejects('RGB common cathode joined to 5 V',lambda l:l.wire('a24','B5:49','5V','rgb','Injected wrong common'),rgb=True))
-results.append(rejects('Front phototransistor collector shorted to emitter',lambda l:l.wire('d60','d61','SENSE','rx','Injected optical-front short')))
-results.append(rejects('Button contact pairs bypassed by a jumper',lambda l:l.wire('a14','a16','PANIC','panic','Injected switch bypass')))
-def rotate_switch_wrong(l):
-    p=next(p for p in l.parts if p['ref']=='S1')
-    p['pins']={'1':'e14','2':'e16','3':'f14','4':'f16'}
-results.append(rejects('Switch rotated 90 degrees across PANIC and GND',rotate_switch_wrong))
-results.append(rejects('Potentiometer wiper shorted to grounded end',lambda l:l.wire('b44','b45','VTH','rx','Injected wiper short')))
-basic={p['ref']:p for p in g.A.parts}
-rgb={p['ref']:p for p in g.B.parts}
-assert all(p==rgb[ref] for ref,p in basic.items())
-assert set(rgb)-set(basic)=={'DL1','R13','R14','R15'}
-assert rgb['DL1']['pins']=={'L1':'d23','L2':'d24','L3':'d25','L4':'d26'}
-assert g.B.hole_nets['d24']==g.B.hole_nets['PI:6']=='GND'
-for pin,h,net,ref in [(29,'d23','RGB_R_A','R13'),(31,'d25','RGB_G_A','R14'),(33,'d26','RGB_B_A','R15')]:
-    assert g.B.hole_nets[h]==net
-    assert g.B.hole_nets['PI:'+str(pin)]!=net
-    assert rgb[ref]['value']=='1 kΩ'
-    a,b=rgb[ref]['pins'].values()
-    assert g.B.hole_nets[a]==g.B.hole_nets['PI:'+str(pin)]
-    assert g.B.hole_nets[b]==net
-for name,l in [('basic',g.A),('rgb',g.B)]:
-    root=ET.parse(g.HERE/f'faronet-breadboard-{name}.svg').getroot()
-    assert len([e for e in root.iter() if 'data-hole' in e.attrib])==830
-    assert l.nets['j55']=='GND' and l.nets['j56']=='Q_BASE' and l.nets['j57']=='IR_K'
-    assert l.nets['c60']=='GND' and l.nets['c61']=='SENSE'
-    assert l.hole_nets['c61']==l.hole_nets['c41']==l.hole_nets['b37']=='SENSE'
-    assert any(w['a']=='b61' and w['b']=='c41' for w in l.wires)
-    assert any(w['a']=='a60' and w['b']=='TG:49' for w in l.wires)
-    assert 'c40' not in l.claims
-    assert len([e for e in root.iter() if e.attrib.get('data-facing')=='east'])==2
-    assert l.nets['e38']=='OPT_RX' and l.nets['f38']=='5V'
-    assert l.hole_nets['a38']==l.hole_nets['e38']==l.hole_nets['PI:13']
-    assert l.nets['f37']=='NC_U1_7'
-    assert len({w['a'] for w in l.wires if w['a'].startswith('PI:')})==(11 if name=='rgb' else 8)
-    parts={p['ref']:p for p in l.parts}
-    assert parts['S1']['pins']=={'1':'e16','2':'f16','3':'e14','4':'f14'}
-    assert all(l.hole_nets[h]=='GND' for h in ['e16','f16'])
-    assert all(l.hole_nets[h]=='PANIC' for h in ['e14','f14','PI:18'])
-    assert any(w['a']=='PI:18' and w['b']=='d14' for w in l.wires)
-    assert parts['RV1']['pins']=={'1 extremo':'d43','2 cursor':'c44','3 extremo':'d45'}
-    assert l.hole_nets['d43']=='VBIAS' and l.hole_nets['c44']=='VTH' and l.hole_nets['d45']=='GND'
-    # A pressed button joins PANIC to GND, while R12 still separates 3V3.
-    pressed=g.UF();pressed.p=dict(l.copper_roots)
-    pressed.join('e14','e16')
-    assert pressed.root('PI:18')==pressed.root('PI:6')
-    assert pressed.root('PI:1')!=pressed.root('PI:6')!=pressed.root('PI:2')
-    # The horizontal RM065 uses b44 instead of c44, the same electrical clip.
-    assert 'b44' not in l.claims and l.hole_nets['b44']==l.hole_nets['c44']=='VTH'
-    assert not any(h.startswith('EXT:') for h in l.claims)
-    alternate=g.make(l.rgb,horizontal_trimpot=True)
-    alt_parts={p['ref']:p for p in alternate.parts}
-    assert alt_parts['RV1']['pins']=={'1 extremo':'d43','2 cursor':'b44','3 extremo':'d45'}
-    assert all(parts[r]==p for r,p in alt_parts.items() if r!='RV1')
-    assert alternate.wires==l.wires
-    assert alternate.hole_nets['b44']=='VTH'
-report={'valid':True,'base_placement_unchanged_with_rgb':True,'switch':'DTS-6 internal pairs 1-2 and 3-4 included; at rest PANIC separate from GND; pressed PANIC reaches GND without shorting 3V3 through copper','trimpot':'RM063 candidate footprint; RM065 wiper b44 reaches the same VTH clip; actual parts require measurement','rgb':'User-confirmed common cathode L2; L1 red, L3 green, L4 blue; 3.3 V GPIO through individual 1 kΩ; active high','mutations':results,
- 'plans':{n:{'parts':len(l.parts),'jumpers':len(l.wires),'holes':830,'occupied_breadboard_holes':sum(not h.startswith(('PI:','EXT:')) for h in l.claims)} for n,l in [('basic',g.A),('rgb',g.B)]},
- 'limits':'Copper connectivity and correspondence only. No physical measurements, optical qualification or BER test.'}
-(g.HERE/'validation-report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
-print(json.dumps(report,ensure_ascii=False))
+
+def swap(ref, a, b):
+    """Insert a part with two terminals exchanged, as on a reversed part."""
+    def change(plan):
+        part = next(p for p in plan.parts if p["ref"] == ref)
+        pins = part["pins"]
+        pins[a], pins[b] = pins[b], pins[a]
+        for pin, hole in pins.items():
+            plan.nets[hole] = g.PARTS[ref]["pins"][pin]
+    return change
+
+
+def move(ref, pin, hole):
+    def change(plan):
+        part = next(p for p in plan.parts if p["ref"] == ref)
+        old = part["pins"][pin]
+        del plan.claims[old], plan.nets[old]
+        part["pins"][pin] = hole
+        plan.claim(hole, f"{ref}.{pin}", g.PARTS[ref]["pins"][pin])
+    return change
+
+
+def rotate_switch(plan):
+    part = next(p for p in plan.parts if p["ref"] == "S1")
+    part["pins"] = {"1": "e18", "2": "e20", "3": "f18", "4": "f20"}
+    for pin, hole in part["pins"].items():
+        plan.nets[hole] = g.PARTS["S1"]["pins"][pin]
+
+
+g.export(g.LAYOUT)
+L = g.LAYOUT
+u1 = L.pins("U1")
+results = [
+    rejects("5 V joined to 3.3 V", lambda l: l.wire("T3:49", "B5:49", "5V", "power", "Injected")),
+    rejects("3.3 V half-rail bridge removed",
+            lambda l: setattr(l, "wires", [w for w in l.wires if w["a"] != "T3:25"])),
+    rejects("Q1 inserted reversed (E-B-C)", swap("Q1", "E", "C")),
+    rejects("D1 inserted reversed", swap("D1", "A", "K")),
+    rejects("Q2 inserted reversed", swap("Q2", "E", "C")),
+    rejects("Button rotated 90 degrees across PANIC and GND", rotate_switch),
+    rejects("Button pairs bypassed by a jumper",
+            lambda l: l.wire("d18", "d20", "PANIC", "panic", "Injected")),
+    rejects("Trimpot wiper shorted to its grounded end",
+            lambda l: l.wire("d49", "TG:30", "VTH", "rx", "Injected")),
+    rejects("TX jumper one column off, in the Q1 base clip", move("R2", "1", "b57")),
+    rejects("Part under a resistor body", lambda l: l.wire("b58", "TG:31", "GND", "tx", "Injected")),
+    rejects("Extra jumper end on the F-J half by printed number",
+            lambda l: l.wire("j30", "BG:20", "GND", "rx", "Injected")),
+    rejects("U1 output shorted to GND", lambda l: l.wire("d53", "TG:32", "GND", "rx", "Injected")),
+]
+
+# Structural facts the guide states in prose.
+assert L.hole_nets["PI:18"] == "PANIC" and L.hole_nets["PI:6"] == "GND"
+pressed = g.UF()
+pressed.p = dict(L.uf.p)
+s1 = L.pins("S1")
+pressed.join(s1["3"], s1["1"])
+assert pressed.root("PI:18") == pressed.root("PI:6"), "Pressed button must pull PANIC low"
+assert len({pressed.root(f"PI:{n}") for n in (1, 2, 6)}) == 3
+assert L.pins("Q1") == {"C": "d59", "B": "d60", "E": "d61"}
+assert L.pins("D1") == {"A": "h62", "K": "h63"} and L.pins("Q2") == {"E": "c62", "C": "c63"}
+assert L.hole_nets[u1["1 OUT1"]] == L.hole_nets["PI:13"] == "OPT_RX"
+assert L.hole_nets[u1["8 VCC"]] == "5V" and L.hole_nets["PI:11"] == "TX"
+alternate = g.make("RM065")
+assert alternate.pins("RV1")["2 cursor"] not in L.claims
+assert {w["id"]: (w["a"], w["b"]) for w in alternate.wires} == \
+    {w["id"]: (w["a"], w["b"]) for w in L.wires}
+root = ET.parse(g.HERE / "faronet-breadboard.svg").getroot()
+assert len([e for e in root.iter() if "data-hole" in e.attrib]) == 830
+fj = sorted(h for h in L.claims if g.on_fj(h))
+
+report = {
+    "valid": True,
+    "revision": g.REVISION,
+    "rgb": "Removed from the design: no RGB parts, resistors or GPIO5/6/13.",
+    "plan": {"parts": len(L.parts), "jumpers": len(L.wires), "holes": 830,
+             "occupied_breadboard_holes": sum(not h.startswith("PI:") for h in L.claims),
+             "fj_holes": fj},
+    "checks": [
+        "Every component terminal from circuit-reference.json placed once",
+        "One terminal per hole; no occupied hole under a part body",
+        "Each net continuous through clips, jumpers and S1 internal pairs",
+        "No clip joins different nets; 3.3 V, 5 V and GND separate",
+        "No GPIO joined to 5 V; no resistor bridged by a clip",
+        "S1 open at rest, PANIC to GND when pressed",
+        "RV1 terminals on three nets; RM065 wiper hole and adjustment side kept free",
+        "U1.7 isolated",
+        "F-J holes only at the button, under U1 and at the IR emitter",
+        "D1 and Q2 on mirror rows at columns 62-63",
+    ],
+    "mutations": results,
+    "limits": "Copper connectivity and placement rules only. No physical measurement, "
+              "optical qualification or BER test.",
+}
+(g.HERE / "validation-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+print(json.dumps({"valid": True, "mutations_rejected": len(results), "jumpers": len(L.wires)}))

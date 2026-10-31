@@ -125,12 +125,10 @@ it runs PiOS, with its exact Python environment still to check. The
 inspected Pi 3's environment and controller are recorded in
 [the Pi profile](hardware/pi-environment.md). The accepted backend is official
 libgpiod v2 with BCM numbering; [the Python guide](python/README.md) explains
-the optional installation. Current pins and polarities follow the two plans
-in [hardware/breadboard](hardware/breadboard/README.md), which represent the
-assembled IR/PT333 comparator circuit. Physical I/O and receiver operation
-still need validation. The basic Faro works without RGB; `--rgb` enables
-only the optional debugging branch shown in the RGB plan. Each peer can
-choose either variant independently. LCD and
+the optional installation. Current pins and polarities follow the
+revision-7 plan in [hardware/breadboard](hardware/breadboard/README.md): one
+basic IR/PT333 comparator Faro per breadboard, with no RGB. Physical I/O and
+receiver operation still need validation. LCD and
 speaker/buzzer are enhancements only after minimum requirements are met.
 See [the current decisions](docs/decisions.md) for source conflicts and open
 choices. Both teammates must contribute meaningful Python and Rust work.

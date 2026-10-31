@@ -24,18 +24,14 @@ stop-and-wait policy are unchanged. Test payloads are deterministic synthetic
 
 ## Hardware authority
 
-Use [the revision-6 breadboard guide](../hardware/breadboard/README.md),
-[review HTML](../hardware/breadboard/faronet-breadboard-review.html) and
-the matching basic/RGB SVGs. `circuit-reference.json` supplies these pins.
-Older top-level HTML RGB/LS125 instructions are superseded by the common-
-cathode RGB revision. The implementation does not use SPI or ID pins.
+Use [the revision-7 breadboard guide](../hardware/breadboard/README.md),
+its [review HTML](../hardware/breadboard/faronet-breadboard-review.html) and
+SVG. `circuit-reference.json` supplies these pins. RGB is no longer part of
+the design, and the older top-level HTML files are superseded. The
+implementation does not use SPI or ID pins.
 
-Both assembled breadboard variants are supported. The **basic, no-RGB**
-plan is the default and uses only TX, RX, the two activity indicators and
-panic. `--rgb` selects the same core plus the three optional debugging
-outputs from the RGB plan. Each Faro chooses independently: a basic board
-can communicate with an RGB board using the same optical commands/frame
-format. Pin mapping tests check both variants against `layout-data.json`.
+There is a single profile: TX, RX, the two activity indicators and panic.
+A pin mapping test checks it against `layout-data.json`.
 
 | Role | BCM | Physical header | Logical behavior |
 | --- | ---: | ---: | --- |
@@ -44,17 +40,11 @@ format. Pin mapping tests check both variants against `layout-data.json`.
 | TX indicator | 22 | 15 | HIGH while transmitting a frame |
 | RX indicator | 23 | 16 | HIGH while a candidate frame is being captured |
 | Panic | 24 | 18 | External pull-up, pressed LOW; stop latches |
-| RGB red | 5 | 29 | HIGH = on, optional `--rgb` |
-| RGB green | 6 | 31 | HIGH = on, optional `--rgb` |
-| RGB blue | 13 | 33 | HIGH = on, optional `--rgb` |
 
-All selected outputs are requested atomically with initial LOW values.
-Without `--rgb`, neither preflight nor the driver inspects, claims or writes
-BCM5/6/13; even another program owning them does not block the basic Faro.
-With `--rgb`, the temporary debug display uses green for ready and blue for
-transmitting. These colors are provisional, and future patterns can be
-chosen separately; optical framing, ACKs, retries and panic never depend on
-RGB state or feedback. Cleanup turns all requested outputs off.
+All outputs are requested atomically with initial LOW values. Neither
+preflight nor the driver inspects, claims or writes any other GPIO; another
+program owning unrelated lines does not block the Faro. Cleanup turns all
+requested outputs off.
 The RX comparator and panic circuit have external
 pull-ups; the backend does not enable internal pull resistors.
 
@@ -139,12 +129,7 @@ cd ~/FaroNet/python
 sudo .venv/bin/python -m faronet gpio-preflight
 ```
 
-This checks the five basic GPIO signals. For the RGB variant, add `--rgb`
-to preflight and to that board's monitor/send/listen command:
-
-```bash
-sudo .venv/bin/python -m faronet gpio-preflight --rgb
-```
+This checks the five GPIO signals of the Faro.
 
 Preflight only opens the chip and reads metadata; it never requests lines.
 The Oct 25 check on A identified `/dev/gpiochip0`, `pinctrl-bcm2835`, with
@@ -234,9 +219,6 @@ durations, not measured performance. A clean three-frame run takes roughly
    fresh session after interruption, retry exhaustion or a timing error.
 7. Repeat at three measured distances and record the table below.
 
-Add `--rgb` on boards carrying the revision-6 common-cathode RGB only.
-Omit it for the basic layout or whenever optional RGB debugging is disabled;
-the other Faro does not need to make the same RGB selection.
 Keep the same half-bit setting on both Pis. A TX timing error stops output;
 try 10 ms on both boards and increase listener timeout for the longer run.
 The supported bring-up range is 2–20 ms, with no claim that its fast end
