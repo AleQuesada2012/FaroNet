@@ -103,6 +103,10 @@ class GpioBackendTests(unittest.TestCase):
         self.metadata.start()
         self.addCleanup(self.modules.stop)
         self.addCleanup(self.metadata.stop)
+        # Fake clocks only advance when sleeping, so never busy-wait in these tests.
+        spin = patch("faronet.faro.gpio.SPIN_NS", 0)
+        spin.start()
+        self.addCleanup(spin.stop)
 
     def test_outputs_initialized_low_and_inputs_never_driven(self):
         with GpioFrameIO("/dev/fake") as backend:
@@ -291,6 +295,49 @@ class GpioBackendTests(unittest.TestCase):
                 ))
                 self.request.values[RX] = Value.ACTIVE
                 self.assertEqual(backend.channel(), ((clock[0] + 5) / 1e9, True))
+
+    def test_wait_sleeps_short_of_the_deadline_then_spins(self):
+        clock, sleeps = [0], []
+
+        def monotonic_ns():
+            clock[0] += 1_000  # Each read costs a microsecond.
+            return clock[0]
+
+        def sleep(seconds):
+            sleeps.append(seconds)
+            clock[0] += int(seconds * 1e9) + 50_000  # Linux overshoot.
+
+        fake_time = SimpleNamespace(monotonic_ns=monotonic_ns, sleep=sleep)
+        with GpioFrameIO("/dev/fake") as backend, \
+                patch("faronet.faro.gpio.SPIN_NS", 1_000_000), \
+                patch("faronet.faro.gpio.time", fake_time):
+            backend._wait_until(25_000_000)
+            self.assertGreaterEqual(clock[0], 25_000_000)
+            self.assertLess(clock[0], 25_000_000 + 10_000)
+        self.assertTrue(all(s <= 0.01 for s in sleeps))
+
+    def test_on_air_uses_realtime_and_pauses_gc_then_restores_both(self):
+        from faronet.faro import gpio
+
+        calls = []
+        fake_os = SimpleNamespace(
+            SCHED_FIFO=1, sched_param=lambda priority: ("param", priority),
+            sched_getscheduler=lambda pid: 0, sched_getparam=lambda pid: ("param", 0),
+            sched_setscheduler=lambda pid, policy, param: calls.append((policy, param)),
+        )
+        with patch.object(gpio, "os", fake_os):
+            with gpio._on_air():
+                self.assertFalse(gpio.gc.isenabled())
+        self.assertTrue(gpio.gc.isenabled())
+        self.assertEqual(calls, [(1, ("param", gpio.REALTIME_PRIORITY)), (0, ("param", 0))])
+
+        def refused(*_):
+            raise PermissionError("not root")
+
+        with patch.object(gpio, "os", SimpleNamespace(**{**vars(fake_os), "sched_setscheduler": refused})):
+            with gpio._on_air():
+                pass
+        self.assertTrue(gpio.gc.isenabled())
 
     def test_wrong_controller_and_clock_refuse_line_request(self):
         for clock in (0, 1, 21, float("nan")):

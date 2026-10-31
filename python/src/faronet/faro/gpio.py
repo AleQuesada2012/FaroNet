@@ -1,12 +1,41 @@
 """Optional Linux libgpiod v2 backend. Importing this module never opens GPIO."""
 
 from collections import deque
+from contextlib import contextmanager
+import gc
+import os
 import time
 
 from faronet.dispositivo_luz_adaptador.frame import Frame
 from faronet.dispositivo_luz_adaptador.manchester import encode
 from faronet.faro.profile import CONTROLLER, LED_RX, LED_TX, PANIC, PINS, RX, TX, inspect_chip
 from faronet.faro.waveform import EdgeDecoder, FRAME_SYMBOLS, GUARD_SYMBOLS
+
+
+# Sleep until this close to each TX deadline, then busy-wait: sleep overshoot,
+# not the GPIO write, is what makes symbols late.
+SPIN_NS = 1_000_000
+REALTIME_PRIORITY = 50
+
+
+@contextmanager
+def _on_air():
+    """Best effort while a waveform is on air: SCHED_FIFO (needs root) and no GC pauses."""
+    previous = None
+    try:
+        previous = os.sched_getscheduler(0), os.sched_getparam(0)
+        os.sched_setscheduler(0, os.SCHED_FIFO, os.sched_param(REALTIME_PRIORITY))
+    except (AttributeError, OSError):  # Not Linux, or not running as root.
+        previous = None
+    collecting = gc.isenabled()
+    gc.disable()
+    try:
+        yield
+    finally:
+        if collecting:
+            gc.enable()
+        if previous is not None:
+            os.sched_setscheduler(0, *previous)
 
 
 class PanicStop(RuntimeError):
@@ -81,10 +110,12 @@ class GpioFrameIO:
             raise PanicStop("Panic pressed: outputs off; start a fresh session to resume")
 
     def _wait_until(self, deadline_ns: int):
-        while (remaining := deadline_ns - time.monotonic_ns()) > 0:
+        while (remaining := deadline_ns - time.monotonic_ns()) > SPIN_NS:
             self.check_panic()
-            time.sleep(min(remaining / 1e9, 0.01))
+            time.sleep(min((remaining - SPIN_NS) / 1e9, 0.01))
         self.check_panic()
+        while time.monotonic_ns() < deadline_ns:
+            pass
 
     def guard(self):
         self.set_output(TX, False)
@@ -119,22 +150,23 @@ class GpioFrameIO:
         self.set_output(LED_TX, True)
         try:
             try:
-                start = time.monotonic_ns()
-                for index, level in enumerate(encode(frame.encode())):
-                    deadline = start + index * self.half_ns
-                    self._wait_until(deadline)
-                    self.set_output(TX, bool(level))
-                    lateness = time.monotonic_ns() - deadline
-                    self.max_lateness_ns = max(self.max_lateness_ns, lateness)
-                    if lateness > self.half_ns * 0.4:
-                        raise TimingError("TX missed its timing budget; increase --half-bit-ms")
-                    if loopback:
-                        self.set_output(LED_RX, self._decoder.start is not None)
-                    else:
-                        # Drain self-reflections; panic presses still latch below.
-                        self._ignore_before = time.monotonic_ns() + self.half_ns
-                    self._events()
-                self._wait_until(start + FRAME_SYMBOLS * self.half_ns)
+                with _on_air():
+                    start = time.monotonic_ns()
+                    for index, level in enumerate(encode(frame.encode())):
+                        deadline = start + index * self.half_ns
+                        self._wait_until(deadline)
+                        self.set_output(TX, bool(level))
+                        lateness = time.monotonic_ns() - deadline
+                        self.max_lateness_ns = max(self.max_lateness_ns, lateness)
+                        if lateness > self.half_ns * 0.4:
+                            raise TimingError("TX missed its timing budget; increase --half-bit-ms")
+                        if loopback:
+                            self.set_output(LED_RX, self._decoder.start is not None)
+                        else:
+                            # Drain self-reflections; panic presses still latch below.
+                            self._ignore_before = time.monotonic_ns() + self.half_ns
+                        self._events()
+                    self._wait_until(start + FRAME_SYMBOLS * self.half_ns)
             finally:
                 self.set_output(TX, False)
                 self.set_output(LED_TX, False)

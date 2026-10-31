@@ -309,3 +309,14 @@ collisions recovered, deferral and ACK priority, lost ACK, retry
 exhaustion, stale frames and the driver loop against a fake peer.
 Python suite: 119 passed on the Mac. No physical two-Faro run yet.
 
+TX timing follow-up: every symbol was late by up to the sleep overshoot plus
+any scheduler or garbage-collection pause (2.57 ms max at 10 ms, over the
+0.4-half-bit budget at 5 ms and below). `_wait_until` now sleeps until 1 ms
+before each deadline and then busy-waits; while a frame is on air the
+process requests SCHED_FIFO priority 50 (effective under sudo, ignored
+otherwise) and pauses Python's garbage collector, restoring both afterwards.
+Each symbol still sleeps about half its time at 2 ms, which stays clear of
+Linux real-time throttling. On the Mac, sleep overshoot alone reached
+1.25 ms, so a Mac run cannot qualify the Pi; the 5/3/2 ms loopback must be
+rerun on Faro A. Python suite: 121 passed on the Mac.
+
