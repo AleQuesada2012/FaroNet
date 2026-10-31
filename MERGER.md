@@ -215,3 +215,23 @@ Python suite: 104 passed on the Mac. The command has not run on physical
 GPIO; RV1 calibration, receiver voltages and optical ACK remain pending.
 The owner authorized pushing this follow-up directly to `origin/main`.
 
+
+## Bench follow-up: receiver power/ground faults and revision 7a
+
+User-reported, Faro A, Pi powered, black probe on GND, before any fix:
+U1 pin 8 ≈2.2–2.3 V (expected ~5 V), U1 pin 4 ≈0.7–0.8 V (expected 0 V),
+VBIAS at e48 ≈2.7 V (expected ~2.1 V), Q2 emitter 0 V, VTH at e41
+≈0.003 V (RV1 turned to its GND end), OPT_RX ≈0 V. `gpio-calibrate`
+`--blink` lit D1, but RX never reported light. The SENSE readings
+(b52 vs d63) were ambiguous and are not carried forward.
+
+Found with power off and corrected by the owner: W20 (b49 ↔ b51,
+R6 hysteresis) and W16 (d50 → TG:40, U1 pin 4 to GND) were missing.
+Continuity from R9's rail end (BG:41) to the top GND rail was
+intermittent through W04 at TG:4 ↔ BG:4; the wire itself tested good.
+Added a second GND bridge TG:21 ↔ BG:21 and kept W04 (revision 7a,
+recorded in `hardware/breadboard/README.md`; generated plan/HTML not
+regenerated). Netlist and values are unchanged. The owner reports all
+other continuity checks pass. Powered re-measurement of U1 pins 8/4,
+VBIAS, SENSE and VTH, meter-based RV1 setting and the Q2 IR response
+remain pending.

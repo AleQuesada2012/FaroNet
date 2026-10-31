@@ -53,6 +53,17 @@ Q1, Q2, D1, S1 y RV1 se comprueban con el multímetro antes de conectar la Pi.
 El emisor IR sigue sin modelo exacto: R1 = 330 Ω es provisional, sujeto a la
 corriente medida.
 
+## Revisión 7a: segundo puente de GND (montaje del equipo)
+
+Cambio de banco, no regenerado en el plano ni en la guía HTML. En el
+Faro A, la continuidad de R9 (BG:41) a la tierra de arriba era
+intermitente a través de W04 en TG:4 ↔ BG:4; el cable estaba sano y la
+falla era el contacto en esos agujeros del riel. Se añadió un puente
+TG:21 ↔ BG:21 y se conserva W04. Ambos unen GND con GND: la netlist, los
+valores y los pines de la Pi no cambian. Ambos agujeros están libres en
+rev. 7. Al armar otro Faro, comprobar con el óhmetro (estable, < 2 Ω)
+que BG:41 llega a la tierra de arriba aunque se mueva cada puente.
+
 ## Archivos
 
 - `circuit-reference.json`: netlist y pines de la Pi (la autoridad eléctrica).
