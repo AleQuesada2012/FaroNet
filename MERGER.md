@@ -320,3 +320,20 @@ Linux real-time throttling. On the Mac, sleep overshoot alone reached
 1.25 ms, so a Mac run cannot qualify the Pi; the 5/3/2 ms loopback must be
 rerun on Faro A. Python suite: 121 passed on the Mac.
 
+## Edge: Atom topic feeds and rate limiting (2026-10-31)
+
+Student A's edge slice. `GET /rooms/{topic}/feed.atom` serves an Atom 1.0
+feed per public topic from the topic's `PublicRoom` Durable Object, which
+now stores the last 20 public messages for at most 24 hours (sequence,
+minute-resolution time, text; no identity or address) and erases expired
+entries with an alarm. Every route except `/health` is limited to 60
+requests per client per minute through a new `EdgeLimiter` Durable Object
+(SQLite class, as the free plan requires) named by a SHA-256 of
+`CF-Connecting-IP` and holding its counter in memory only. The rooms page
+links to its feed. Verified on the Mac: `cargo test` (23 tests), `npm run
+check` (fmt, wasm32 clippy), `npm run build`, the local runtime test against
+`dev:rooms` (relay, limits, feeds, escaping, ordering, 429/Retry-After),
+an XML well-formedness parse of a real feed, and `npm run dry-run` showing
+both Durable Object bindings. Not deployed; `PUBLIC_ROOMS_ENABLED` remains
+false in versioned configuration.
+

@@ -1,16 +1,32 @@
-//! Local opt-in public-room prototype. Never a private mesh endpoint.
+//! Opt-in public topic rooms and their Atom feeds. Never a private mesh endpoint.
 
 pub const MAX_MESSAGE_BYTES: usize = 1024;
 pub const MAX_CONNECTIONS: usize = 16;
+/// Feed entries kept per topic, and how long any public entry is stored.
+pub const MAX_FEED_ENTRIES: usize = 20;
+pub const FEED_TTL_MS: u64 = 24 * 60 * 60 * 1000;
+/// Stored times are rounded down to the minute to shed timing metadata.
+const PUBLISHED_RESOLUTION_MS: u64 = 60_000;
 
-pub fn room_from_path(path: &str) -> Option<&str> {
-    let room = path.strip_prefix("/rooms/")?.strip_suffix("/ws")?;
-    (!room.is_empty()
+/// (sequence, published minute in Unix ms, public text). No identity or address.
+pub type FeedEntry = (u64, u64, String);
+
+fn valid_room(room: &str) -> bool {
+    !room.is_empty()
         && room.len() <= 32
         && room
             .bytes()
-            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-'))
-    .then_some(room)
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+}
+
+pub fn room_from_path(path: &str) -> Option<&str> {
+    let room = path.strip_prefix("/rooms/")?.strip_suffix("/ws")?;
+    valid_room(room).then_some(room)
+}
+
+pub fn feed_room_from_path(path: &str) -> Option<&str> {
+    let room = path.strip_prefix("/rooms/")?.strip_suffix("/feed.atom")?;
+    valid_room(room).then_some(room)
 }
 
 pub fn valid_message(text: &str) -> bool {
@@ -23,16 +39,108 @@ pub fn valid_message(text: &str) -> bool {
 
 /// Attachment state survives hibernation; contains only a window and count.
 pub fn admit_message(window: [u64; 2], now_ms: u64) -> Option<[u64; 2]> {
-    let mut next = if now_ms.saturating_sub(window[0]) >= 10_000 {
-        [now_ms, 0]
-    } else {
-        window
-    };
-    if next[1] >= 5 {
-        return None;
+    crate::rate_limit::admit_in_window(window, now_ms, 10_000, 5)
+}
+
+/// Drop entries past their TTL and keep at most MAX_FEED_ENTRIES, oldest first.
+pub fn prune_feed(entries: &mut Vec<FeedEntry>, now_ms: u64) {
+    entries.retain(|entry| now_ms.saturating_sub(entry.1) < FEED_TTL_MS);
+    let excess = entries.len().saturating_sub(MAX_FEED_ENTRIES);
+    entries.drain(..excess);
+}
+
+pub fn append_feed(entries: &mut Vec<FeedEntry>, sequence: u64, now_ms: u64, text: &str) {
+    let published = now_ms - now_ms % PUBLISHED_RESOLUTION_MS;
+    entries.push((sequence, published, text.to_string()));
+    prune_feed(entries, now_ms);
+}
+
+/// When the oldest stored entry expires, so an alarm can erase it.
+pub fn next_expiry(entries: &[FeedEntry]) -> Option<u64> {
+    entries.iter().map(|entry| entry.1 + FEED_TTL_MS).min()
+}
+
+/// Escape for XML 1.0 text and attributes; characters XML forbids become U+FFFD.
+pub fn xml_text(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&apos;"),
+            '\t' | '\n' | '\r' => out.push(c),
+            c if c < ' ' || c == '\u{FFFE}' || c == '\u{FFFF}' => out.push('\u{FFFD}'),
+            c => out.push(c),
+        }
     }
-    next[1] += 1;
-    Some(next)
+    out
+}
+
+/// RFC 3339 UTC timestamp for Atom, from Unix milliseconds.
+pub fn rfc3339(ms: u64) -> String {
+    let seconds = ms / 1000;
+    // Howard Hinnant's days-to-civil algorithm.
+    let z = (seconds / 86_400) as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    let rest = seconds % 86_400;
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        rest / 3600,
+        rest % 3600 / 60,
+        rest % 60
+    )
+}
+
+fn entry_title(text: &str) -> String {
+    let line = text.trim().lines().next().unwrap_or_default();
+    let title: String = line.chars().take(64).collect();
+    if title.len() < line.len() {
+        format!("{title}\u{2026}")
+    } else {
+        title
+    }
+}
+
+/// One Atom 1.0 feed per public topic, newest entry first.
+pub fn atom_feed(origin: &str, room: &str, entries: &[FeedEntry], now_ms: u64) -> String {
+    let updated = entries
+        .iter()
+        .map(|entry| entry.1)
+        .max()
+        .unwrap_or(now_ms - now_ms % PUBLISHED_RESOLUTION_MS);
+    let self_url = xml_text(&format!("{origin}/rooms/{room}/feed.atom"));
+    let mut feed = format!(
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n\
+         <feed xmlns=\"http://www.w3.org/2005/Atom\">\n\
+         <id>urn:faronet:public-topic:{room}</id>\n\
+         <title>FaroNet public topic: {room}</title>\n\
+         <subtitle>Explicitly public messages; entries expire after 24 hours.</subtitle>\n\
+         <updated>{}</updated>\n\
+         <author><name>FaroNet</name></author>\n\
+         <link rel=\"self\" type=\"application/atom+xml\" href=\"{self_url}\"/>\n",
+        rfc3339(updated)
+    );
+    for (sequence, published, text) in entries.iter().rev() {
+        feed.push_str(&format!(
+            "<entry>\n<id>urn:faronet:public-topic:{room}:{sequence}</id>\n\
+             <title>{}</title>\n<updated>{}</updated>\n\
+             <content type=\"text\">{}</content>\n</entry>\n",
+            xml_text(&entry_title(text)),
+            rfc3339(*published),
+            xml_text(text)
+        ));
+    }
+    feed.push_str("</feed>\n");
+    feed
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -45,12 +153,65 @@ pub mod runtime {
         state: State,
     }
 
+    impl PublicRoom {
+        /// Read the topic's entries, persisting any TTL pruning and the next expiry alarm.
+        async fn load_feed(&self, now: u64) -> Result<Vec<FeedEntry>> {
+            let storage = self.state.storage();
+            let mut entries: Vec<FeedEntry> = storage.get("feed").await?.unwrap_or_default();
+            let stored = entries.len();
+            prune_feed(&mut entries, now);
+            if entries.len() != stored {
+                self.save_feed(&entries, now).await?;
+            }
+            Ok(entries)
+        }
+
+        async fn save_feed(&self, entries: &[FeedEntry], now: u64) -> Result<()> {
+            let storage = self.state.storage();
+            match next_expiry(entries) {
+                Some(expiry) => {
+                    storage.put("feed", entries).await?;
+                    let delay = expiry.saturating_sub(now).max(1);
+                    storage
+                        .set_alarm(std::time::Duration::from_millis(delay))
+                        .await
+                }
+                None => storage.delete("feed").await.map(|_| ()),
+            }
+        }
+
+        async fn record(&self, text: &str) -> Result<()> {
+            let storage = self.state.storage();
+            let now = Date::now().as_millis();
+            let sequence: u64 = storage.get("sequence").await?.unwrap_or(0);
+            let mut entries = self.load_feed(now).await?;
+            append_feed(&mut entries, sequence, now, text);
+            storage.put("sequence", sequence + 1).await?;
+            self.save_feed(&entries, now).await
+        }
+    }
+
     impl DurableObject for PublicRoom {
         fn new(state: State, _env: Env) -> Self {
             Self { state }
         }
 
         async fn fetch(&self, req: Request) -> Result<Response> {
+            let url = req.url()?;
+            if let Some(room) = feed_room_from_path(url.path()) {
+                if req.method() != Method::Get {
+                    return Response::error("Method not allowed", 405);
+                }
+                let now = Date::now().as_millis();
+                let entries = self.load_feed(now).await?;
+                let origin = url.origin().ascii_serialization();
+                let mut response = Response::ok(atom_feed(&origin, room, &entries, now))?;
+                let headers = response.headers_mut();
+                headers.set("Content-Type", "application/atom+xml; charset=utf-8")?;
+                headers.set("X-Content-Type-Options", "nosniff")?;
+                headers.set("Cache-Control", "public, max-age=30")?;
+                return Ok(response);
+            }
             if req.method() != Method::Get
                 || req.headers().get("Upgrade")?.as_deref() != Some("websocket")
             {
@@ -85,12 +246,19 @@ pub mod runtime {
                 return ws.close(Some(1008), Some("Message rate exceeded"));
             };
             ws.serialize_attachment(next)?;
+            self.record(&text).await?;
             for peer in self.state.get_websockets() {
                 if peer.send_with_str(&text).is_err() {
                     let _ = peer.close(Some(1011), Some("Connection unavailable"));
                 }
             }
             Ok(())
+        }
+
+        async fn alarm(&self) -> Result<Response> {
+            // Erase expired public entries even if nobody reads the feed again.
+            self.load_feed(Date::now().as_millis()).await?;
+            Response::empty()
         }
 
         async fn websocket_close(
@@ -141,6 +309,78 @@ mod tests {
         for invalid in [String::new(), " \n".into(), "x\0y".into(), "á".repeat(513)] {
             assert!(!valid_message(&invalid));
         }
+    }
+
+    #[test]
+    fn feed_routes_are_canonical() {
+        assert_eq!(
+            feed_room_from_path("/rooms/demo-1/feed.atom"),
+            Some("demo-1")
+        );
+        for path in [
+            "/rooms//feed.atom",
+            "/rooms/Up/feed.atom",
+            "/rooms/a/b/feed.atom",
+            "/rooms/demo/feed",
+        ] {
+            assert_eq!(feed_room_from_path(path), None);
+        }
+    }
+
+    #[test]
+    fn feed_keeps_twenty_unexpired_entries_on_minute_resolution() {
+        let mut entries = Vec::new();
+        for sequence in 0..25 {
+            append_feed(&mut entries, sequence, 1_000_000 + sequence * 1000, "x");
+        }
+        assert_eq!(entries.len(), MAX_FEED_ENTRIES);
+        assert_eq!(entries[0].0, 5);
+        assert!(entries.iter().all(|entry| entry.1 % 60_000 == 0));
+        assert_eq!(next_expiry(&entries), Some(960_000 + FEED_TTL_MS));
+        prune_feed(&mut entries, 960_000 + FEED_TTL_MS);
+        assert_eq!(
+            entries.iter().map(|e| e.0).collect::<Vec<_>>(),
+            [20, 21, 22, 23, 24]
+        );
+        prune_feed(&mut entries, 1_020_000 + FEED_TTL_MS);
+        assert!(entries.is_empty());
+        assert_eq!(next_expiry(&entries), None);
+    }
+
+    #[test]
+    fn rfc3339_handles_epoch_leap_day_and_large_values() {
+        assert_eq!(rfc3339(0), "1970-01-01T00:00:00Z");
+        assert_eq!(rfc3339(951_782_400_000), "2000-02-29T00:00:00Z");
+        assert_eq!(rfc3339(1_000_000_000_999), "2001-09-09T01:46:40Z");
+        assert_eq!(rfc3339(1_793_577_599_000), "2026-11-01T23:59:59Z");
+    }
+
+    #[test]
+    fn atom_escapes_markup_and_orders_newest_first() {
+        let entries = vec![
+            (0, 60_000, "first".to_string()),
+            (
+                1,
+                120_000,
+                "<img src=x onerror=\"alert(1)\"> & 'more'\u{FFFE}".to_string(),
+            ),
+        ];
+        let feed = atom_feed("https://edge.example", "demo", &entries, 180_000);
+        assert!(feed.starts_with("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<feed xmlns=\"http://www.w3.org/2005/Atom\">"));
+        assert!(feed.contains(
+            "&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &apos;more&apos;\u{FFFD}"
+        ));
+        assert!(!feed.contains("<img"));
+        assert!(feed.contains("<updated>1970-01-01T00:02:00Z</updated>"));
+        assert!(feed.find(":demo:1</id>").unwrap() < feed.find(":demo:0</id>").unwrap());
+        assert!(feed.contains("href=\"https://edge.example/rooms/demo/feed.atom\""));
+        let empty = atom_feed("https://edge.example", "quiet", &[], 185_000);
+        assert!(
+            !empty.contains("<entry>") && empty.contains("<updated>1970-01-01T00:03:00Z</updated>")
+        );
+        let long = "y".repeat(100);
+        assert!(atom_feed("o", "t", &[(0, 0, long)], 0)
+            .contains(&format!("<title>{}\u{2026}</title>", "y".repeat(64))));
     }
 
     #[test]

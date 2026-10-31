@@ -17,6 +17,8 @@ byId("join").addEventListener("submit", (event) => {
     connected(true);
     byId("messages").replaceChildren();
     byId("status").textContent = `Connected to public room: ${room}`;
+    byId("feed").href = `/rooms/${room}/feed.atom`;
+    byId("feed").hidden = false;
   });
   candidate.addEventListener("message", (event) => {
     const row = document.createElement("li");

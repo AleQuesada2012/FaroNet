@@ -1,10 +1,13 @@
-//! Offline authentication foundation and the existing Worker health handler.
+//! Worker entry: health, rate limiting, and opt-in public topic rooms and feeds.
 
 pub mod gateway_auth;
 pub mod public_rooms;
+pub mod rate_limit;
 
 #[cfg(target_arch = "wasm32")]
 pub use public_rooms::runtime::PublicRoom;
+#[cfg(target_arch = "wasm32")]
+pub use rate_limit::runtime::EdgeLimiter;
 
 #[cfg(target_arch = "wasm32")]
 use worker::{event, Context, Env, Method, Request, Response, Result};
@@ -13,6 +16,11 @@ use worker::{event, Context, Env, Method, Request, Response, Result};
 #[event(fetch)]
 async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response> {
     let path = request.path();
+    if path != "/health" && !rate_limit::runtime::admitted(&request, &env).await? {
+        let mut response = Response::error("Too many requests", 429)?;
+        response.headers_mut().set("Retry-After", "60")?;
+        return Ok(response);
+    }
     if path == "/rooms" || path == "/rooms.js" || path.starts_with("/rooms/") {
         if env
             .var("PUBLIC_ROOMS_ENABLED")
@@ -56,6 +64,16 @@ async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response
             let origin = request.url()?.origin().ascii_serialization();
             if request.headers().get("Origin")?.as_deref() != Some(origin.as_str()) {
                 return Response::error("Same-origin browser required", 403);
+            }
+            return env
+                .durable_object("PUBLIC_ROOMS")?
+                .get_by_name(room)?
+                .fetch_with_request(request)
+                .await;
+        }
+        if let Some(room) = public_rooms::feed_room_from_path(&path) {
+            if request.url()?.query().is_some() {
+                return Response::error("Query parameters are not supported", 400);
             }
             return env
                 .durable_object("PUBLIC_ROOMS")?

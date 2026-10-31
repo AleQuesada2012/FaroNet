@@ -40,15 +40,37 @@ npm run test:rooms
 ```
 
 The runtime test checks relay, room isolation, same-origin upgrade policy,
-input/rate/connection limits, close/reconnect and HTTP routes. `ws==8.21.0`
+input/rate/connection limits, close/reconnect, HTTP routes, the Atom feeds
+and the per-client request limit. Start a fresh `dev:rooms` before running
+it, because it uses up the minute's request budget at the end. `ws==8.21.0`
 is a pinned development-only test client, already present transitively in
 the existing Wrangler lockfile. Rust business logic stays in Rust.
+
+### Topic feeds and rate limiting
+
+Every public topic has an Atom 1.0 feed at `GET /rooms/{topic}/feed.atom`
+(same gating as the rooms). The room's Durable Object stores the last 20
+public messages for at most 24 hours: sequence number, publication time
+rounded down to the minute, and text. No identity, address or connection
+data is stored. An alarm erases entries when their TTL ends even if nobody
+reads the feed again. Text is XML-escaped and served as `type="text"`.
+
+Every route except `/health` passes a per-client limit of 60 requests per
+60 seconds; excess requests get `429` with `Retry-After: 60`. The
+`EdgeLimiter` Durable Object is named by a SHA-256 of the client address
+(`CF-Connecting-IP`) and keeps its fixed-window counter **in memory only**,
+so nothing about the client is written to storage or logs. Hashing an IPv4
+address is not anonymization, and the provider still sees addresses; the
+threat model must say so. A Durable Object was chosen over the Workers rate
+limiting binding because its free-plan availability was not confirmed and
+SQLite-backed Durable Objects are explicitly available on the free plan.
+Limits reset if the object is evicted, which errs toward admitting traffic.
 
 `src/public_rooms.rs` exports one hibernating `PublicRoom` Durable Object
 per canonical room slug. Message size is capped at 1,024 UTF-8 bytes, with
 16 connections per room and five messages per connection per ten seconds.
-Only the count/window is attached to a socket; no message history, identity
-or IP is written by application code. These are local-demo limits: reconnect
+Only the count/window is attached to a socket; apart from the feed entries
+above, no message history, identity or IP is written by application code. These are local-demo limits: reconnect
 can bypass the per-connection rate budget, and global admission/authentication
 and gateway relay integration remain pending. Origin checking is not user
 authentication. The opt-in demo must not be treated as a production service.
@@ -103,9 +125,10 @@ Wrangler secret operation and are not uploaded from `.dev.vars`.
 
 - Authenticated gateway relay with replay protection.
 - Integrate the local public-room baseline with the authenticated gateway.
-- Atom or RSS feeds for public topics.
 - Fixed-size encrypted dead-drop blobs with TTL and delete-on-read behavior.
-- Read-only signed public node directory and rate limiting.
+- Read-only signed public node directory.
+- Deployment: `PUBLIC_ROOMS_ENABLED` is still `false` in versioned config;
+  enabling it is a deployment decision.
 
 The local public-room binding is declared; no live resource was provisioned.
 The future replay-store direction is accepted; its live integration remains

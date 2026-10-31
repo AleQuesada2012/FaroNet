@@ -7,10 +7,16 @@
   "send_metrics": false,
   "vars": { "PUBLIC_ROOMS_ENABLED": "false" },
   "durable_objects": {
-    "bindings": [{ "name": "PUBLIC_ROOMS", "class_name": "PublicRoom" }]
+    "bindings": [
+      { "name": "PUBLIC_ROOMS", "class_name": "PublicRoom" },
+      { "name": "EDGE_LIMITER", "class_name": "EdgeLimiter" }
+    ]
   },
+  // SQLite-backed classes are the only Durable Objects on the free plan.
+  // EdgeLimiter keeps its counters in memory and never writes storage.
   "exports": {
-    "PublicRoom": { "type": "durable-object", "storage": "sqlite" }
+    "PublicRoom": { "type": "durable-object", "storage": "sqlite" },
+    "EdgeLimiter": { "type": "durable-object", "storage": "sqlite" }
   },
   "build": {
     "command": "npm run build",

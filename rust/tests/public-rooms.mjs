@@ -1,4 +1,5 @@
-// Run against npm run dev:rooms on this Mac. Only synthetic text is used.
+// Run against a freshly started npm run dev:rooms on this Mac (the rate-limit
+// window starts empty). Only synthetic text is used.
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import WebSocket from "ws";
@@ -99,7 +100,31 @@ try {
   replacement.send("synthetic reconnect");
   await until(() => received.get(a).length === 3);
   assert.equal(received.get(other).length, 0);
-  console.log("Public-room runtime checks passed: relay, room isolation, origin, limits, close/reconnect, routes.");
+  // Feeds: the room's public entries, escaped, newest first; other rooms stay empty.
+  const feed = await fetch(`${base}/rooms/same-${suffix}/feed.atom`);
+  assert.equal(feed.status, 200);
+  assert.equal(feed.headers.get("content-type"), "application/atom+xml; charset=utf-8");
+  const atom = await feed.text();
+  assert.match(atom, /^<\?xml version="1.0" encoding="utf-8"\?>\n<feed xmlns="http:\/\/www.w3.org\/2005\/Atom">/);
+  assert.ok(atom.includes("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;"));
+  assert.ok(!atom.includes("<img"));
+  const order = ["synthetic reconnect", "&lt;img", "synthetic public message"].map((text) => atom.indexOf(text));
+  assert.ok(order.every((index) => index >= 0) && order[0] < order[1] && order[1] < order[2]);
+  const quiet = await (await fetch(`${base}/rooms/other-${suffix}/feed.atom`)).text();
+  assert.ok(!quiet.includes("<entry>"));
+  assert.equal((await fetch(`${base}/rooms/Upper/feed.atom`)).status, 404);
+  assert.equal((await fetch(`${base}/rooms/demo/feed.atom?x=1`)).status, 400);
+  // Rate limit: one client gets at most 60 requests per minute; health stays open.
+  let limited;
+  for (let index = 0; index < 70 && !limited; index++) {
+    const response = await fetch(`${base}/rooms/rate-${suffix}/feed.atom`);
+    if (response.status === 429) limited = response;
+    else assert.equal(response.status, 200);
+  }
+  assert.ok(limited, "No request was rate limited");
+  assert.equal(limited.headers.get("retry-after"), "60");
+  assert.equal((await fetch(`${base}/health`)).status, 200);
+  console.log("Public-room runtime checks passed: relay, isolation, origin, limits, close/reconnect, routes, feeds, rate limit.");
 } finally {
   clearTimeout(watchdog);
   for (const socket of sockets) socket.terminate();
