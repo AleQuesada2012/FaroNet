@@ -281,3 +281,31 @@ the old rule and passes now. Python suite: 109 passed on the Mac. Whether
 this fixes the physical loopback, and how much the comparator chatters,
 is not yet measured.
 
+## Bench results, CSMA/CA link and new deadlines (2026-10-31)
+
+User-reported, Faro A, after the sequence-gap fix: `optical-loopback`
+at 10 ms matched 3/3 frames, 0 bit errors, 0 rejected waveforms, 2281
+sequence gaps, TX max lateness 2.566 ms, 4.162 payload B/s.
+`gpio-calibrate --blink --blink-ms 10`: `rx_matches_ir_pct` 100 in every
+window, exactly 100 edges/s, about 24 `seq_gaps` per 0.5 s window (roughly
+one per two transitions; likely a glitch on one edge direction). Loopback
+at 5, 3 and 2 ms each stopped with "TX missed its timing budget".
+The owner chose more comparator hysteresis (for example R6 47 kOhm instead
+of 100 kOhm) for the soldered board, not the breadboard.
+
+The owner updated the deadlines: code, BOM, documentation and RFC on
+Sunday 2026-11-01 23:59:59 (Costa Rica), code frozen from Monday; the
+soldered, working Faros two days later.
+
+Medium access: the owner selected CSMA/CA, the accepted three attempts and a
+first slice of MAC, simulator and CLI (proposal 0003, PROPOSED). Added
+`dispositivo_luz_adaptador/medium.py` (CsmaLink state machine and a
+two-Faro SimulatedMedium where overlapping light loses both frames),
+`faro/link.py` and the `optical-link` command, run identically on both
+Pis. `GpioFrameIO.channel()` reports carrier sense; RX is ignored for one
+half-bit after our own TX; frames already decoded before a transmission
+are no longer discarded. Tests: 30 seeds of simultaneous traffic with
+collisions recovered, deferral and ACK priority, lost ACK, retry
+exhaustion, stale frames and the driver loop against a fake peer.
+Python suite: 119 passed on the Mac. No physical two-Faro run yet.
+

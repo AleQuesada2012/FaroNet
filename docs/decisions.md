@@ -92,6 +92,7 @@ SPI/I2C/GPIO wiring is not an approved project pin map.
 | Optical encoding | On/off modulation (OOK) with Manchester line coding | Owner's Q10 answer; lecturer recommendation reported by owner |
 | Link integrity | Standard CRC-32 for accidental transmission errors; separate cryptographic authentication required | Owner's Q10 answer |
 | Medium access | Two Faros, half-duplex explicit transmission turns, one outstanding data frame, acknowledgments, bounded retries and duplicate suppression | Owner's Q11 answer; recovery details pending |
+| Autonomous turns | CSMA/CA: carrier sense, random backoff, ACK priority; keep the accepted three attempts; first slice is the MAC, a collision simulator and an `optical-link` command with a manually shared session | Owner, 2026-10-31; [proposal 0003](rfc/0003-optical-medium-access-proposal.md) (PROPOSED) |
 | Privacy | Recognized crypto, E2E encryption, fixed padding, no identifying logs, TTL, panic zeroization | Assignment pp. 4-5 |
 | Edge application | Authenticated relay, public rooms, feeds, dead drop, directory, rate limiting | Assignment p. 5 |
 | Workflow | Circuit simulation or physical tests before publication; CI is exploratory | Kick-off |

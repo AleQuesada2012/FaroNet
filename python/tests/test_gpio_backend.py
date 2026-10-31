@@ -271,6 +271,27 @@ class GpioBackendTests(unittest.TestCase):
                 self.assertIsNone(backend.transmit(frame))
                 self.assertEqual((len(backend._frames), backend.rejected), (0, 0))
 
+    def test_channel_reports_last_peer_edge_and_light_but_not_own_reflection(self):
+        clock = [10**12]
+        fake_time = SimpleNamespace(
+            monotonic_ns=lambda: clock[0], monotonic=lambda: clock[0] / 1e9,
+            sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(1, int(seconds * 1e9))),
+        )
+        self.request = EchoRequest(clock)
+        with patch("faronet.faro.gpio.time", fake_time):
+            with GpioFrameIO("/dev/fake", 2) as backend:
+                self.assertEqual(backend.channel(), (10**12 / 1e9, False))
+                backend.guard()
+                backend.transmit(Frame(FrameType.DATA, b"a" * 8, b"b" * 8, b"s" * 8, 0))
+                self.assertEqual(backend.channel(), (10**12 / 1e9, False))
+                backend.guard()  # A peer frame starts only after its own dark guard.
+                self.request.events.append(SimpleNamespace(
+                    global_seqno=self.request.seq + 1, line_offset=RX, timestamp_ns=clock[0] + 5,
+                    event_type=1, Type=SimpleNamespace(RISING_EDGE=1),
+                ))
+                self.request.values[RX] = Value.ACTIVE
+                self.assertEqual(backend.channel(), ((clock[0] + 5) / 1e9, True))
+
     def test_wrong_controller_and_clock_refuse_line_request(self):
         for clock in (0, 1, 21, float("nan")):
             with self.assertRaises(ValueError):
@@ -312,7 +333,7 @@ class GpioBackendTests(unittest.TestCase):
     def test_cli_requires_hardware_ready_and_profile_runs_without_gpio(self):
         from faronet.cli import main
 
-        for command in ("gpio-monitor", "gpio-calibrate"):
+        for command in ("gpio-monitor", "gpio-calibrate", "optical-loopback", "optical-link"):
             with patch("sys.argv", ["faronet", command]), patch("sys.stderr", io.StringIO()):
                 with self.assertRaises(SystemExit):
                     main()

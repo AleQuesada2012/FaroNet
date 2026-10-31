@@ -39,6 +39,7 @@ class GpioFrameIO:
         self._panic = False
         self._last_seq = 0
         self._ignore_before = 0
+        self._last_rx_ns = time.monotonic_ns()
         self._frames = deque(maxlen=4)
         config = {
             tuple(self.outputs): gpiod.LineSettings(
@@ -106,6 +107,7 @@ class GpioFrameIO:
             if event.timestamp_ns < self._ignore_before:
                 continue
             level = int(event.event_type == event.Type.RISING_EDGE)
+            self._last_rx_ns = max(self._last_rx_ns, event.timestamp_ns)
             frame = self._decoder.feed(event.timestamp_ns, level)
             if frame is not None:
                 self._frames.append(frame)
@@ -149,9 +151,11 @@ class GpioFrameIO:
             if loopback:
                 self.set_output(LED_RX, False)
                 self.rejected += self._decoder.rejected
-            self._ignore_before = time.monotonic_ns()
+            # Our reflection's tail is not peer light; peer frames start after a guard.
+            self._ignore_before = time.monotonic_ns() + self.half_ns
             self._decoder = self._new_decoder()
-            self._frames.clear()
+            if loopback:
+                self._frames.clear()
 
     def receive(self, timeout: float) -> Frame | None:
         deadline = time.monotonic() + timeout
@@ -180,6 +184,13 @@ class GpioFrameIO:
         self._events()
         return {"light": int(self.request.get_value(RX) == self._value.ACTIVE),
                 "panic_pressed": self._panic}
+
+    def channel(self) -> tuple[float, bool]:
+        """Carrier sense: (monotonic seconds of the last peer RX edge, light arriving now)."""
+        self._events()
+        busy = (self._decoder.start is not None
+                or self.request.get_value(RX) == self._value.ACTIVE)
+        return self._last_rx_ns / 1e9, busy
 
     def sample_rx(self) -> tuple[int, int]:
         """Return the RX level and RX edges since the last call, without decoding."""

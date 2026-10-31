@@ -13,6 +13,12 @@ contract for identities, signed directory entries, fragmentation, fixed-size
 onion envelopes and padded private messages. It is implemented in the node
 package for review and is not accepted yet.
 
+[Proposal 0003](0003-optical-medium-access-proposal.md) is the PROPOSED CSMA/CA
+medium access for the Faro link: carrier sense, random backoff and ACK
+priority, with the accepted frame and three-attempt policy unchanged. The
+owner selected its design choices on 2026-10-31; a physical two-Faro run and
+Teammate B review are pending.
+
 The future RFC must document versioning, frame/packet fields and explicit
 lengths, integrity, medium access, addressing, routing, and the threat model,
 with Privacy Considerations and Security Considerations. The assignment

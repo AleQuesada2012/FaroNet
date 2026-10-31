@@ -9,7 +9,9 @@ import time
 
 from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
 from faronet.dispositivo_luz_adaptador.physical import PhysicalDispositivoLuzAdaptador
+from faronet.dispositivo_luz_adaptador.medium import CsmaLink
 from faronet.faro.calibrate import rx_telemetry
+from faronet.faro.link import run_link
 from faronet.faro.profile import PINS, inspect_chip
 
 
@@ -28,7 +30,8 @@ def add_commands(commands):
     preflight = commands.add_parser("gpio-preflight", help="Inspect metadata without requesting GPIO.")
     preflight.add_argument("--chip", default="/dev/gpiochip0")
     preflight.add_argument("--profile-only", action="store_true", help="Show pins without importing gpiod.")
-    for name in ("gpio-monitor", "gpio-calibrate", "optical-loopback", "optical-send", "optical-listen"):
+    for name in ("gpio-monitor", "gpio-calibrate", "optical-loopback", "optical-link",
+                 "optical-send", "optical-listen"):
         parser = commands.add_parser(name, help="Physical optical bring-up (requires prepared circuit).")
         parser.add_argument("--chip", default="/dev/gpiochip0")
         parser.add_argument("--hardware-ready", action="store_true", required=True,
@@ -53,6 +56,9 @@ def add_commands(commands):
             if name == "optical-listen":
                 parser.add_argument("--timeout", type=float, default=300,
                                     help="Total initial receive window; retry linger is additional.")
+            elif name == "optical-link":
+                parser.add_argument("--timeout", type=float, default=900,
+                                    help="Total run time limit, including the final re-ACK linger.")
 
 
 # Synthetic labels: a loopback frame never leaves this board.
@@ -90,6 +96,29 @@ def _loopback(io, count: int) -> int:
     return int(matched != count)
 
 
+def _link(io, args) -> int:
+    """Both Faros run this: contend for the medium, send and receive, no roles."""
+    link = CsmaLink(args.local, args.peer, args.session, io.half_ns / 1e9)
+    for index in range(args.count):
+        link.offer(test_payload(index))
+    _print({"ready": "optical-link", "frame_seconds": io.frame_seconds,
+            "test_frames": args.count, "synthetic_only": True})
+    try:
+        stats = run_link(io, link, test_payload, args.count, args.timeout, _print)
+    finally:
+        io.clear()
+    moved = stats["sent_acknowledged"] + stats["received_unique"]
+    _print(stats | {
+        "attempts_total": link.attempts_total, "ack_timeouts": link.ack_timeouts,
+        "deferrals": link.deferrals, "duplicates_reacked": link.duplicates,
+        "payload_bytes_per_second": round(moved * 86 / stats["elapsed_seconds"], 3),
+        "rejected_waveforms": io.rejected, "event_overruns": io.overruns,
+        "tx_max_lateness_ms": round(io.max_lateness_ns / 1e6, 3),
+    })
+    return int(stats["sent_acknowledged"] != args.count or stats["received_unique"] != args.count
+               or stats["payload_bit_errors"] != 0)
+
+
 def _print(value):
     print(json.dumps(value, sort_keys=True), flush=True)
 
@@ -115,7 +144,7 @@ def run(args) -> int:
         if not args.command.startswith("gpio-") and not 1 <= args.count <= 1000:
             raise ValueError("Count must be 1–1000")
         # Validate IDs before requesting lines.
-        if args.command in ("optical-send", "optical-listen") and args.local == args.peer:
+        if args.command in ("optical-send", "optical-listen", "optical-link") and args.local == args.peer:
             raise ValueError("Local and peer addresses must differ")
         with GpioFrameIO(args.chip, args.half_bit_ms, args.rx_inverted) as io:
             if args.command == "gpio-monitor":
@@ -136,6 +165,8 @@ def run(args) -> int:
                                     blink_seconds=args.blink_ms / 1000)
             if args.command == "optical-loopback":
                 return _loopback(io, args.count)
+            if args.command == "optical-link":
+                return _link(io, args)
             adapter = PhysicalDispositivoLuzAdaptador(io, args.local, args.peer, args.session)
             try:
                 _print({"ready": args.command, "frame_seconds": io.frame_seconds,

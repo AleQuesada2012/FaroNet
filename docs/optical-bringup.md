@@ -286,6 +286,30 @@ excluded. Record failures, elapsed time and delivery counts too. The TX
 metric is software write lateness, not an oscilloscope edge measurement.
 No measured results should be filled in before the meeting.
 
+## Autonomous link without roles (proposal 0003)
+
+Instead of choosing a sender and a listener, both Pis can run the same
+command with swapped addresses and one shared fresh session. Each Faro
+contends for the light with carrier sense and random backoff, sends its
+synthetic frames, ACKs the peer's and lingers to re-ACK a retried last
+frame. Start both within the timeout; the order does not matter.
+
+```bash
+# A
+sudo .venv/bin/python -m faronet optical-link --hardware-ready \
+  --local 0101010101010101 --peer 0202020202020202 \
+  --session "$FARONET_SESSION" --count 3 --half-bit-ms 10
+# B
+sudo .venv/bin/python -m faronet optical-link --hardware-ready \
+  --local 0202020202020202 --peer 0101010101010101 \
+  --session "$FARONET_SESSION" --count 3 --half-bit-ms 10
+```
+
+The summary adds `ack_timeouts` (losses or collisions), `deferrals`
+(backoffs abandoned because the peer's light appeared) and
+`attempts_total`. Panic and Ctrl+C stop it with outputs LOW, as before.
+Use a fresh session for every run.
+
 ## Recovery and implementation boundaries
 
 - No input changes: revisit polarity, alignment, RV1 threshold, power and

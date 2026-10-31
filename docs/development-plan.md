@@ -24,7 +24,11 @@ targets, not evidence that their hardware checks happened.
 
 ## Confirmed constraints
 
-- Delivery date: 2026-10-29, Costa Rica time; exact submission time pending.
+- Delivery dates, updated by the owner on 2026-10-31 (America/Costa_Rica):
+  code, BOM, documentation, RFC and everything not hardware-related are due
+  Sunday 2026-11-01 at 23:59:59. The soldered circuit and working physical
+  Faros are due two days later, but no code may change after Monday
+  2026-11-02 begins. The previous 2026-10-29 date is superseded.
 - Two people, approximately 10 hours per week each starting 2026-10-09.
   This is roughly 29-30 hours each, 58-60 person-hours total through delivery.
 - Both are strong in Python, new to Rust, and beginners at networking. The

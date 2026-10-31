@@ -45,7 +45,7 @@ as the working directory. `faronet info` also works after installation.
 
 The simulation commands have no GPIO side effects. Physical commands are
 explicit (`gpio-monitor`, `gpio-calibrate`, `optical-loopback`,
-`optical-send`, `optical-listen`) and require `--hardware-ready`; `gpio-preflight` reads
+`optical-link`, `optical-send`, `optical-listen`) and require `--hardware-ready`; `gpio-preflight` reads
 metadata without requesting lines.
 See [the optical bring-up guide](../docs/optical-bringup.md) for both Pis,
 copyable commands, electrical checks, recovery and measurement limits.
