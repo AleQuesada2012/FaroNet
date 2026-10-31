@@ -337,3 +337,14 @@ an XML well-formedness parse of a real feed, and `npm run dry-run` showing
 both Durable Object bindings. Not deployed; `PUBLIC_ROOMS_ENABLED` remains
 false in versioned configuration.
 
+Deployment prep (not deployed): `npm run deploy` and `npm run dry-run` now
+pass `--var PUBLIC_ROOMS_ENABLED:true`, keeping the versioned default false
+for plain local runs. `/` is a short public landing page with the same
+restrictive headers as the rooms page. `npm run smoke -- <https origin>` is
+a light post-deploy check (about ten requests, one synthetic public message
+in a throwaway room). Verified on the Mac: wasm32 clippy, local runtime
+test, the smoke logic against a local Worker (with the https requirement
+relaxed in a scratch copy), and a dry run listing both Durable Objects.
+Wrangler is not logged in; the owner must run `npx wrangler login` and
+deploy, then record the public URL.
+

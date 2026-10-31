@@ -84,10 +84,15 @@ async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response
         return Response::error("Not found", 404);
     }
     match (request.method(), request.path().as_str()) {
-        (Method::Get, "/health") => Response::ok("FaroNet edge scaffold ready"),
-        (Method::Get, "/") => Response::ok(
-            "FaroNet Rust edge scaffold. See /health. Application features are pending.",
-        ),
+        (Method::Get, "/health") => Response::ok("FaroNet edge ready"),
+        (Method::Get, "/") => {
+            let mut response = Response::from_html(include_str!("../static/index.html"))?;
+            let headers = response.headers_mut();
+            headers.set("Cache-Control", "no-store")?;
+            headers.set("Referrer-Policy", "no-referrer")?;
+            headers.set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")?;
+            Ok(response)
+        }
         _ => Response::error("Not found", 404),
     }
 }

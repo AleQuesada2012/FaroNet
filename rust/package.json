@@ -13,8 +13,9 @@
     "dev": "wrangler dev --local --ip 127.0.0.1 --port 8787",
     "dev:rooms": "wrangler dev --local --ip 127.0.0.1 --port 8787 --var PUBLIC_ROOMS_ENABLED:true",
     "test:rooms": "node tests/public-rooms.mjs",
-    "dry-run": "wrangler deploy --dry-run --outdir build/dry-run",
-    "deploy": "wrangler deploy"
+    "dry-run": "wrangler deploy --dry-run --outdir build/dry-run --var PUBLIC_ROOMS_ENABLED:true",
+    "deploy": "wrangler deploy --var PUBLIC_ROOMS_ENABLED:true",
+    "smoke": "node tests/deployed-smoke.mjs"
   },
   "devDependencies": {
     "wrangler": "4.149.0",

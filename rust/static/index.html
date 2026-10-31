@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FaroNet edge</title>
+<style>
+body{font:17px/1.5 system-ui;margin:3rem auto;padding:0 1rem;max-width:46rem;background:#101b28;color:#e5f0fa}h1{line-height:1.2}a{color:#afe0cd}code{background:#182b3d;padding:.1rem .3rem;border-radius:.3rem}.notice{padding:1rem;border-left:4px solid #ecbe73;background:#292b2a}
+</style>
+<h1>FaroNet edge</h1>
+<p>FaroNet carries private messages inside a light-based mesh. This Cloudflare Worker is its public side: only messages explicitly marked public leave the mesh and appear here.</p>
+<ul>
+<li><a href="/rooms">Public topic rooms</a>: live WebSocket rooms, one per topic.</li>
+<li>Topic feeds: <code>/rooms/{topic}/feed.atom</code>, the last 20 public messages of a topic for at most 24 hours.</li>
+<li><a href="/health">Health check</a>.</li>
+</ul>
+<p class="notice">No accounts. The Worker stores no names, IP addresses or request logs; rate limiting counts requests in memory only. The hosting provider still sees connection metadata.</p>
+</html>

@@ -23,8 +23,8 @@ executable in the ignored `.tools/bin/` folder. The initial install compiles
 the build tool and can take several minutes.
 
 The development server listens on `http://127.0.0.1:8787` in local mode.
-`GET /health` returns a fixed readiness message; `GET /` describes the
-starter. Public-room routes are disabled by default. For Student A's local
+`GET /health` returns a fixed readiness message; `GET /` is a short public
+landing page. Public-room routes are disabled by default. For Student A's local
 browser/WebSocket baseline, run on the **Mac**, from `rust/`:
 
 ```bash
@@ -108,12 +108,40 @@ operations; application code does not implement HMAC or SHA-256 itself.
 without deploying. Keep `Cargo.lock` and `package-lock.json` in Git so your
 teammate can install the same resolved dependencies.
 
-## Deployment later
+## Deployment (Cloudflare Workers free plan)
 
-Before an actual deployment, agree on the Cloudflare account, Worker name,
-free-plan-compatible resources, authentication, and privacy design. Then run
-`npx wrangler login` yourself and, when ready, `npm run deploy`. No account is
-selected and no deployment is performed during scaffold setup.
+The versioned `wrangler.jsonc` is the deployment configuration. It keeps
+`PUBLIC_ROOMS_ENABLED` false so plain local runs stay closed; `npm run
+deploy` and `npm run dry-run` pass `--var PUBLIC_ROOMS_ENABLED:true`, so the
+deployed Worker serves the rooms and feeds. Observability, logs and traces
+are disabled. Both Durable Object classes use the SQLite backend, the only
+one on the free plan. No secrets are needed yet.
+
+Run from `rust/` on the Mac:
+
+```bash
+npx wrangler login
+```
+
+```bash
+npm run dry-run
+```
+
+```bash
+npm run deploy
+```
+
+`wrangler login` opens a browser for the account owner; do it yourself.
+Deploy prints the public URL, `https://faronet-edge.<subdomain>.workers.dev`
+(the subdomain belongs to the account). Then run the light smoke test
+against it; it sends one synthetic public message to a throwaway room:
+
+```bash
+npm run smoke -- https://faronet-edge.<subdomain>.workers.dev
+```
+
+Record the URL in the project documentation; it is a required deliverable.
+To take the public side down, `npx wrangler delete` removes the Worker.
 
 `wrangler.jsonc` is versioned; secret values must not go in it. If local
 secrets are later needed, copy `.dev.vars.example` to `.dev.vars` and add the
@@ -127,8 +155,6 @@ Wrangler secret operation and are not uploaded from `.dev.vars`.
 - Integrate the local public-room baseline with the authenticated gateway.
 - Fixed-size encrypted dead-drop blobs with TTL and delete-on-read behavior.
 - Read-only signed public node directory.
-- Deployment: `PUBLIC_ROOMS_ENABLED` is still `false` in versioned config;
-  enabling it is a deployment decision.
 
 The local public-room binding is declared; no live resource was provisioned.
 The future replay-store direction is accepted; its live integration remains
