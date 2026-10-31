@@ -235,3 +235,29 @@ regenerated). Netlist and values are unchanged. The owner reports all
 other continuity checks pass. Powered re-measurement of U1 pins 8/4,
 VBIAS, SENSE and VTH, meter-based RV1 setting and the Q2 IR response
 remain pending.
+
+## Bench follow-up: Faro A receiver qualified by reflection; loopback command
+
+User-reported, Faro A, after the 7a fixes: U1 pin 8 reads 5 V along the
+whole 5 V path, U1 pin 4 0 V, VBIAS 2.07 V, SENSE ≈1.51 V with Q2 only
+partly covered (room light). An apparent 5 V–GND beep disappeared with
+Pi pin 2 disconnected and behaved like C1 charging; not a short. RV1 was
+set by the `gpio-calibrate` procedure (room-light switch point, then a few
+degrees further). `gpio-calibrate --blink` with paper or a hand a few cm
+over D1/Q2: `rx_matches_ir_pct` 100 in every window; with nothing in front,
+`rx` stays 0. Reflection worked up to about 8–10 cm. Panic stopped the run.
+Not yet reported: OPT_RX meter reading while HIGH, ambient-change check,
+SENSE dark/IR values. Faro B is not ready.
+
+Added `optical-loopback`: sends synthetic DATA frames and decodes each
+frame's own reflection on the same board, reporting per-frame match and
+bit errors plus rejects, overruns, TX lateness and matched payload rate.
+`transmit()` gained an opt-in `loopback` mode that feeds its own edges to
+the decoder instead of ignoring them, lights the RX indicator during
+capture and returns the decoded echo; the default path is unchanged.
+Fake-gpiod tests drive a timestamped echo: frames round-trip, a missing
+reflection or lost edge fails without a delivery, outputs end LOW and the
+normal transmit still discards its reflection. Python suite: 107 passed
+on the Mac; no physical loopback run yet. The owner asked
+for bench commands to be published to `origin/main` for Pi-side use.
+

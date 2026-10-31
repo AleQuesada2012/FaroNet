@@ -2,6 +2,7 @@
 
 from enum import IntEnum
 import io
+import json
 from types import ModuleType, SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -48,6 +49,28 @@ class FakeRequest:
 
     def release(self):
         self.released = True
+
+
+class EchoRequest(FakeRequest):
+    """RX follows TX after a reflection delay, timestamped like kernel edge events."""
+
+    def __init__(self, clock, echo=True, drop=()):
+        super().__init__()
+        self.clock, self.echo, self.drop = clock, echo, set(drop)
+        self.changes = self.seq = 0
+
+    def set_value(self, pin, value):
+        changed = pin == TX and self.values.get(TX, Value.INACTIVE) != value
+        super().set_value(pin, value)
+        if changed and self.echo:
+            self.changes += 1
+            if self.changes not in self.drop:
+                self.seq += 1
+                self.events.append(SimpleNamespace(
+                    global_seqno=self.seq, line_offset=RX,
+                    timestamp_ns=self.clock[0] + 200_000, event_type=1 if value else 2,
+                    Type=SimpleNamespace(RISING_EDGE=1),
+                ))
 
 
 class GpioBackendTests(unittest.TestCase):
@@ -181,6 +204,56 @@ class GpioBackendTests(unittest.TestCase):
         with self.assertRaises(PanicStop):
             self._calibrate(10, blink=True, panic_at=1.2)
         self.assertTrue(self.request.released)
+
+    def _loopback(self, **echo):
+        clock = [10**12]
+        fake_time = SimpleNamespace(
+            monotonic_ns=lambda: clock[0], monotonic=lambda: clock[0] / 1e9,
+            sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(1, int(seconds * 1e9))),
+        )
+        self.request = EchoRequest(clock, **echo)
+        with patch("faronet.faro.gpio.time", fake_time), \
+                patch("faronet.faro.commands.time", fake_time), \
+                patch("sys.stdout", io.StringIO()) as output:
+            code = commands.run(SimpleNamespace(
+                command="optical-loopback", chip="/dev/fake", half_bit_ms=2,
+                rx_inverted=False, count=2,
+            ))
+        lines = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertTrue(self.request.released)
+        self.assertTrue(all(self.request.values[p] == 0 for p in (TX, LED_TX, LED_RX)))
+        return code, lines
+
+    def test_loopback_decodes_its_own_reflected_frames(self):
+        code, lines = self._loopback()
+        self.assertEqual(code, 0)
+        self.assertEqual([line["matches"] for line in lines[1:3]], [True, True])
+        self.assertEqual(lines[-1]["matched"], 2)
+        self.assertEqual(lines[-1]["bit_errors_in_crc_valid_frames"], 0)
+        self.assertIn((LED_RX, Value.ACTIVE), self.request.writes)
+
+    def test_loopback_without_reflection_or_with_a_lost_edge_fails(self):
+        for echo, rejected in (({"echo": False}, 0), ({"drop": {700}}, 1)):
+            with self.subTest(echo=echo):
+                code, lines = self._loopback(**echo)
+                self.assertEqual(code, 1)
+                self.assertFalse(lines[1]["echoed"])
+                self.assertEqual(lines[-1]["matched"], 1 if "drop" in echo else 0)
+                self.assertGreaterEqual(lines[-1]["rejected_waveforms"], rejected)
+
+    def test_normal_transmit_still_ignores_its_own_reflection(self):
+        clock = [10**12]
+        fake_time = SimpleNamespace(
+            monotonic_ns=lambda: clock[0], monotonic=lambda: clock[0] / 1e9,
+            sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(1, int(seconds * 1e9))),
+        )
+        self.request = EchoRequest(clock)
+        frame = Frame(FrameType.DATA, b"a" * 8, b"b" * 8, b"s" * 8, 0)
+        with patch("faronet.faro.gpio.time", fake_time):
+            with GpioFrameIO("/dev/fake", 2) as backend:
+                backend.guard()
+                self.assertIsNone(backend.transmit(frame))
+                self.assertEqual((len(backend._frames), backend.rejected), (0, 0))
 
     def test_wrong_controller_and_clock_refuse_line_request(self):
         for clock in (0, 1, 21, float("nan")):

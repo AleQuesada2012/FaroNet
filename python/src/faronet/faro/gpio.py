@@ -109,26 +109,44 @@ class GpioFrameIO:
                 self._frames.append(frame)
         self.check_panic()
 
-    def transmit(self, frame: Frame):
+    def transmit(self, frame: Frame, loopback: bool = False) -> Frame | None:
+        """Send one frame. With loopback, decode its own reflection and return it."""
         self.check_panic()
         self.set_output(LED_TX, True)
         try:
-            start = time.monotonic_ns()
-            for index, level in enumerate(encode(frame.encode())):
-                deadline = start + index * self.half_ns
-                self._wait_until(deadline)
-                self.set_output(TX, bool(level))
-                lateness = time.monotonic_ns() - deadline
-                self.max_lateness_ns = max(self.max_lateness_ns, lateness)
-                if lateness > self.half_ns * 0.4:
-                    raise TimingError("TX missed its timing budget; increase --half-bit-ms")
-                # Drain self-reflections and latch short panic presses during TX.
-                self._ignore_before = time.monotonic_ns() + self.half_ns
-                self._events()
-            self._wait_until(start + FRAME_SYMBOLS * self.half_ns)
+            try:
+                start = time.monotonic_ns()
+                for index, level in enumerate(encode(frame.encode())):
+                    deadline = start + index * self.half_ns
+                    self._wait_until(deadline)
+                    self.set_output(TX, bool(level))
+                    lateness = time.monotonic_ns() - deadline
+                    self.max_lateness_ns = max(self.max_lateness_ns, lateness)
+                    if lateness > self.half_ns * 0.4:
+                        raise TimingError("TX missed its timing budget; increase --half-bit-ms")
+                    if loopback:
+                        self.set_output(LED_RX, self._decoder.start is not None)
+                    else:
+                        # Drain self-reflections; panic presses still latch below.
+                        self._ignore_before = time.monotonic_ns() + self.half_ns
+                    self._events()
+                self._wait_until(start + FRAME_SYMBOLS * self.half_ns)
+            finally:
+                self.set_output(TX, False)
+                self.set_output(LED_TX, False)
+            if not loopback:
+                return None
+            # Let the final reflected edges arrive, then complete the capture.
+            self._wait_until(time.monotonic_ns() + self.half_ns)
+            self._events()
+            echo = self._decoder.advance(time.monotonic_ns())
+            if echo is not None:
+                self._frames.append(echo)
+            return self._frames.popleft() if self._frames else None
         finally:
-            self.set_output(TX, False)
-            self.set_output(LED_TX, False)
+            if loopback:
+                self.set_output(LED_RX, False)
+                self.rejected += self._decoder.rejected
             self._ignore_before = time.monotonic_ns()
             self._decoder = self._new_decoder()
             self._frames.clear()

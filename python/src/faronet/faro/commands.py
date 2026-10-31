@@ -7,6 +7,7 @@ import secrets
 import sys
 import time
 
+from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
 from faronet.dispositivo_luz_adaptador.physical import PhysicalDispositivoLuzAdaptador
 from faronet.faro.calibrate import rx_telemetry
 from faronet.faro.profile import PINS, inspect_chip
@@ -27,7 +28,7 @@ def add_commands(commands):
     preflight = commands.add_parser("gpio-preflight", help="Inspect metadata without requesting GPIO.")
     preflight.add_argument("--chip", default="/dev/gpiochip0")
     preflight.add_argument("--profile-only", action="store_true", help="Show pins without importing gpiod.")
-    for name in ("gpio-monitor", "gpio-calibrate", "optical-send", "optical-listen"):
+    for name in ("gpio-monitor", "gpio-calibrate", "optical-loopback", "optical-send", "optical-listen"):
         parser = commands.add_parser(name, help="Physical optical bring-up (requires prepared circuit).")
         parser.add_argument("--chip", default="/dev/gpiochip0")
         parser.add_argument("--hardware-ready", action="store_true", required=True,
@@ -40,6 +41,8 @@ def add_commands(commands):
             parser.add_argument("--seconds", type=float, default=120)
             parser.add_argument("--blink", action="store_true",
                                 help="Toggle IR every second; hold a reflector over D1 and Q2.")
+        elif name == "optical-loopback":
+            parser.add_argument("--count", type=int, default=3)
         else:
             parser.add_argument("--local", type=link_id, required=True)
             parser.add_argument("--peer", type=link_id, required=True)
@@ -48,6 +51,41 @@ def add_commands(commands):
             if name == "optical-listen":
                 parser.add_argument("--timeout", type=float, default=300,
                                     help="Total initial receive window; retry linger is additional.")
+
+
+# Synthetic labels: a loopback frame never leaves this board.
+LOOPBACK_SOURCE = bytes.fromhex("0101010101010101")
+LOOPBACK_DESTINATION = bytes.fromhex("0202020202020202")
+
+
+def _loopback(io, count: int) -> int:
+    """Send DATA frames and decode each one's reflection on the same board."""
+    session = secrets.token_bytes(8)
+    _print({"ready": "optical-loopback", "frame_seconds": io.frame_seconds,
+            "test_frames": count, "synthetic_only": True})
+    start = time.monotonic()
+    echoed = matched = bit_errors = 0
+    for index in range(count):
+        frame = Frame(FrameType.DATA, LOOPBACK_SOURCE, LOOPBACK_DESTINATION,
+                      session, index, test_payload(index))
+        io.guard()
+        echo = io.transmit(frame, loopback=True)
+        errors = None
+        if echo is not None:
+            echoed += 1
+            errors = sum((a ^ b).bit_count() for a, b in zip(echo.encode(), frame.encode()))
+            bit_errors += errors
+            matched += echo == frame
+        _print({"frame": index, "echoed": echo is not None, "matches": echo == frame,
+                "bit_errors": errors})
+    elapsed = time.monotonic() - start
+    _print({"sent": count, "echoed": echoed, "matched": matched,
+            "elapsed_seconds": round(elapsed, 3),
+            "payload_bytes_per_second": round(matched * 86 / elapsed, 3),
+            "bit_errors_in_crc_valid_frames": bit_errors,
+            "rejected_waveforms": io.rejected, "event_overruns": io.overruns,
+            "tx_max_lateness_ms": round(io.max_lateness_ns / 1e6, 3)})
+    return int(matched != count)
 
 
 def _print(value):
@@ -75,7 +113,7 @@ def run(args) -> int:
         if not args.command.startswith("gpio-") and not 1 <= args.count <= 1000:
             raise ValueError("Count must be 1–1000")
         # Validate IDs before requesting lines.
-        if not args.command.startswith("gpio-") and args.local == args.peer:
+        if args.command in ("optical-send", "optical-listen") and args.local == args.peer:
             raise ValueError("Local and peer addresses must differ")
         with GpioFrameIO(args.chip, args.half_bit_ms, args.rx_inverted) as io:
             if args.command == "gpio-monitor":
@@ -90,6 +128,8 @@ def run(args) -> int:
             if args.command == "gpio-calibrate":
                 _print({"ready": "gpio-calibrate", "seconds": args.seconds, "blink": args.blink})
                 return rx_telemetry(io, args.seconds, args.blink, _print)
+            if args.command == "optical-loopback":
+                return _loopback(io, args.count)
             adapter = PhysicalDispositivoLuzAdaptador(io, args.local, args.peer, args.session)
             try:
                 _print({"ready": args.command, "frame_seconds": io.frame_seconds,

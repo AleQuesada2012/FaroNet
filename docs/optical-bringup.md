@@ -191,6 +191,21 @@ sudo .venv/bin/python -m faronet gpio-calibrate --hardware-ready --seconds 180 -
    SENSE and VTH with a meter before turning further. Ctrl+C or panic stops
    it with all outputs LOW. Confirm OPT_RX stays within 0–3.3 V with a meter.
 
+   Before a second Faro is available, one board can exercise the complete
+   frame path over its own reflection: Manchester TX, optics, comparator,
+   timestamped-edge acquisition, CRC and frame decoding. Hold white paper
+   over D1 and Q2 (A's blink test followed it up to about 8–10 cm):
+
+```bash
+sudo .venv/bin/python -m faronet optical-loopback --hardware-ready --count 3 --half-bit-ms 10
+```
+
+   Each DATA frame is decoded from its echo and compared with what was sent;
+   expect `matches: true` for every frame. Repeat at 5 ms and below to find
+   this board's timing limit. No ACK is involved and the board talks only to
+   itself, so this does not replace the two-Faro exchange. Normal
+   `optical-send` still ignores its own reflections.
+
 4. Generate a **fresh session** once, and copy its printed 16-character
    lowercase hex value into both terminals. These are synthetic local link
    addresses, not keys or long-term mesh identities.
