@@ -261,3 +261,23 @@ normal transmit still discards its reflection. Python suite: 107 passed
 on the Mac; no physical loopback run yet. The owner asked
 for bench commands to be published to `origin/main` for Pi-side use.
 
+## Bench follow-up: loopback rejected every capture on sequence gaps
+
+User-reported first physical `optical-loopback` on Faro A (3 frames,
+10 ms half-bit, paper over D1/Q2): no frame echoed; `event_overruns` 2267
+equal to `rejected_waveforms` 2267, so every rejection came from the
+gap check; TX max lateness 2.727 ms. The 1 s blink test still followed.
+
+Cause in software: any jump in `global_seqno` called `lose_sync()`. In
+Linux's GPIO cdev, edges arriving before the IRQ thread runs are merged into
+one event that skips sequence numbers and reports the line's current level,
+so fast comparator glitches at transitions produce gaps without corrupting
+the final level. Gaps are now counted but no longer abandon a capture;
+Manchester and CRC validation decide. The decoder's edge bound became
+4 × FRAME_SYMBOLS for glitch room. `sample_rx()` also counts gaps;
+`gpio-calibrate` reports `seq_gaps` per window and takes `--blink-ms` to
+toggle IR at half-bit rates. A fake-echo test with merged events fails on
+the old rule and passes now. Python suite: 109 passed on the Mac. Whether
+this fixes the physical loopback, and how much the comparator chatters,
+is not yet measured.
+

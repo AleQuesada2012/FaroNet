@@ -77,7 +77,8 @@ class EdgeDecoder:
                 self._header_checked = False
         if self.start is not None:
             self.edges.append((timestamp_ns, level))
-            if len(self.edges) > FRAME_SYMBOLS + 2:
+            # Bound memory; leave room for comparator glitches at transitions.
+            if len(self.edges) > 4 * FRAME_SYMBOLS:
                 self.lose_sync()
         if level == 0:
             self.low_since = timestamp_ns

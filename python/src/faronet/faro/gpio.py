@@ -94,8 +94,10 @@ class GpioFrameIO:
             return
         for event in self.request.read_edge_events(max_events=512):
             if event.global_seqno != self._last_seq + 1:
+                # A gap is a lost event or edges merged by the kernel (a fast glitch
+                # reported once, with the final level). Keep the capture: Manchester
+                # and CRC validation decide whether the frame survived.
                 self.overruns += 1
-                self._decoder.lose_sync()
             self._last_seq = event.global_seqno
             if event.line_offset == PANIC:
                 if event.event_type == event.Type.RISING_EDGE:
@@ -184,6 +186,7 @@ class GpioFrameIO:
         edges = 0
         if self.request.wait_edge_events(0):
             for event in self.request.read_edge_events(max_events=4096):
+                self.overruns += event.global_seqno != self._last_seq + 1
                 self._last_seq = event.global_seqno
                 if event.line_offset == PANIC:
                     self._panic |= event.event_type == event.Type.RISING_EDGE

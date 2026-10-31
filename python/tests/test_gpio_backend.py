@@ -54,9 +54,9 @@ class FakeRequest:
 class EchoRequest(FakeRequest):
     """RX follows TX after a reflection delay, timestamped like kernel edge events."""
 
-    def __init__(self, clock, echo=True, drop=()):
+    def __init__(self, clock, echo=True, drop=(), merged=()):
         super().__init__()
-        self.clock, self.echo, self.drop = clock, echo, set(drop)
+        self.clock, self.echo, self.drop, self.merged = clock, echo, set(drop), set(merged)
         self.changes = self.seq = 0
 
     def set_value(self, pin, value):
@@ -65,7 +65,8 @@ class EchoRequest(FakeRequest):
         if changed and self.echo:
             self.changes += 1
             if self.changes not in self.drop:
-                self.seq += 1
+                # A merged glitch: the kernel skips a seqno but reports the final level.
+                self.seq += 2 if self.changes in self.merged else 1
                 self.events.append(SimpleNamespace(
                     global_seqno=self.seq, line_offset=RX,
                     timestamp_ns=self.clock[0] + 200_000, event_type=1 if value else 2,
@@ -166,7 +167,7 @@ class GpioBackendTests(unittest.TestCase):
                             backend.transmit(frame)
                 self.assertTrue(all(self.request.values[p] == 0 for p in backend.outputs))
 
-    def _calibrate(self, seconds, blink, panic_at=None):
+    def _calibrate(self, seconds, blink, panic_at=None, blink_seconds=1.0):
         """Fake clock; RX follows TX as if a reflector sat over D1 and Q2."""
         now, reports = [0.0], []
 
@@ -181,7 +182,8 @@ class GpioBackendTests(unittest.TestCase):
 
         with GpioFrameIO("/dev/fake") as backend:
             try:
-                rx_telemetry(backend, seconds, blink, reports.append, lambda: now[0], sleep)
+                rx_telemetry(backend, seconds, blink, reports.append, lambda: now[0], sleep,
+                             blink_seconds)
             finally:
                 self.assertTrue(all(self.request.values[p] == 0 for p in backend.outputs))
         return reports
@@ -195,6 +197,13 @@ class GpioBackendTests(unittest.TestCase):
         self.assertIn((LED_RX, Value.ACTIVE), self.request.writes)
         self.assertEqual({pin for pin, _ in self.request.writes}, {TX, LED_TX, LED_RX})
         self.assertTrue(self.request.released)
+
+    def test_calibration_fast_blink_reports_following_and_seq_gaps(self):
+        reports = self._calibrate(1.2, blink=True, blink_seconds=0.01)
+        self.assertEqual(len(reports), 2)
+        self.assertTrue(all(r["rx_matches_ir_pct"] > 95 and r["seq_gaps"] == 0 for r in reports))
+        toggles = sum(1 for pin, value in self.request.writes if pin == TX)
+        self.assertGreater(toggles, 100)
 
     def test_calibration_without_blink_keeps_ir_off_and_panic_stops_it(self):
         reports = self._calibrate(2, blink=False)
@@ -231,6 +240,13 @@ class GpioBackendTests(unittest.TestCase):
         self.assertEqual(lines[-1]["matched"], 2)
         self.assertEqual(lines[-1]["bit_errors_in_crc_valid_frames"], 0)
         self.assertIn((LED_RX, Value.ACTIVE), self.request.writes)
+
+    def test_loopback_survives_kernel_merged_glitch_events(self):
+        code, lines = self._loopback(merged=set(range(5, 2000, 7)))
+        self.assertEqual(code, 0)
+        self.assertEqual(lines[-1]["matched"], 2)
+        self.assertGreater(lines[-1]["event_overruns"], 100)
+        self.assertEqual(lines[-1]["rejected_waveforms"], 0)
 
     def test_loopback_without_reflection_or_with_a_lost_edge_fails(self):
         for echo, rejected in (({"echo": False}, 0), ({"drop": {700}}, 1)):

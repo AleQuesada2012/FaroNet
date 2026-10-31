@@ -206,6 +206,20 @@ sudo .venv/bin/python -m faronet optical-loopback --hardware-ready --count 3 --h
    itself, so this does not replace the two-Faro exchange. Normal
    `optical-send` still ignores its own reflections.
 
+   `event_overruns` counts gaps in the kernel's event sequence numbers: lost
+   events, or fast comparator glitches the kernel merged into one event that
+   reports the final level. Gaps no longer abandon a capture; Manchester and
+   CRC validation decide. If frames still fail, check whether the receiver
+   follows IR at the half-bit rate, and how clean its transitions are:
+
+```bash
+sudo .venv/bin/python -m faronet gpio-calibrate --hardware-ready --seconds 30 --blink --blink-ms 10
+```
+
+   Expect `rx_matches_ir_pct` near 100, `edges_per_s` near 100 (one edge per
+   10 ms toggle) and few `seq_gaps`. Many gaps or extra edges indicate
+   comparator chatter at transitions.
+
 4. Generate a **fresh session** once, and copy its printed 16-character
    lowercase hex value into both terminals. These are synthetic local link
    addresses, not keys or long-term mesh identities.

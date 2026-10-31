@@ -40,7 +40,9 @@ def add_commands(commands):
         elif name == "gpio-calibrate":
             parser.add_argument("--seconds", type=float, default=120)
             parser.add_argument("--blink", action="store_true",
-                                help="Toggle IR every second; hold a reflector over D1 and Q2.")
+                                help="Toggle IR; hold a reflector over D1 and Q2.")
+            parser.add_argument("--blink-ms", type=float, default=1000,
+                                help="IR on/off period half (ms) with --blink; 10 matches a 10 ms half-bit.")
         elif name == "optical-loopback":
             parser.add_argument("--count", type=int, default=3)
         else:
@@ -126,8 +128,12 @@ def run(args) -> int:
                     time.sleep(0.02)
                 return 0
             if args.command == "gpio-calibrate":
-                _print({"ready": "gpio-calibrate", "seconds": args.seconds, "blink": args.blink})
-                return rx_telemetry(io, args.seconds, args.blink, _print)
+                if not 2 <= args.blink_ms <= 10_000:
+                    raise ValueError("--blink-ms must be between 2 and 10000")
+                _print({"ready": "gpio-calibrate", "seconds": args.seconds, "blink": args.blink,
+                        "blink_ms": args.blink_ms})
+                return rx_telemetry(io, args.seconds, args.blink, _print,
+                                    blink_seconds=args.blink_ms / 1000)
             if args.command == "optical-loopback":
                 return _loopback(io, args.count)
             adapter = PhysicalDispositivoLuzAdaptador(io, args.local, args.peer, args.session)
