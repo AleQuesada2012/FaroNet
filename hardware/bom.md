@@ -57,7 +57,7 @@ final de R6 se confirma al medir la placa soldada.
 | Pi | 1 | Raspberry Pi 3 Model B (Faro A) / Pi 2 Model B (Faro B) | Existente | — | — | no costeado |
 | SD | 1 | Tarjeta microSD con el sistema operativo | Existente | — | — | no costeado |
 | Fuente | 1 | Fuente Micro-USB 5 V / 2,5 A con cable | CRCibernética | Fuente 5 V 2,5 A | ₡2 707,25 + IVA | ₡3 059,19 |
-| Cables | 8 | Jumpers Dupont hembra (Pi ↔ J1) | Existente | — | — | no costeado |
+| Cables | 8 | Jumpers Dupont hembra (de la Pi a J1) | Existente | — | — | no costeado |
 
 La Raspberry Pi, la microSD y los jumpers ya eran del equipo; no se
 compraron para el proyecto y no se costean aquí. La Pi se conecta a la

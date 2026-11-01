@@ -385,3 +385,18 @@ for two Faros with power supplies (16,006.02 with the MicroJPM reserve).
 Several installed parts came from earlier MJ Electronica purchases or are
 unidentified (the IR LED); they are costed with the list's equivalent.
 
+## Project documentation and schematic (2026-10-31)
+
+Added `docs/documentacion.md` (Spanish) with every section the assignment
+lists: introduction, environment, design (schematic, threat model), data
+structures and functions, run instructions, activities per student,
+self-evaluation (state, problems, commit report, rubric tables), lessons
+and bibliography. Hours per student, rubric grades and learning scores are
+left as "(completar)" for the team. Activities and authors come from the
+Git history (e1007e0, the rev-7 redesign, is authored by An-Gi).
+`scripts/build_docs.py` builds `output/FaroNet-documentacion.pdf` (ignored)
+with pandoc and XeLaTeX: the documentation plus the BOM (annex A) and the
+verbatim ASCII RFC (annex B); checked visually (title, figure, annexes).
+Added `hardware/schematic/faro-rev7.tex` (CircuiTikZ) with its PDF and SVG,
+checked net by net against `circuit-reference.json`; R6 = 47 kOhm.
+

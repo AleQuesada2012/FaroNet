@@ -43,6 +43,10 @@ emitter/detector pair. Per the owner's instruction, assume laser acceptance
 for planning and keep IR as fallback if the grader rejects that substitution;
 no instructor approval record has been supplied.
 
+**Schematic:** [schematic/faro-rev7.pdf](schematic/faro-rev7.pdf) (source
+`faro-rev7.tex`, CircuiTikZ; build with `xelatex faro-rev7.tex`), drawn from
+`breadboard/circuit-reference.json` with R6 = 47 kOhm for the soldered board.
+
 **BOM:** [bom.md](bom.md) (also [bom.csv](bom.csv)) lists every part of the
 soldered revision-7 Faro with approximate costs in colones: about
 ₡4 655 per Faro board and ₡15 427 for two Faros with their power supplies.

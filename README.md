@@ -15,6 +15,11 @@ panic stop, single-board loopback) with CSMA/CA medium access
 edge's public topic rooms, Atom feeds and rate limiting. LAN transport,
 private terminal chat and the gateway relay remain pending.
 
+**Deliverables:** [project documentation](docs/documentacion.md) (Spanish;
+`python3 scripts/build_docs.py` builds the PDF with the BOM and RFC),
+[RFC FN-1](docs/rfc/faronet-rfc.txt), [BOM](hardware/bom.md) and the
+[rev-7 schematic](hardware/schematic/faro-rev7.pdf).
+
 **Public edge deployment:** <https://faronet-edge.faronet.workers.dev>
 (rooms at `/rooms`, feeds at `/rooms/{topic}/feed.atom`). Start with [the October 26 optical test guide](docs/optical-bringup.md).
 See [the milestone guide](docs/milestone-1.md) and

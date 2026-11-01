@@ -1,0 +1,80 @@
+% FaroNet Faro, revision 7 (soldered build): schematic drawn from
+% hardware/breadboard/circuit-reference.json. Build: xelatex faro-rev7.tex
+\documentclass[border=8pt]{standalone}
+\usepackage[siunitx, american]{circuitikz}
+\usepackage{fontspec}
+\setmainfont{Helvetica}
+\ctikzset{bipoles/length=1.1cm, resistors/scale=0.8, diodes/scale=0.7}
+\tikzset{net/.style={font=\footnotesize\bfseries}, note/.style={font=\scriptsize, align=left}}
+\begin{document}
+\begin{circuitikz}[font=\footnotesize]
+
+% ---------------- IR transmitter ----------------
+\node[net, anchor=west] at (-4.2,5.9) {Transmisor IR};
+\draw (-3.6,1) node[left]{TX} to[R, l={$R_2$ \SI{1}{\kilo\ohm}}, o-*] (-1.0,1) coordinate (qb);
+\draw (qb) to[R, l_={$R_3$ \SI{10}{\kilo\ohm}}] ++(0,-2) node[ground]{};
+\draw (qb) -- (-0.4,1) node[npn, anchor=B] (Q1) {};
+\node[anchor=west] at (Q1.east) {$Q_1$ 2N2222};
+\draw (Q1.E) node[ground]{};
+\draw (Q1.C) to[led, l_=$D_1$ IR, invert] ++(0,1.8) to[R, l_={$R_1$ \SI{330}{\ohm}}] ++(0,1.8) node[vcc]{5V};
+\draw (-3.6,-1.4) node[vcc]{5V} to[eC, l_={$C_1$ \SI{100}{\micro\farad}}] ++(0,-2) node[ground]{};
+\node[note, anchor=north] at (-3.6,-4.3) {Reserva de alimentación};
+
+% ---------------- Bias and threshold ----------------
+\node[net, anchor=west] at (2.4,5.9) {Polarización y umbral};
+\draw (3,5) node[vcc]{3V3} to[R, l_={$R_8$ \SI{1}{\kilo\ohm}}] (3,3) coordinate (vb);
+\node[net, anchor=east] at (2.9,3.15) {VBIAS};
+\draw (vb) to[R, l_={$R_9$ \SI{2.2}{\kilo\ohm}}, *-] (3,0.4) node[ground]{};
+\draw (vb) -- (5.2,3) coordinate (vb2) to[C, l_={$C_3$ \SI{100}{\nano\farad}}] (5.2,0.4) node[ground]{};
+\draw (vb2) -- (7.4,3) to[pR, n=RV1, l_={$RV_1$ \SI{10}{\kilo\ohm}}, *-] (7.4,0.4) node[ground]{};
+\draw (RV1.wiper) -- ++(0.9,0) coordinate (vth);
+\node[net, anchor=south west] at (vth) {VTH};
+\draw (7.4,3) -- (7.4,4) -- (9.2,4) to[R, l={$R_4$ \SI{10}{\kilo\ohm}}] (11.4,4) coordinate (sense);
+\node[net, anchor=south] at (sense) {SENSE};
+\draw (sense) to[short, *-] (11.4,2.6) node[npn, photo, anchor=C] (Q2) {};
+\node[anchor=west] at (Q2.east) {$Q_2$ PT333};
+\draw (Q2.E) node[ground]{};
+
+% ---------------- Comparator ----------------
+\node[net, anchor=west] at (13.2,5.9) {Receptor (comparador con histéresis)};
+\draw (15.4,2.4) node[op amp] (U1) {};
+\node[anchor=north] at (U1.south) {$U_{1A}$ LM393};
+\draw (sense) -- (13.4,4) |- (U1.-);
+\draw (vth) |- (13.6,-0.6) coordinate (bus) |- (U1.+);
+\draw (U1.out) -- ++(1.0,0) coordinate (out) to[short, -o] ++(1.4,0) node[right]{OPT\_RX};
+\draw (out) to[R, l_={$R_5$ \SI{4.7}{\kilo\ohm}}, *-] ++(0,2.6) node[vcc]{3V3};
+\draw (out) -- (out |- 0,-1.8) to[R, l_={$R_6$ \SI{47}{\kilo\ohm}}] (13.6,-1.8) to[short, -*] (bus);
+\node[note, anchor=north west] at (12.6,-2.6) {%
+$U_1$: pin 8 = 5V, pin 4 = GND; $C_2$ = \SI{100}{\nano\farad} entre 5V y GND junto al CI.\\
+$U_{1B}$ sin uso: IN2+ (pin 5) = GND, IN2$-$ (pin 6) = VBIAS, OUT2 (pin 7) libre.\\
+Salida de colector abierto con pull-up solo a 3,3 V: el GPIO no tolera 5 V.\\
+$R_6$ = \SI{47}{\kilo\ohm} en la placa soldada (\SI{100}{\kilo\ohm} en la protoboard).};
+
+% ---------------- Indicators and panic ----------------
+\node[net, anchor=west] at (-4.2,-5.3) {Indicadores y botón de pánico};
+\draw (-3.6,-6.2) node[left]{LED\_TX} to[R, l={$R_{10}$ \SI{1}{\kilo\ohm}}, o-] (-1.2,-6.2) to[led, l=$D_2$ verde] (0.8,-6.2) -- (1.2,-6.2) node[ground]{};
+\draw (-3.6,-8.0) node[left]{LED\_RX} to[R, l={$R_{11}$ \SI{1}{\kilo\ohm}}, o-] (-1.2,-8.0) to[led, l=$D_3$ amarillo] (0.8,-8.0) -- (1.2,-8.0) node[ground]{};
+\draw (4,-5.4) node[vcc]{3V3} to[R, l_={$R_{12}$ \SI{10}{\kilo\ohm}}] (4,-7.0) coordinate (pn) to[push button, l_=$S_1$ pánico] (4,-9.0) node[ground]{};
+\draw (pn) to[short, *-o] (5.6,-7.0) node[right]{PANIC (pulsado = 0)};
+
+% ---------------- Raspberry Pi header J1 ----------------
+\node[draw, rounded corners=2pt, align=left, anchor=north west, inner sep=5pt] at (9.6,-5.1) {%
+\textbf{J1: conexión a la Raspberry Pi (header de 40 pines)}\\[2pt]
+\begin{tabular}{@{}rll@{}}
+Pin físico & BCM & Red\\\hline
+1 & 3V3 & 3V3\\
+2 & 5V & 5V\\
+6 & GND & GND\\
+11 & GPIO17 & TX (salida)\\
+13 & GPIO27 & OPT\_RX (entrada)\\
+15 & GPIO22 & LED\_TX (salida)\\
+16 & GPIO23 & LED\_RX (salida)\\
+18 & GPIO24 & PANIC (entrada)\\
+\end{tabular}};
+
+\node[note, anchor=north west] at (-4.2,-9.8) {%
+FaroNet, Faro revisión 7 (placa soldada). Redes según hardware/breadboard/circuit-reference.json.\\
+TX alto = LED IR encendido; OPT\_RX alto = luz recibida, tras calibrar $RV_1$.};
+
+\end{circuitikz}
+\end{document}

@@ -22,4 +22,4 @@ faro,Cableado,1,"Alambre sólido 22 AWG, 1 m (estimado por placa)",MicroJPM,"22 
 nodo,Pi,1,Raspberry Pi 3 Model B (Faro A) / Pi 2 Model B (Faro B),Existente,—,,,
 nodo,SD,1,Tarjeta microSD con el sistema operativo,Existente,—,,,
 nodo,Fuente,1,"Fuente Micro-USB 5 V / 2,5 A con cable",CRCibernética,"Fuente 5 V 2,5 A",2707.25,13% sumado,3059.19
-nodo,Cables,8,Jumpers Dupont hembra (Pi ↔ J1),Existente,—,,,
+nodo,Cables,8,Jumpers Dupont hembra (de la Pi a J1),Existente,—,,,
