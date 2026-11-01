@@ -400,3 +400,31 @@ verbatim ASCII RFC (annex B); checked visually (title, figure, annexes).
 Added `hardware/schematic/faro-rev7.tex` (CircuiTikZ) with its PDF and SVG,
 checked net by net against `circuit-reference.json`; R6 = 47 kOhm.
 
+
+## TX timing diagnosis on Faro A (2026-10-31)
+
+User-reported, Faro A at `7992103` or later: `optical-loopback` at 5, 3
+and 2 ms half-bits still stopped with "TX missed its timing budget".
+Added `optical-loopback --timing-report` (cd95998): frames are sent in
+full and each reports per-symbol lateness split into wait overshoot, GPIO
+write and per-symbol work, plus whether SCHED_FIFO took effect and the
+kernel, RT throttling, timer slack and CPU governor.
+
+User-reported, `--timing-report` at 5/3/2 ms, three frames each: 9/9
+matched, 0 bit errors, 0 rejected waveforms. Kernel 7.0.0-1020-raspi
+PREEMPT_DYNAMIC, `realtime: true`, RT runtime 950000/1000000 us, ondemand
+governor at 1.2 GHz. In every frame the only symbol over 40 % of the
+half-bit was symbol 0, late 1.2-2.4 ms, while encoding the frame took
+2.3-2.6 ms on the Pi. That encoding ran after the first deadline was
+taken. All other symbols: p99 lateness at most 0.093 ms, worst 0.31 ms
+(GPIO write), per-symbol work p50 about 0.2 ms, max 0.93 ms. The one
+extra symbol over 25 % (2 ms, symbol 1, 0.6 ms) followed symbol 0's
+delay. Symbol 0 is an OFF level and TX was already off, so the frames
+still decoded. RT throttling and scheduler preemption did not appear.
+
+Fix (agent): `transmit()` encodes the frame before entering the on-air
+section and taking the first deadline. A regression test with a 2.5 ms
+encoder fails without the change and passes with it. Python suite: 123
+passed on the Mac. The 0.4 half-bit budget and `SPIN_NS` are unchanged;
+the evidence does not call for changing them. Pending: rerun on Faro A
+without `--timing-report`.

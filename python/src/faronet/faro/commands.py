@@ -86,7 +86,7 @@ def _loopback(io, count: int, timing_report: bool = False) -> int:
         frame = Frame(FrameType.DATA, LOOPBACK_SOURCE, LOOPBACK_DESTINATION,
                       session, index, test_payload(index))
         io.guard()
-        # Same work transmit() does after its first deadline is set.
+        # Same work transmit() does before its first deadline.
         encoding_ns = time.monotonic_ns()
         encode(frame.encode())
         encoding_ns = time.monotonic_ns() - encoding_ns

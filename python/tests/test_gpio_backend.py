@@ -296,6 +296,26 @@ class GpioBackendTests(unittest.TestCase):
         self.assertEqual(lines[2]["tx_timing"]["symbols"], 2048)  # Reset between frames.
         self.assertEqual(lines[-1]["matched"], 2)
 
+    def test_frame_encoding_finishes_before_the_first_deadline(self):
+        from faronet.dispositivo_luz_adaptador.manchester import encode
+
+        clock = [10**12]
+        fake_time = SimpleNamespace(
+            monotonic_ns=lambda: clock[0], monotonic=lambda: clock[0] / 1e9,
+            sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(1, int(seconds * 1e9))),
+        )
+
+        def slow_encode(data):  # A Pi 3 measured 2.3-2.6 ms here.
+            clock[0] += 2_500_000
+            return encode(data)
+
+        frame = Frame(FrameType.DATA, b"a" * 8, b"b" * 8, b"s" * 8, 0)
+        with patch("faronet.faro.gpio.time", fake_time), \
+                patch("faronet.faro.gpio.encode", slow_encode):
+            with GpioFrameIO("/dev/fake", 2) as backend:
+                backend.transmit(frame)
+                self.assertEqual(backend.max_lateness_ns, 0)
+
     def test_normal_transmit_still_ignores_its_own_reflection(self):
         clock = [10**12]
         fake_time = SimpleNamespace(

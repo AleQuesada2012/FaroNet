@@ -152,6 +152,8 @@ class GpioFrameIO:
     def transmit(self, frame: Frame, loopback: bool = False) -> Frame | None:
         """Send one frame. With loopback, decode its own reflection and return it."""
         self.check_panic()
+        # Encoding takes about 2.5 ms on a Pi 3; finish it before the first deadline.
+        levels = encode(frame.encode())
         self.set_output(LED_TX, True)
         try:
             try:
@@ -159,7 +161,7 @@ class GpioFrameIO:
                     if self.timing is not None:
                         self.timing.realtime = realtime
                     start = time.monotonic_ns()
-                    for index, level in enumerate(encode(frame.encode())):
+                    for index, level in enumerate(levels):
                         deadline = start + index * self.half_ns
                         self._wait_until(deadline)
                         woke = time.monotonic_ns()
