@@ -31,7 +31,10 @@ colocación.
 
 ## Piezas con polaridad
 
-- **Q1 2N2222:** C–B–E: mirando su cara plana, de izquierda a derecha,
+- **Q1 2N2222:** corrección del 1 de noviembre de 2026: los transistores del
+  equipo son **E–B–C** mirando la cara plana (probador de transistores), no
+  C–B–E. En la protoboard se resolvió girándolo con la base en el mismo
+  agujero. Texto original: C–B–E: mirando su cara plana, de izquierda a derecha,
   colector, base y emisor. Va en d59–d60–d61 con la cara plana hacia el canal
   central. Confirma la base con el modo diodo antes de insertarlo.
 - **D1 LED IR:** ánodo (pata larga) en h62, cátodo en h63, lente a la derecha.

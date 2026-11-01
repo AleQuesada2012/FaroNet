@@ -238,7 +238,7 @@
         "C": "IR_K",
         "E": "GND"
       },
-      "note": "Equipo: patillaje C–B–E mirando la cara plana. B/C/E son funciones; confirmar la base con el modo diodo."
+      "note": "Equipo: patillaje E–B–C mirando la cara plana (comprobado con probador de transistores el 1 de noviembre de 2026; la protoboard lo suponía C–B–E y se montó girado). B/C/E son funciones."
     },
     {
       "ref": "Q2",

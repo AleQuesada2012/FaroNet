@@ -24,9 +24,12 @@ STAGES = {
               "antes de soldar: deben quedar 1 sobre 2 en la misma columna."),
     "tx": ("4 · Emisor IR",
            "D1 sale por el borde derecho: dobla las patas 90° justo detrás del cuerpo para que el "
-           "LED quede fuera de la placa. Ánodo (pata larga) en F4, cátodo en F5. Q1 con la cara "
-           "plana hacia el borde derecho: C arriba (F5), B (F6), E abajo (F7). R1 va acostada "
-           "con patas largas de C21 a C29."),
+           "LED quede fuera de la placa. Ánodo (pata larga) en F4, cátodo en F5. Q1: los 2N2222 "
+           "del equipo son E–B–C mirando la cara plana (comprobado con el probador de "
+           "transistores), al revés de lo que suponía la protoboard. Va con la cara plana hacia "
+           "la izquierda (hacia R2; línea amarilla en el dibujo): C arriba (F5), B al centro (F6), E abajo (F7). Confírmalo con "
+           "el probador antes de soldar. R3 queda de pie justo a la derecha de Q1; inclínala un "
+           "poco hacia el borde. R1 va acostada con patas largas de C21 a C29."),
     "rx": ("5 · Receptor",
            "Suelda el zócalo DIP8 con la muesca hacia abajo (hacia F24); el LM393 se pone al "
            "final. Q2 sale por el borde derecho como D1: colector en F20, emisor (pata larga "

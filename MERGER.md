@@ -548,3 +548,18 @@ wrong-secret request now reaches the Worker and gets 401. Added
 `gateway-secret`, which stores the secret typed into a hidden prompt in
 an owner-only file on the Gateway Pi. Signed success on the deployment
 still pending the owner's rerun.
+
+Owner-reported, 2026-11-01, from the Gateway Pi against the deployment:
+`gateway-publish --topic demo` returned published, `drop-put --slot 1`
+stored the blob and `drop-take --slot 1` returned its text. The
+authenticated relay and dead drop therefore work end to end on
+https://faronet-edge.faronet.workers.dev.
+
+## Q1 pinout correction (2026-11-01)
+
+Owner-reported: a transistor tester shows the team's 2N2222 as E-B-C
+facing the flat side, not C-B-E; on the breadboard it was simply turned
+around with the base in the same hole. The perfboard holes stay (C F5,
+B F6, E F7); the guide and drawing now place the flat face toward the
+left (toward R2), and the reference note and breadboard README record
+the correction. The electrical layout and `check.py` are unchanged.
