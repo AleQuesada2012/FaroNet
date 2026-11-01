@@ -474,3 +474,38 @@ reply target set; alice's reply went via r1 > r2 > r3 and appeared on
 bob. Both chats ended with sent 1, delivered 1, rejected 0. Only the
 Pi-r1 hop crossed the network; a run with relays on separate machines
 (Faro B, a second laptop) is still pending.
+
+## Perfboard layout, guide and BOM (2026-10-31)
+
+Owner-supplied photos: the team's 7 x 9 cm blue board is single-sided;
+the bare side prints columns 001-032; the copper side has rails at columns
+7, 14, 21 and 28 and two-hole pairs elsewhere, 24 rows. Owner decisions:
+R10 and R11 330 Ohm, R6 47 kOhm, doubled GND bridge, cut female Dupont
+leads soldered to the board instead of a header.
+
+Added `hardware/perfboard/`: a hole model of the board (`board.py`), the
+placement (`layout.py`), `check.py` (every netlist net joined, no shorts,
+13 deliberate mistakes rejected, pressed S1 pulls PANIC to GND) and
+`guide.py`, which writes both board sides as SVG, `guia.html` (stages with
+checkboxes, continuity and isolation tests, first power-up) and a text
+sheet. D1 (rows 4-5) and Q2 (rows 20-21) point out of the right edge about
+4 cm apart in mirror rows. Agent-verified on the Mac only: validation and
+visual review of the rendered SVGs; no part spacing was measured, and
+nothing has been soldered. BOM (7 x 9 board, uncosted; no header; three
+330 Ohm), schematic (R10/R11 330 Ohm) and documentation updated.
+
+## Link address rotation and panic erasure (2026-10-31)
+
+Student A took over this Student B privacy item. `faro/address.py`
+stores the Faro's random 8-byte link address in an owner-only file
+(FARONET_STATE_DIR or ~/.faronet), replaces it every 24 hours, and
+`optical-address [--rotate]` shows it. `--local` is now optional on the
+link commands. Any panic during an optical command still turns outputs
+off and releases GPIO, and now also rotates the address (exit code 3).
+The chat gains `/panic` and `--panic-gpio CHIP`: both close every link,
+drop the private keys, directory, routes, messages and replay memory
+(best effort in Python), rotate the address, clear the screen and
+scrollback, and exit. Agent-verified on the Mac: 7 new tests (persistence,
+permissions, 24 h rotation, damaged files, CLI, panic rotation through the
+fake libgpiod, Node erasure with the peer seeing the link drop, GPIO
+watcher); Python suite 139 passed. Not yet run on a Pi.

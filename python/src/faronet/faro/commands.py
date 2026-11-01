@@ -11,7 +11,9 @@ from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
 from faronet.dispositivo_luz_adaptador.manchester import encode
 from faronet.dispositivo_luz_adaptador.physical import PhysicalDispositivoLuzAdaptador
 from faronet.dispositivo_luz_adaptador.medium import CsmaLink
+from faronet.faro.address import ROTATE_SECONDS, AddressStore
 from faronet.faro.calibrate import rx_telemetry
+from faronet.faro.gpio import PanicStop
 from faronet.faro.link import run_link
 from faronet.faro.profile import PINS, inspect_chip
 from faronet.faro.timing import TxTiming, system_timing
@@ -29,6 +31,9 @@ def link_id(value: str) -> bytes:
 
 def add_commands(commands):
     commands.add_parser("optical-session", help="Generate a fresh synthetic link session ID.")
+    address = commands.add_parser("optical-address",
+                                  help="Show this Faro's stored link address (rotates every 24 h).")
+    address.add_argument("--rotate", action="store_true", help="Replace it with a new random address now.")
     preflight = commands.add_parser("gpio-preflight", help="Inspect metadata without requesting GPIO.")
     preflight.add_argument("--chip", default="/dev/gpiochip0")
     preflight.add_argument("--profile-only", action="store_true", help="Show pins without importing gpiod.")
@@ -54,7 +59,8 @@ def add_commands(commands):
                                 help="Report each frame's TX lateness and its sources instead of "
                                      "stopping at the timing budget.")
         else:
-            parser.add_argument("--local", type=link_id, required=True)
+            parser.add_argument("--local", type=link_id,
+                                help="Override this Faro's stored link address (see optical-address).")
             parser.add_argument("--peer", type=link_id, required=True)
             parser.add_argument("--session", type=link_id, required=True)
             parser.add_argument("--count", type=int, default=3)
@@ -144,6 +150,13 @@ def run(args) -> int:
     if args.command == "optical-session":
         print(secrets.token_hex(8))
         return 0
+    if args.command == "optical-address":
+        store = AddressStore()
+        local = store.rotate() if args.rotate else store.current()
+        age = store.age_seconds() or 0
+        _print({"local": local.hex(), "age_hours": round(age / 3600, 2),
+                "rotates_in_hours": round((ROTATE_SECONDS - age) / 3600, 2)})
+        return 0
     if args.command == "gpio-preflight" and args.profile_only:
         _print({"pins": [vars(pin) for pin in PINS]})
         return 0
@@ -161,6 +174,8 @@ def run(args) -> int:
         if not args.command.startswith("gpio-") and not 1 <= args.count <= 1000:
             raise ValueError("Count must be 1–1000")
         # Validate IDs before requesting lines.
+        if getattr(args, "local", "") is None:
+            args.local = AddressStore().current()
         if args.command in ("optical-send", "optical-listen", "optical-link") and args.local == args.peer:
             raise ValueError("Local and peer addresses must differ")
         with GpioFrameIO(args.chip, args.half_bit_ms, args.rx_inverted) as io:
@@ -228,6 +243,13 @@ def run(args) -> int:
     except KeyboardInterrupt:
         print("Stopped; GPIO outputs released.", file=sys.stderr)
         return 130
+    except PanicStop:
+        # RFC FN-1 4.8: outputs are off and the lines released; also forget this address.
+        AddressStore().rotate()
+        print("Panic: outputs off, GPIO released, session discarded and link address rotated. "
+              "Exchange the new address (optical-address) and a new session before restarting.",
+              file=sys.stderr)
+        return 3
     except (ImportError, OSError, ValueError, RuntimeError) as exc:
         print(f"Optical command failed: {exc}", file=sys.stderr)
         return 2

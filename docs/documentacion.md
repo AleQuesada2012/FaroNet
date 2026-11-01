@@ -199,7 +199,7 @@ implementó el Estudiante A para liberar al Estudiante B con el Faro B:
 
 Medidas: tamaños fijos (tramas, sobres, mensajes), cifrado de extremo a
 extremo, enrutamiento por capas, TTL en mensajes y en el feed (24 h),
-direcciones físicas rotables (especificadas; pendientes de implementar),
+direcciones físicas aleatorias guardadas en disco y rotadas cada 24 h y al pulsar pánico,
 botón de pánico y ninguna bitácora con IP o identificadores. Los límites
 conocidos (colusión de relevos 1 y 3, análisis de tiempos, sin secreto
 hacia adelante, borrado de memoria en Python solo de mejor esfuerzo) se
@@ -303,14 +303,15 @@ sudo .venv/bin/python -m faronet gpio-calibrate --hardware-ready --blink
 sudo .venv/bin/python -m faronet optical-loopback --hardware-ready --count 10 --half-bit-ms 2
 ```
 
-Enlace entre dos Faros, sin roles (mismo comando en ambos, direcciones
-intercambiadas y la misma sesión nueva):
+Enlace entre dos Faros, sin roles: cada Faro muestra su dirección física
+(aleatoria, guardada en disco, rota cada 24 h y al pulsar pánico) y la
+intercambian; ambos usan la misma sesión nueva:
 
 ```bash
+sudo .venv/bin/python -m faronet optical-address
 SESSION=$(.venv/bin/python -m faronet optical-session)
 sudo .venv/bin/python -m faronet optical-link --hardware-ready \
-  --local 0101010101010101 --peer 0202020202020202 \
-  --session "$SESSION" --count 3 --half-bit-ms 10
+  --peer DIRECCION_DEL_OTRO_FARO --session "$SESSION" --count 3 --half-bit-ms 10
 ```
 
 La guía completa de puesta en marcha y medición está en
@@ -403,8 +404,8 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac y entre la Pi del Faro A y la Mac (tres relevos en la Mac); falta repartir los relevos en más máquinas |
 | Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`); mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos |
 | Enlace óptico como enlace de la mesh en vivo | Pendiente: los nodos en vivo solo usan enlaces LAN |
-| Botón de pánico | Detiene el Faro y libera el GPIO; falta rotar dirección y borrar llaves |
-| Rotación de direcciones físicas | Especificada en el RFC, no implementada |
+| Botón de pánico | Detiene el Faro, libera el GPIO, descarta la sesión y rota la dirección; en el chat, `/panic` o `--panic-gpio` borran llaves, enlaces, directorio y mensajes (mejor esfuerzo en Python) |
+| Rotación de direcciones físicas | Implementada (`optical-address`): aleatoria, en disco, cada 24 h y al pulsar pánico |
 | Edge: salas, feeds, límite, no registro | Desplegado y verificado con prueba de humo |
 | Edge: relevo del gateway, buzón muerto, directorio público | Pendiente |
 | RFC, BOM, esquemático | Completos |

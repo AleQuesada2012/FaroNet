@@ -7,12 +7,15 @@ so compare the short ID out of band before trusting who is behind it.
 """
 
 import asyncio
+import gc
 import sys
 import threading
 
 from faronet.node.envelope import MAX_TEXT_BYTES, Delivery, EnvelopeError
 from faronet.node.identity import DirectoryError, Identity
 from faronet.node.lan import LanError, LanNode
+from faronet.faro.address import AddressStore
+from faronet.faro.profile import PANIC
 
 DEFAULT_PORT = 7400
 DEFAULT_TTL = 300
@@ -23,6 +26,7 @@ HELP = f"""Commands:
   /to NAME        choose the destination (alias, alias#idprefix or idprefix)
   /ttl SECONDS    message lifetime, 10-{MAX_TTL} (now {{ttl}})
   /quit           leave; nothing is saved
+  /panic          erase keys, links and messages, clear the screen and leave
 Any other line is sent to the destination (at most {MAX_TEXT_BYTES} UTF-8 bytes)."""
 
 
@@ -49,6 +53,9 @@ def add_commands(commands) -> None:
                             help=f"HOST:PORT to accept links on (default 0.0.0.0:{DEFAULT_PORT}).")
         parser.add_argument("--peer", type=address, action="append", default=[],
                             help="HOST:PORT of a neighbor to link to; repeat for more.")
+        parser.add_argument("--panic-gpio", metavar="CHIP",
+                            help="Watch the Faro's panic button on this GPIO chip (for example "
+                                 "/dev/gpiochip0); pressing it erases keys and messages and exits.")
         if name == "chat":
             parser.add_argument("--to", help="Initial destination (alias or ID prefix).")
             parser.add_argument("--ttl", type=int, default=DEFAULT_TTL,
@@ -71,6 +78,7 @@ class ChatSession:
             raise ValueError(f"TTL must be 10-{MAX_TTL} seconds")
         self.lan, self.write, self.ttl = lan, write, ttl
         self.destination: bytes | None = None
+        self.panicked = False
         self._pending_to = to
         self._status = None
         lan.on_delivery = self.delivered
@@ -116,6 +124,10 @@ class ChatSession:
         try:
             if command == "/quit":
                 return False
+            if command == "/panic":
+                self.panicked = True
+                self.destination = None
+                return False
             if command == "/help":
                 self.write(HELP.format(ttl=self.ttl))
             elif command == "/peers":
@@ -151,6 +163,23 @@ class ChatSession:
             self.write(f"  {name_of(self.lan, node_id):<26} {linked} {reachable}")
 
 
+def watch_panic(chip: str, on_press) -> None:
+    """Thread body: call on_press once the Faro's active-low panic input is pressed."""
+    import gpiod
+    from gpiod.line import Direction, Edge, Value
+
+    settings = gpiod.LineSettings(direction=Direction.INPUT, edge_detection=Edge.BOTH, active_low=True)
+    request = gpiod.request_lines(chip, consumer="faronet-chat-panic", config={PANIC: settings})
+    try:
+        while request.get_value(PANIC) != Value.ACTIVE:
+            if request.wait_edge_events(1.0):
+                if any(e.event_type == e.Type.RISING_EDGE for e in request.read_edge_events(max_events=16)):
+                    break
+        on_press()
+    finally:
+        request.release()
+
+
 def _print(text: str) -> None:
     print(text, flush=True)
 
@@ -176,6 +205,17 @@ async def _serve(args) -> int:
                 _print("· linked {}, known {}".format(*now))
 
         lan.on_change = changed
+    loop = asyncio.get_running_loop()
+    panicked = asyncio.Event()
+    queue: asyncio.Queue = asyncio.Queue()
+
+    def press() -> None:
+        panicked.set()
+        queue.put_nowait("/panic\n")
+
+    if args.panic_gpio:
+        threading.Thread(target=watch_panic, args=(args.panic_gpio, lambda: loop.call_soon_threadsafe(press)),
+                         daemon=True).start()
     port = await lan.listen(*args.listen)
     _print(f"FaroNet {args.command} {name_of(lan, lan.node_id)} on port {port}; "
            + ("/help lists commands" if session else "Ctrl+C stops"))
@@ -183,17 +223,32 @@ async def _serve(args) -> int:
         lan.dial(host, peer_port)
     try:
         if session is None:
-            await asyncio.Event().wait()
-        queue: asyncio.Queue = asyncio.Queue()
-        threading.Thread(target=_stdin_lines, args=(asyncio.get_running_loop(), queue),
-                         daemon=True).start()
-        while (line := await queue.get()) is not None and session.handle(line):
-            pass
+            await panicked.wait()
+        else:
+            threading.Thread(target=_stdin_lines, args=(loop, queue), daemon=True).start()
+            while (line := await queue.get()) is not None and session.handle(line):
+                pass
+        if panicked.is_set() or (session is not None and session.panicked):
+            return await _panic(lan)
     finally:
         counters = {key: lan.counters[key] for key in ("sent", "relayed", "delivered", "rejected")}
         await lan.close()
-        _print("· stopped; nothing was saved. " + ", ".join(f"{k} {v}" for k, v in counters.items()))
+    _print("· stopped; nothing was saved. " + ", ".join(f"{k} {v}" for k, v in counters.items()))
     return 0
+
+
+async def _panic(lan: LanNode) -> int:
+    """RFC FN-1 4.8 and 10: erase what this Node holds, rotate the link address, clear the screen."""
+    await lan.wipe()
+    gc.collect()
+    try:
+        AddressStore().rotate()
+    except OSError:
+        pass  # The keys are gone either way; the address rotates on the next optical command.
+    # Clear the visible screen and, where the terminal supports it, its scrollback.
+    print("\033[3J\033[2J\033[H", end="", flush=True)
+    print("Panic: keys, links and messages erased; link address rotated.", file=sys.stderr)
+    return 3
 
 
 def run(args) -> int:

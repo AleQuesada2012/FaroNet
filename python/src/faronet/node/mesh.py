@@ -53,6 +53,12 @@ class Node:
     def node_id(self) -> bytes:
         return self.identity.node_id
 
+    def forget(self) -> None:
+        """Panic: drop neighbors, delivered messages and the replay memory."""
+        self.neighbors.clear()
+        self.inbox.clear()
+        self._seen.clear()
+
     def attach(self, neighbor_id: bytes, link: Link) -> None:
         if neighbor_id == self.node_id:
             raise MeshError("A node cannot be its own neighbor")

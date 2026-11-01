@@ -171,6 +171,10 @@ class Identity:
     def public_key(self) -> PublicKey:
         return self._box_key.public_key
 
+    def wipe(self) -> None:
+        """Panic, best effort: drop both private keys. CPython may keep freed copies in RAM."""
+        self._signing_key = self._box_key = None
+
     def sign(self, message: bytes) -> bytes:
         """Detached Ed25519 signature, verified against this node's directory entry."""
         return self._signing_key.sign(message).signature
@@ -207,6 +211,9 @@ class Directory:
         if current is not None and entry.issued_at < current.issued_at:
             raise DirectoryError("An older directory entry cannot replace a newer one")
         self._entries[entry.node_id] = entry
+
+    def clear(self) -> None:
+        self._entries.clear()
 
     def get(self, node_id: bytes) -> DirectoryEntry:
         try:

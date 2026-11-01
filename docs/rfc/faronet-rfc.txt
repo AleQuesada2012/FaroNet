@@ -817,13 +817,15 @@ Appendix A.  Implementation Status
    collision simulator and the optical-link command; tested in
    simulation only.
 
-   Link address rotation and non-volatile storage (Section 4.4): not
-   implemented; addresses are given on the command line.  Sessions are
-   random per run.
+   Link address rotation and non-volatile storage (Section 4.4):
+   implemented in python/src/faronet/faro/address.py; the address is
+   kept in an owner-only file, replaced every 24 hours and on panic,
+   and used unless --local overrides it.  Sessions are random per run.
 
    Panic (Section 4.8): output stop, GPIO release and session clearing
-   implemented and tested on hardware; address rotation and key erasure
-   not implemented.
+   implemented and tested on hardware; address rotation on panic and
+   Node erasure (keys, links, directory and messages, best effort in
+   Python, via /panic or the Faro's button) tested in simulation.
 
    Mesh (Section 5): directory, fragmentation, onion envelopes and
    private messages implemented in python/src/faronet/node/ with a

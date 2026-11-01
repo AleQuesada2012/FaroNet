@@ -229,9 +229,22 @@ sudo .venv/bin/python -m faronet gpio-calibrate --hardware-ready --seconds 30 --
    10 ms toggle) and few `seq_gaps`. Many gaps or extra edges indicate
    comparator chatter at transitions.
 
-4. Generate a **fresh session** once, and copy its printed 16-character
-   lowercase hex value into both terminals. These are synthetic local link
-   addresses, not keys or long-term mesh identities.
+4. Each Faro has a random 8-byte link address stored on its Pi
+   (`~/.faronet/link-address.json`, root's home under sudo). It is replaced
+   every 24 hours and whenever panic is pressed. Show it on each Faro and
+   type the *other* Faro's value into `FARONET_PEER` on each side:
+
+```bash
+sudo .venv/bin/python -m faronet optical-address
+```
+
+```bash
+read -r FARONET_PEER
+```
+
+   Then generate a **fresh session** once, and copy its printed
+   16-character lowercase hex value into both terminals. Sessions are
+   synthetic link labels, not keys or long-term mesh identities.
 
 ```bash
 .venv/bin/python -m faronet optical-session
@@ -248,7 +261,7 @@ below run from the Pi copy's `python/` folder):
 
 ```bash
 sudo .venv/bin/python -m faronet optical-listen --hardware-ready \
-  --local 0202020202020202 --peer 0101010101010101 \
+  --peer "$FARONET_PEER" \
   --session "$FARONET_SESSION" --count 3 --timeout 300 --half-bit-ms 5
 ```
 
@@ -256,7 +269,7 @@ Wait for B's `ready` JSON line. On A, also from its existing clone's `python/`:
 
 ```bash
 sudo .venv/bin/python -m faronet optical-send --hardware-ready \
-  --local 0101010101010101 --peer 0202020202020202 \
+  --peer "$FARONET_PEER" \
   --session "$FARONET_SESSION" --count 3 --half-bit-ms 5
 ```
 
@@ -269,13 +282,16 @@ with ACK/guard overhead reducing payload throughput. These are configured
 durations, not measured performance. A clean three-frame run takes roughly
 62 s plus B's retry linger.
 
-5. Generate a new session, update both variables and swap sender/listener:
-   A listens with local `0101010101010101`, B sends with local
-   `0202020202020202`. Each `--peer` stays the other address. Never run two
+5. Generate a new session, update `FARONET_SESSION` on both sides and swap
+   sender/listener (A listens, B sends). Each `FARONET_PEER` stays the other
+   Faro's address. Never run two
    senders simultaneously or restart one side alone with the old session.
 6. While transmitting a synthetic test, press panic and confirm emitter
-   and indicators turn off. Also test Ctrl+C. Restart both sides with a
-   fresh session after interruption, retry exhaustion or a timing error.
+   and indicators turn off and the command exits with "link address
+   rotated". Show the new address with `optical-address` and update
+   `FARONET_PEER` on the other Faro. Also test Ctrl+C. Restart both sides
+   with a fresh session after interruption, retry exhaustion or a timing
+   error. After 24 hours each address also rotates by itself.
 7. Repeat at three measured distances and record the table below.
 
 Keep the same half-bit setting on both Pis. A TX timing error stops output;
@@ -298,7 +314,8 @@ No measured results should be filled in before the meeting.
 ## Autonomous link without roles (proposal 0003)
 
 Instead of choosing a sender and a listener, both Pis can run the same
-command with swapped addresses and one shared fresh session. Each Faro
+command, each with `--peer` set to the other Faro's address, and one
+shared fresh session. Each Faro
 contends for the light with carrier sense and random backoff, sends its
 synthetic frames, ACKs the peer's and lingers to re-ACK a retried last
 frame. Start both within the timeout; the order does not matter.
@@ -306,11 +323,11 @@ frame. Start both within the timeout; the order does not matter.
 ```bash
 # A
 sudo .venv/bin/python -m faronet optical-link --hardware-ready \
-  --local 0101010101010101 --peer 0202020202020202 \
+  --peer "$FARONET_PEER" \
   --session "$FARONET_SESSION" --count 3 --half-bit-ms 10
 # B
 sudo .venv/bin/python -m faronet optical-link --hardware-ready \
-  --local 0202020202020202 --peer 0101010101010101 \
+  --peer "$FARONET_PEER" \
   --session "$FARONET_SESSION" --count 3 --half-bit-ms 10
 ```
 

@@ -219,6 +219,15 @@ class LanNode:
             await self._server.wait_closed()
         await asyncio.gather(*self._tasks, return_exceptions=True)
 
+    async def wipe(self) -> None:
+        """Panic: close every link, then drop keys, directory, routes and messages."""
+        await self.close()
+        self.identity.wipe()
+        self.directory.clear()
+        self.links.clear()
+        self.node.forget()
+        self._neighbors.clear()
+
     async def _dial(self, host: str, port: int) -> None:
         peer = None
         while True:
