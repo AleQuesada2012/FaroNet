@@ -71,8 +71,8 @@ per canonical room slug. Message size is capped at 1,024 UTF-8 bytes, with
 16 connections per room and five messages per connection per ten seconds.
 Only the count/window is attached to a socket; apart from the feed entries
 above, no message history, identity or IP is written by application code. These are local-demo limits: reconnect
-can bypass the per-connection rate budget, and global admission/authentication
-and gateway relay integration remain pending. Origin checking is not user
+can bypass the per-connection rate budget, and browsers are not
+authenticated (the Gateway is; see below). Origin checking is not user
 authentication. The opt-in demo must not be treated as a production service.
 
 Wrangler's installed schema supports the declarative `exports` block for
@@ -172,3 +172,48 @@ based on [Wrangler's reference](https://developers.cloudflare.com/workers/wrangl
 The new slice also follows [WebSocket hibernation](https://developers.cloudflare.com/durable-objects/best-practices/websockets/)
 and [declarative class exports](https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/),
 checked against workers-rs 0.8.7 and Wrangler 4.149.0 installed in this project.
+
+## Gateway relay and dead drop
+
+`src/gateway.rs` adds the routes of RFC FN-1 Sections 6, 7.1 and 7.6:
+
+- `POST /gateway/rooms/{topic}` publishes a Gateway's public text into a
+  topic (connections and feed), like a browser message.
+- `POST /gateway/drop/{id}` stores one 1024-byte opaque blob in an empty
+  slot (64 lowercase hex digits); `GET` reads and deletes it. Blobs expire
+  after 24 hours. Each slot is a `DeadDrop` SQLite Durable Object.
+
+Every request carries `X-FaroNet-Key`, `X-FaroNet-Timestamp`,
+`X-FaroNet-Nonce` and `X-FaroNet-Signature` (the HMAC of
+`gateway_auth.rs`). The Worker checks them and the body, then claims the
+nonce in the `GatewayReplay` SQLite Durable Object (nonce and expiry
+only), failing closed. Until `GATEWAY_SECRET` exists every gateway route
+answers 404. Local check, on the Mac from `rust/`, with a throwaway secret
+built into the scripts:
+
+```bash
+npm run dev:gateway
+```
+
+```bash
+npm run test:gateway
+```
+
+To enable it on the deployment (owner's step), generate a secret, store
+it in Cloudflare, deploy, and give the same value to the Gateway Pi as
+`FARONET_GATEWAY_SECRET`:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+```bash
+npx wrangler secret put GATEWAY_SECRET
+```
+
+```bash
+npm run deploy
+```
+
+The Python side is `python -m faronet gateway-publish`, `drop-secret`,
+`drop-put` and `drop-take` (`python/src/faronet/gateway/client.py`).

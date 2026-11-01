@@ -569,6 +569,14 @@ Table of Contents
    The claim store is a SQLite-backed Durable Object holding only nonce
    and expiry.
 
+   Over HTTPS the Gateway sends the key ID, timestamp, nonce and MAC in
+   the headers X-FaroNet-Key, X-FaroNet-Timestamp, X-FaroNet-Nonce and
+   X-FaroNet-Signature; the audience is the Edge's configured name.  The
+   Edge checks syntax, scope, MAC, freshness and the route's body rules
+   before claiming the nonce, so a rejected body never consumes a
+   nonce.  It answers 400 (syntax or body), 401 (scope, MAC or clock),
+   409 (replay) and 503 (store unavailable), with static texts only.
+
 7.  Public Edge Application
 
    The Edge runs on Cloudflare Workers (free plan) in Rust compiled to
@@ -585,10 +593,17 @@ Table of Contents
    GET     /rooms                      Browser client for topic rooms
    GET     /rooms/{topic}/ws           WebSocket upgrade [RFC6455]
    GET     /rooms/{topic}/feed.atom    Atom feed [RFC4287]
+   POST    /gateway/rooms/{topic}      Gateway relay into a topic (7.2)
+   POST    /gateway/drop/{id}          Dead drop: store a blob (7.6)
+   GET     /gateway/drop/{id}          Dead drop: read and delete (7.6)
 
    {topic} is 1-32 characters from [a-z0-9-].  Query strings are
-   rejected on room routes.  Non-GET requests to room routes return 405;
-   unknown paths return 404.
+   rejected on room and gateway routes.  Gateway routes require the
+   authentication of Section 6 and answer 404 while the Edge has no
+   Gateway secret configured.  A relayed message follows the text rules
+   of Section 7.2 and is published to the topic exactly like a browser
+   message (connections and feed).  Other methods on a route return
+   405; unknown paths return 404.
 
 7.2.  Topic Rooms
 
@@ -627,11 +642,28 @@ Table of Contents
 
 7.6.  Dead Drop and Public Directory
 
-   The Edge is to provide a dead drop (fixed-size encrypted blobs
-   addressed by an opaque identifier derived from a shared secret, with
-   a TTL and deletion on read) and a read-only replica of the signed
-   directory of Section 5.2.  Their exact formats are not specified in
-   this version (Appendix C).
+   A dead drop lets two parties that share a 32-byte secret S leave
+   each other a message at the Edge without meeting in the mesh.  Each
+   message uses a slot number n agreed between them:
+
+      id   = hex(SHA-256("FARONET-DEAD-DROP-ID-V1" || S || n))
+      key  = SHA-256("FARONET-DEAD-DROP-KEY-V1" || S)
+      blob = SecretBox(key)(len || text || zero padding)
+
+   n is an unsigned 64-bit big-endian integer; len is 2 bytes; text is
+   UTF-8 of at most 982 bytes.  SecretBox adds a 24-byte nonce and a
+   16-byte tag, so every blob is exactly 1024 bytes.  The Edge sees
+   only the 64-hex-digit id and the opaque blob.
+
+   POST /gateway/drop/{id} stores the blob if the slot is empty (201)
+   and refuses an occupied slot (409); the body MUST be exactly 1024
+   bytes.  GET reads the blob and deletes it in the same step (200), or
+   answers 404.  A blob is erased after 24 hours even if never read.
+   Each slot is a SQLite-backed Durable Object holding only the blob
+   and its expiry.
+
+   A read-only replica of the signed directory of Section 5.2 is not
+   specified in this version (Appendix C).
 
 8.  Version Summary
 
@@ -644,6 +676,7 @@ Table of Contents
    LAN link proof            Prefix "FARONET-LAN-PROOF-V1"
    Private message           Version byte (value 1)
    Gateway authentication    Label "FARONET-GATEWAY-HMAC-V1"
+   Dead drop                 Labels "FARONET-DEAD-DROP-ID-V1", "-KEY-V1"
    Medium access             Bound to Faro frame version 1
 
 9.  IANA Considerations
@@ -688,7 +721,8 @@ Table of Contents
 
    Data minimization and retention: the Edge stores only public feed
    entries for 24 hours at minute resolution; rate-limit counters stay
-   in memory; gateway nonce claims are kept at most 120 seconds.
+   in memory; gateway nonce claims are kept at most 120 seconds;
+   dead-drop blobs are opaque, fixed-size and kept at most 24 hours.
    Private messages carry a sender-chosen expiry.  No component writes
    logs with addresses or identifiers.  Hashing an IPv4 address for the
    limiter name is not anonymization, and the provider sees addresses
@@ -837,12 +871,15 @@ Appendix A.  Implementation Status
    the laptop).  Faro links are not yet attached to live Nodes.
 
    Gateway authentication (Section 6): canonicalization, MAC and
-   freshness implemented in Python and Rust with shared vectors; no live
-   route or Durable Object claim store yet.
+   freshness implemented in Python and Rust with shared vectors; the
+   Worker's gateway routes and the GatewayReplay claim store are
+   implemented and tested against a local Worker, including requests
+   signed by the Python client (python/src/faronet/gateway/client.py).
 
    Edge (Section 7): rooms, feeds, rate limiting and no-logging
    configuration implemented in rust/src/ and deployed; a deployed smoke
-   test passed on 2026-10-31.  Dead drop and public directory: not
+   test passed on 2026-10-31.  Gateway relay and dead drop: implemented
+   and tested locally, not yet deployed.  Public directory replica: not
    implemented.
 
 Appendix B.  Test Vectors
@@ -868,6 +905,6 @@ Appendix C.  Open Issues
    2.  Negotiated circuits with per-hop keys instead of source routing.
    3.  Forward secrecy for private messages.
    4.  Directory bootstrap, replication through the Gateway, revocation.
-   5.  Dead drop and public directory formats at the Edge.
+   5.  Public directory replica format at the Edge.
    6.  Faros sharing one optical path beyond two, and hidden terminals.
    7.  Minimum T and maximum distance after two-Faro measurements.

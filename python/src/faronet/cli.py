@@ -22,14 +22,18 @@ def main() -> int:
     commands.add_parser("mesh-demo", help="Relay a padded onion message across a simulated mesh.")
     from faronet.faro import commands as optical_commands
     from faronet.node import chat
+    from faronet.gateway import commands as gateway_commands
 
     optical_commands.add_commands(commands)
     chat.add_commands(commands)
+    gateway_commands.add_commands(commands)
     args = parser.parse_args()
     if args.command.startswith(("gpio-", "optical-")):
         return optical_commands.run(args)
     if args.command in ("chat", "mesh-node"):
         return chat.run(args)
+    if args.command in gateway_commands.NAMES:
+        return gateway_commands.run(args)
     if args.command == "simulate":
         return demos.simulate(args.scenario)
     if args.command == "auth-demo":
@@ -39,7 +43,7 @@ def main() -> int:
 
     print(f"FaroNet Python {__version__}: development scaffold ready")
     print("node: signed directory, onion envelopes, LAN links, chat and relay nodes ready")
-    print("gateway: offline HMAC/replay helpers ready; live HTTPS relay pending")
+    print("gateway: HMAC client for the Edge relay and dead drop ready")
     print("faro: GPIO optical bring-up commands ready; physical qualification and autonomous turns pending")
     print("DispositivoLuzAdaptador: frame/Manchester codec and simulator ready")
     return 0

@@ -407,7 +407,8 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | Botón de pánico | Detiene el Faro, libera el GPIO, descarta la sesión y rota la dirección; en el chat, `/panic` o `--panic-gpio` borran llaves, enlaces, directorio y mensajes (mejor esfuerzo en Python) |
 | Rotación de direcciones físicas | Implementada (`optical-address`): aleatoria, en disco, cada 24 h y al pulsar pánico |
 | Edge: salas, feeds, límite, no registro | Desplegado y verificado con prueba de humo |
-| Edge: relevo del gateway, buzón muerto, directorio público | Pendiente |
+| Edge: relevo del gateway y buzón muerto | Implementado y probado en local (Worker en Rust y cliente en Python con HMAC y anti-reenvío); falta desplegar con el secreto del gateway |
+| Edge: réplica pública del directorio | Pendiente |
 | RFC, BOM, esquemático | Completos |
 
 ## Problemas encontrados y limitaciones

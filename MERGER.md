@@ -509,3 +509,30 @@ scrollback, and exit. Agent-verified on the Mac: 7 new tests (persistence,
 permissions, 24 h rotation, damaged files, CLI, panic rotation through the
 fake libgpiod, Node erasure with the peer seeing the link drop, GPIO
 watcher); Python suite 139 passed. Not yet run on a Pi.
+
+## Edge gateway relay and dead drop (2026-10-31)
+
+Student A took over this Student B edge item (owner's choice). Rust:
+`gateway.rs` adds `POST /gateway/rooms/{topic}` (a Gateway's public text
+published into a topic, connections and feed) and `POST`/`GET
+/gateway/drop/{id}` (one 1024-byte opaque blob per 64-hex slot, write
+once, delete on read, 24 h TTL, `DeadDrop` SQLite Durable Object). Every
+route checks the HMAC contract (headers `X-FaroNet-*`), freshness and the
+body, then claims the nonce in the `GatewayReplay` SQLite Durable Object
+(nonce and expiry only), failing closed; routes answer 404 without
+`GATEWAY_SECRET`. `Verifier::authenticate` splits the checks from the
+claim while keeping the clock read after the MAC. Python:
+`gateway/client.py` and the commands `gateway-publish`, `drop-secret`,
+`drop-put`, `drop-take`; dead-drop ids and keys derive from a 32-byte
+shared secret and blobs are SecretBox-sealed to exactly 1024 bytes.
+
+Agent-verified on the Mac: `cargo test` (26), `npm run check`, `npm run
+build`, `npm run test:gateway` against `dev:gateway` (unsigned, wrong
+secret/key/clock, body rejected before the nonce is claimed, replay 409,
+relay reaches a WebSocket and the feed, dead drop sizes, 201/409/200/404),
+`npm run test:rooms` regression, `npm run dry-run` listing both new
+Durable Objects, 7 Python client tests against a verifying stub, and the
+Python CLI against the local Rust Worker (publish into the feed, drop
+put/occupied/take/empty, wrong secret 401). Not deployed: the owner must
+`wrangler secret put GATEWAY_SECRET` and deploy. RFC Sections 6, 7.1,
+7.6, 8, 10 and Appendices A and C updated; directory replica still open.
