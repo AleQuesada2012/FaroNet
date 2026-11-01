@@ -355,3 +355,19 @@ check, relay, feed). Agent check: `GET /health` returned 200 "FaroNet edge
 ready", the health text introduced in 797c6c7, so the deployed Worker runs
 that revision's code or later.
 
+## Unified RFC FN-1 (2026-10-31)
+
+Added `docs/rfc/faronet-rfc.txt`, the project RFC: ASCII only, at most 72
+columns (checked), RFC 7322 layout with BCP 14 keywords. It consolidates
+the accepted 0001 frame, CRC, Manchester and gateway-authentication
+contracts, Teammate B's 0002 mesh contract (still PROPOSED there), the
+0003 CSMA/CA proposal and the deployed edge rooms, feeds and rate limits,
+and adds Privacy Considerations (RFC 6973 structure, four-adversary threat
+model), Security Considerations and an RFC 7942 implementation-status
+appendix. New normative text not yet implemented, and marked so in
+Appendix A: random link addresses stored in non-volatile storage and
+rotated every 24 hours and on panic; LAN links as 492-byte records over
+TCP (proposed). The Appendix B frame vector was checked against
+fixtures/optical-v1.json. Author lines say Student A and Student B; the
+team should put names there and Teammate B should review Section 5.
+

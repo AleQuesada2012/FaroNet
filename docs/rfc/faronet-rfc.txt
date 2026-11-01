@@ -1,0 +1,783 @@
+FaroNet Project                                                Student A
+Request for Comments: FN-1                                     Student B
+Category: Experimental                                  Redes, TEC, 2026
+                                                           November 2026
+
+
+        FaroNet: An Optical Link Layer and an Anonymous Mesh with
+                     a Public Edge (Faro and FaroNet)
+
+Abstract
+
+   This document specifies FaroNet, a course project network that
+   carries private messages through a mesh of Nodes whose neighbors may
+   be joined by light.  It defines the Faro physical and link protocol
+   (on-off keyed, Manchester coded 128-byte frames over infrared, with
+   CRC-32, acknowledgments and CSMA/CA medium access), the FaroNet mesh
+   (signed node directory, fixed-size onion envelopes and
+   fragmentation), the authenticated Gateway-to-Edge request format, and
+   the public Edge application (topic rooms, Atom feeds and rate
+   limiting).  Privacy and security considerations, including the threat
+   model, are part of the specification.
+
+Status of This Memo
+
+   This is a student project document for the course Redes de
+   Computadoras, Instituto Tecnologico de Costa Rica, second semester
+   2026.  It is not an Internet Standards Track specification and has
+   not been reviewed by the IETF.  It follows the style of RFC 7322.
+   Appendix A records which parts are implemented and which evidence
+   exists; parts marked "not implemented" are specified but unproven.
+
+Table of Contents
+
+   1.  Introduction
+     1.1.  Requirements Language
+     1.2.  Terminology
+   2.  Architecture
+   3.  Faro Physical Layer
+     3.1.  Medium and Hardware
+     3.2.  Line Coding and Timing
+     3.3.  Frame Acquisition
+   4.  Faro Link Layer
+     4.1.  Frame Format
+     4.2.  Integrity
+     4.3.  Versioning
+     4.4.  Link Addresses and Sessions
+     4.5.  Reliability
+     4.6.  Medium Access (CSMA/CA)
+     4.7.  The DispositivoLuzAdaptador Interface
+     4.8.  Indicators and Panic Button
+   5.  FaroNet Mesh (Layers 2 and 3)
+     5.1.  Node Identity
+     5.2.  Signed Directory Entry
+     5.3.  Envelope and Fragmentation
+     5.4.  Onion Layers
+     5.5.  Private Message
+     5.6.  Routing and Links
+   6.  Gateway to Edge Authentication
+   7.  Public Edge Application
+     7.1.  Routes
+     7.2.  Topic Rooms
+     7.3.  Topic Feeds
+     7.4.  Rate Limiting
+     7.5.  No-Logging Policy
+     7.6.  Dead Drop and Public Directory
+   8.  Version Summary
+   9.  IANA Considerations
+   10. Privacy Considerations
+   11. Security Considerations
+   12. References
+   Appendix A.  Implementation Status
+   Appendix B.  Test Vectors
+   Appendix C.  Open Issues
+
+1.  Introduction
+
+   FaroNet transports messages without revealing who originated them.
+   Each participating group builds a "Faro", a light transmitter and
+   receiver attached to a Raspberry Pi, and joins Nodes into a mesh over
+   Ethernet, Wi-Fi and Faro links.  Explicitly public messages leave the
+   mesh through a Gateway to an Edge application on Cloudflare Workers.
+
+   The Faro layer is versatile enough to carry frames built outside the
+   Faro (Section 4.7), every protocol carries a version, and every
+   variable-length field has its length in a separate field.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+1.2.  Terminology
+
+   Faro: the physical device that transmits and receives the optical
+      link and provides activity indicators and a panic button.
+
+   Node: a mesh participant that originates, receives or forwards
+      messages.  A Node and a Faro are distinct roles even when they run
+      on the same computer.
+
+   Gateway: the Node at the boundary between the mesh and services
+      outside it.  Only explicitly public messages cross it.
+
+   Edge: the public application outside the mesh, reached through the
+      Gateway and by browsers.
+
+   DispositivoLuzAdaptador: the library through which a Node uses its
+      Faro.
+
+   Faro frame: one 128-byte unit exchanged between neighboring Faros.
+
+   T: one half-bit interval of the optical waveform.
+
+   F: the duration of one encoded frame, 2048 T.
+
+2.  Architecture
+
+      [Node PC] --USB/GPIO-- [Faro A] ~~~ light ~~~ [Faro B] --GPIO--
+                                                          [Gateway Pi]
+          |                                                    |
+          +--------- anonymous mesh (Ethernet / Wi-Fi / Faro) --+
+                                                               |
+                                                     HTTPS / WebSocket
+                                                               |
+                                                     [Edge: Workers]
+                                                               |
+                                                clearnet (web, feeds)
+
+   Layering:
+
+      +--------------------------------------------------------------+
+      | Private application: one-to-one messages (Section 5.5)       |
+      | Public application:  Edge rooms and feeds (Section 7)        |
+      +--------------------------------------------------------------+
+      | FaroNet mesh: directory, onion envelopes, routing (Sec. 5)   |
+      +--------------------------------------------------------------+
+      | Faro link: frames, CRC, ACK, CSMA/CA (Section 4)             |
+      +--------------------------------------------------------------+
+      | Faro physical: infrared OOK, Manchester (Section 3)          |
+      +--------------------------------------------------------------+
+
+3.  Faro Physical Layer
+
+3.1.  Medium and Hardware
+
+   The medium is infrared light.  The reference Faro uses a Raspberry Pi
+   (Pi 3 Model B or Pi 2 Model B) and these parts:
+
+   o  Emitter: an infrared LED switched by an NPN transistor (2N2222)
+      from 5 V through a 330 ohm resistor, driven by GPIO17 through
+      1 kohm, with a 10 kohm base pull-down.
+
+   o  Receiver: a PT333 phototransistor loading a 10 kohm resistor from
+      a bias of about 2.1 V, compared by an LM393 against an adjustable
+      threshold, with 100 kohm positive feedback for hysteresis.  The
+      open-collector output is pulled up to 3.3 V and read on GPIO27.
+      The Pi has no analog input; the threshold is set with a trimpot.
+
+   o  Indicators on GPIO22 (green, transmitting) and GPIO23 (yellow,
+      capturing), and a panic button on GPIO24 (active low, external
+      10 kohm pull-up).
+
+   Logical level 1 ("ON") means the emitter is lit or the receiver
+   detects light.  A receiver whose output is inverted MUST be corrected
+   in configuration, not on the wire.  No GPIO input may exceed 3.3 V.
+
+3.2.  Line Coding and Timing
+
+   Bits are on-off keyed and Manchester coded, most significant bit of
+   each byte first:
+
+      bit 0  ->  OFF for T, then ON for T
+      bit 1  ->  ON for T, then OFF for T
+
+   T is configured identically on both ends of a link.  Implementations
+   MUST support T from 2 ms to 20 ms and SHOULD default to 5 ms; 10 ms
+   is the value qualified on hardware so far (Appendix A).  There is no
+   clock negotiation and no drift tracking: a frame is short enough that
+   the configured clocks of two Pis agree within the sampling margin.
+
+   A transmitter MUST change the light level within 0.4 T of each
+   scheduled transition and MUST abandon the frame (TX timing error)
+   otherwise.  Before every frame the emitter MUST stay OFF for a guard
+   of 16 T.  The idle channel is dark.
+
+3.3.  Frame Acquisition
+
+   A receiver timestamps each light transition.  After at least 8 T of
+   darkness, the first rising edge starts a candidate frame; because the
+   preamble begins with bit 0 (OFF, ON), the frame start is that edge
+   minus T.  The receiver samples each half-bit at its middle and, once
+   96 T have elapsed, checks that the first 6 bytes decode to the
+   preamble and sync (Section 4.1).  A mismatch abandons the candidate.
+   After 2048 T the 128 bytes are decoded and validated (Section 4.2).
+
+   Fast glitches near transitions may be reported by the operating
+   system as one merged edge.  A receiver MUST NOT discard a capture
+   only because edges were merged or lost; Manchester and CRC validation
+   decide whether the frame is accepted.  Captures with more than 8192
+   edges MUST be abandoned to bound memory.
+
+4.  Faro Link Layer
+
+4.1.  Frame Format
+
+   Every frame is exactly 128 bytes before line coding.  Multi-byte
+   integers are unsigned big-endian.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Preamble (0x55555555)                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |         Sync (0xD391)         |    Version    |     Type      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                  Local Source Address (8)                     +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                Local Destination Address (8)                  +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                     Link Session (8)                          +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Sequence                              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |        Payload Length         |                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+   |            Payload and zero padding (86 bytes)                |
+   ~                                                               ~
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                            CRC-32                             |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Offsets  Size  Field             Rule
+   -------  ----  ----------------  ---------------------------------
+   0-3         4  Preamble          55 55 55 55
+   4-5         2  Sync              D3 91
+   6           1  Version           1 (Section 4.3)
+   7           1  Type              1 = DATA, 2 = ACK
+   8-15        8  Local source      Transmitting Faro (Section 4.4)
+   16-23       8  Local destination Receiving Faro
+   24-31       8  Link session      Link incarnation (Section 4.4)
+   32-35       4  Sequence          DATA number; ACK echoes it
+   36-37       2  Payload length    DATA 0-86; ACK 0
+   38-123     86  Payload, padding  Payload, then zero bytes
+   124-127     4  CRC               CRC-32 over bytes 6-123
+
+   A receiver MUST reject a frame with the wrong length, preamble or
+   sync, an unknown version or type, a payload length above 86, nonzero
+   padding, a non-empty ACK payload, or a CRC mismatch.  Frames are
+   never truncated: a payload longer than 86 bytes fails explicitly.
+
+4.2.  Integrity
+
+   The CRC is CRC-32/ISO-HDLC: polynomial 0x04C11DB7 (reflected
+   0xEDB88320), initial value 0xFFFFFFFF, reflected input and output,
+   final XOR 0xFFFFFFFF; the check value of ASCII "123456789" is
+   0xCBF43926.  It covers bytes 6-123 and is serialized big-endian.  The
+   CRC detects accidental errors only; it is not authentication.
+   Integrity against forgery comes from the mesh layer (Section 5.4).
+
+4.3.  Versioning
+
+   The Version byte is 1 for this document.  A receiver MUST silently
+   discard frames with any other version.  A future version MAY change
+   any field after the Version byte, but MUST keep preamble, sync and
+   Version at offsets 0-6 so that every version can be recognized.
+
+4.4.  Link Addresses and Sessions
+
+   The local addresses are 8-byte physical addresses (the analog of a
+   MAC address) and identify Faros on one optical path only.  A Faro
+   MUST generate its address from a cryptographically secure random
+   source, MUST store it in non-volatile storage, and MUST rotate it
+   (generate a new one) at least every 24 hours and whenever the panic
+   button is pressed.  Rotation limits tracking of a device over time.
+
+   The link session is 8 random bytes chosen for each link incarnation
+   and shared by both Faros.  Sequence numbers start at 0 in each
+   session and never wrap; a session whose sequence would exceed
+   2^32 - 1, or that failed, MUST be replaced.  Frames from another
+   session MUST be ignored.
+
+4.5.  Reliability
+
+   One DATA frame is outstanding per direction.  A receiver accepts a
+   DATA frame only if its source, destination and session match the
+   link and its sequence is the next expected one; it then delivers the
+   payload once and answers with an ACK whose addresses are swapped and
+   whose session and sequence are echoed.  An exact repeat of the last
+   delivered DATA is acknowledged again but not delivered again.  A
+   repeat with changed content, a skipped sequence and foreign frames
+   are ignored.
+
+   The sender waits for a matching ACK until 3 F after the start of each
+   attempt.  It makes at most 3 attempts (the original and two retries)
+   with the same sequence.  After the third failure it reports the send
+   as failed with uncertain delivery and sends no further DATA in that
+   session.  A late ACK that matches the outstanding DATA still counts.
+   A link ACK means one neighbor accepted one frame; it is not an
+   end-to-end receipt.
+
+4.6.  Medium Access (CSMA/CA)
+
+   No controller grants turns.  Both Faros apply these rules:
+
+   1.  An owed ACK is sent after the 16 T guard, without carrier sense.
+
+   2.  Before DATA, the peer's light MUST have been absent for
+       DIFS = 64 T.  The Faro then draws k uniformly from [0, CW) and
+       waits k slots of 32 T, where CW is 8, 16 and 32 slots for
+       attempts 1, 2 and 3.
+
+   3.  If the peer's light appears before the backoff ends, the Faro
+       abandons the backoff and starts again after a new DIFS.
+
+   4.  A missing ACK, whether from loss or collision, starts the next
+       attempt with the next contention window (Section 4.5 bounds).
+
+   Because the 16 T guard is shorter than DIFS, an ACK always wins the
+   medium over new DATA.  The vulnerable window, guard plus the first
+   rising edge and detection latency (about 17 T), is shorter than a
+   slot, so Faros that draw different slots do not collide.  A Faro
+   ignores its receiver while it transmits (its own reflection) and for
+   T afterwards; this is safe because every peer frame starts with a
+   16 T guard.  Carrier sense uses the last accepted receiver edge time
+   and whether a capture is in progress or light is present.
+
+      A:  [guard][====== DATA ======]
+      B:                             [guard][== ACK ==][DIFS][k slots]
+                                                       [guard][ DATA ]
+          B stays dark while A's light is present.
+
+4.7.  The DispositivoLuzAdaptador Interface
+
+   A Node uses its Faro only through DispositivoLuzAdaptador, which
+   offers:
+
+   o  send(payload): send at most 86 opaque bytes as the next DATA frame
+      and return whether it was acknowledged and how many attempts it
+      took.
+
+   o  send_frame(frame): accept a complete 128-byte frame built outside
+      the Faro (for example with Scapy or by another program), validate
+      it per Section 4.1, require that its addresses, session and
+      sequence match the link, and send it as DATA.
+
+   o  receive(timeout): return the next delivered payload, or nothing.
+
+   o  clear(): drop session state and turn all outputs off.
+
+   The CSMA/CA engine is hardware independent: it receives the current
+   time, the carrier-sense state and decoded frames, and returns
+   actions (transmit, delivered payload, send result).  The same engine
+   drives GPIO and a deterministic collision simulator.
+
+4.8.  Indicators and Panic Button
+
+   The green indicator MUST be lit while a frame is transmitted and the
+   yellow one while a candidate frame is being captured.  Pressing the
+   panic button, even briefly, MUST latch a stop: the Faro turns every
+   output off, releases the GPIO lines, discards session state and
+   pending frames, rotates its link address (Section 4.4) and requires
+   an explicit restart.  The Node SHOULD also erase its keys and
+   in-memory messages (Section 10).
+
+5.  FaroNet Mesh (Layers 2 and 3)
+
+   Cryptography uses PyNaCl (libsodium); no primitive is implemented by
+   the project.  Mesh units are opaque to the Faro layer.
+
+5.1.  Node Identity
+
+   Each Node holds an Ed25519 signing key [RFC8032] and an X25519 key
+   [RFC7748], generated locally.  Its Node ID is the first 16 bytes of
+   SHA-256 of its Ed25519 verify key, so an ID cannot be claimed without
+   the matching signing key.
+
+5.2.  Signed Directory Entry
+
+   Field         Size  Rule
+   ------------  ----  -----------------------------------------------
+   Prefix          20  ASCII "FARONET-DIRECTORY-V1"
+   Node ID         16  SHA-256(verify key)[0:16]
+   Verify key      32  Ed25519 public key
+   Public key      32  X25519 public key
+   Issued at        8  Unsigned Unix seconds
+   Expires at       8  issued < expires <= issued + 30 days
+   Alias length     1  0-16
+   Alias         0-16  ASCII letters, digits, "-", "_"; optional
+   Signature       64  Ed25519 over all preceding bytes
+
+   A verifier MUST reject a length mismatch, unknown prefix, invalid
+   alias, Node ID that does not match the verify key, lifetime outside
+   the rule or bad signature.  An entry is usable from issued minus 60
+   seconds through expires.  A newer entry for a Node ID replaces an
+   older one, never the reverse.
+
+5.3.  Envelope and Fragmentation
+
+   Every mesh unit on every link is a 492-byte envelope.  Over a Faro
+   link it travels as 6 DATA payloads of 86 bytes:
+
+   Field   Size  Rule
+   ------  ----  ---------------------------------------------------
+   Tag        2  Chosen per envelope by the sending neighbor
+   Index      1  0-5
+   Count      1  6 in this version
+   Data      82  Bytes index*82 .. index*82+81 of the envelope
+
+   Reassembly is per incoming neighbor, keeps at most 4 incomplete tags
+   (evicting the oldest), ignores repeated fragments, rejects an index
+   or count outside this version, and yields each envelope once.
+
+5.4.  Onion Layers
+
+   A route has exactly 3 relays followed by the destination, all
+   distinct and different from the sender.  Innermost first:
+
+      envelope = len(c1) (2 bytes) || c1 || random padding to 492 bytes
+      c1 = Seal_relay1( 0x01 || id_relay2      || c2 )
+      c2 = Seal_relay2( 0x01 || id_relay3      || c3 )
+      c3 = Seal_relay3( 0x01 || id_destination || c4 )
+      c4 = Seal_dest  ( 0x02 || id_sender || nonce || Box(message) )
+
+   Seal is the libsodium sealed box (48 bytes overhead); Box is the
+   authenticated public-key box from sender to destination (24-byte
+   nonce, 16-byte tag).  The layer type byte is 1 (relay) or 2
+   (deliver), followed by a 16-byte Node ID.  A relay opens its layer,
+   reads the next hop, pads the inner ciphertext with fresh random bytes
+   back to 492 bytes and forwards it.  Ciphertexts seen by hops 1 to 4
+   are 490, 425, 360 and 295 bytes inside an always-492-byte envelope.
+   A Node that cannot open its layer counts a rejection and forwards
+   nothing.
+
+5.5.  Private Message
+
+   The plaintext inside Box is exactly 190 bytes:
+
+   Field         Size  Rule
+   ------------  ----  ---------------------------------------------
+   Version          1  1
+   Kind             1  1 = TEXT
+   Expires at       8  Unsigned Unix seconds (TTL set by the sender)
+   Text length      2  0-178
+   Text         <=178  UTF-8; longer text fails, never truncated
+   Padding       rest  Zero bytes, verified on decode
+
+   The destination discards expired messages and repeated Box nonces
+   (remembering 1024).  Relays cannot see the expiry.
+
+5.6.  Routing and Links
+
+   The sender chooses the route from the signed directory and known
+   adjacency (source routing).  Links between Nodes are Faro links
+   (Section 4) or LAN links over Ethernet or Wi-Fi.  This version
+   proposes that LAN links carry envelopes as fixed 492-byte records
+   over TCP; onion layers provide confidentiality.  Negotiated circuits
+   with per-hop session keys are left to a future version (Appendix C).
+
+6.  Gateway to Edge Authentication
+
+   Requests from the Gateway to the Edge carry an HMAC-SHA-256 [RFC2104]
+   over this ASCII input, each line ending in one LF byte:
+
+      FARONET-GATEWAY-HMAC-V1
+      <audience>
+      <gateway-key-id>
+      <method>
+      <path>
+      <timestamp>
+      <nonce>
+      <body-sha256>
+
+   Audience and key ID are 1-64 ASCII letters, digits, "-" or "_" and
+   are configured by the verifier.  Method is GET or POST.  Path is an
+   absolute ASCII path without query, fragment, percent-encoding, empty
+   or dot segments, or trailing slash.  Timestamp is canonical decimal
+   Unix seconds.  Nonce is 16 random bytes as 32 lowercase hex digits.
+   The body hash is SHA-256 of the exact body bytes, at most 65536, as
+   64 lowercase hex digits.  The MAC is sent as 64 lowercase hex digits
+   and compared in constant time.  Each Gateway has its own secret of at
+   least 32 random bytes.
+
+   The Edge accepts a request only if timestamp - 60 <= now <=
+   timestamp + 60, after checking syntax, audience, key, route, body and
+   MAC, and only if it can atomically claim (audience, key ID, nonce)
+   and keep the claim until timestamp + 60.  Storage failure rejects.
+   The claim store is a SQLite-backed Durable Object holding only nonce
+   and expiry.
+
+7.  Public Edge Application
+
+   The Edge runs on Cloudflare Workers (free plan) in Rust compiled to
+   WebAssembly.  The deployment is reproducible from the versioned
+   wrangler.jsonc.  Reference deployment:
+   https://faronet-edge.faronet.workers.dev
+
+7.1.  Routes
+
+   Method  Path                        Purpose
+   ------  --------------------------  ---------------------------------
+   GET     /                           Public landing page
+   GET     /health                     Readiness, not rate limited
+   GET     /rooms                      Browser client for topic rooms
+   GET     /rooms/{topic}/ws           WebSocket upgrade [RFC6455]
+   GET     /rooms/{topic}/feed.atom    Atom feed [RFC4287]
+
+   {topic} is 1-32 characters from [a-z0-9-].  Query strings are
+   rejected on room routes.  Non-GET requests to room routes return 405;
+   unknown paths return 404.
+
+7.2.  Topic Rooms
+
+   Each topic is one Durable Object.  A browser upgrade MUST carry an
+   Origin equal to the Edge's own origin.  Messages are UTF-8 text of at
+   most 1024 bytes without control characters other than tab and line
+   feed; each is relayed to every connection in the same topic,
+   including the sender.  A topic accepts at most 16 connections, and
+   each connection at most 5 messages per 10 seconds.  Violations close
+   the connection (1003 binary, 1008 policy, 1009 too large).
+
+7.3.  Topic Feeds
+
+   Every new public entry in a topic is published in that topic's Atom
+   feed.  The topic stores its last 20 entries for at most 24 hours (the
+   TTL): sequence number, publication time rounded down to the minute,
+   and text.  No identity, address or connection data is stored.  An
+   alarm erases entries when their TTL ends.  Entry IDs are
+   urn:faronet:public-topic:{topic}:{sequence}; text is XML-escaped and
+   sent as type="text", newest entry first.
+
+7.4.  Rate Limiting
+
+   Every route except /health admits at most 60 requests per client per
+   60 seconds and answers 429 with Retry-After: 60 beyond that.  The
+   counter lives in a Durable Object named by SHA-256 of a fixed label
+   and the client address, and is kept in memory only.  Counts are
+   strict per object but reset if the object is evicted.
+
+7.5.  No-Logging Policy
+
+   Worker logs, traces and observability are disabled.  Application code
+   MUST NOT persist CF-Connecting-IP, User-Agent or other client
+   headers, and stores only the feed entries of Section 7.3.  The
+   provider still observes connection metadata (Section 10).
+
+7.6.  Dead Drop and Public Directory
+
+   The Edge is to provide a dead drop (fixed-size encrypted blobs
+   addressed by an opaque identifier derived from a shared secret, with
+   a TTL and deletion on read) and a read-only replica of the signed
+   directory of Section 5.2.  Their exact formats are not specified in
+   this version (Appendix C).
+
+8.  Version Summary
+
+   Protocol element          Version carrier
+   ------------------------  --------------------------------------
+   Faro frame                Version byte at offset 6 (value 1)
+   Fragment                  Count field (6 in this version)
+   Directory entry           Prefix "FARONET-DIRECTORY-V1"
+   Private message           Version byte (value 1)
+   Gateway authentication    Label "FARONET-GATEWAY-HMAC-V1"
+   Medium access             Bound to Faro frame version 1
+
+9.  IANA Considerations
+
+   This document has no IANA actions.
+
+10.  Privacy Considerations
+
+   This section follows [RFC6973].  The threat model considers four
+   adversaries.
+
+   Adversary              Can see                    Cannot see
+   ---------------------  -------------------------  ------------------
+   Malicious mesh Node    Neighbor Node IDs, 492-    Other layers, the
+   (relay)                byte envelopes, timing,    sender and the
+                          its position from          destination
+                          ciphertext length          together
+   Observer of the light  Link addresses, session,   Envelope contents,
+                          sequence, fragment tags,   mesh endpoints
+                          frame timing and length
+   Gateway operator       Public messages, Edge      Private messages
+                          traffic, its neighbors     and their origin
+   Edge provider          Client IP addresses,       Private messages;
+   (Cloudflare)           timing, public messages,   anything inside
+                          request metadata           the mesh
+
+   Surveillance and correlation: every envelope has the same size and
+   every frame the same length, so content length does not leak.  No
+   relay sees both endpoints, but relays 1 and 3 colluding, or timing
+   analysis on a quiet mesh, can link them; there is no cover traffic.
+   Each relay learns its position from the ciphertext length.
+
+   Identification: optical link addresses identify a Faro to anyone who
+   watches the light, so they rotate (Section 4.4).  Node IDs are
+   pseudonyms that are stable while a directory entry lives; the alias
+   is optional.
+
+   Data minimization and retention: the Edge stores only public feed
+   entries for 24 hours at minute resolution; rate-limit counters stay
+   in memory; gateway nonce claims are kept at most 120 seconds.
+   Private messages carry a sender-chosen expiry.  No component writes
+   logs with addresses or identifiers.  Hashing an IPv4 address for the
+   limiter name is not anonymization, and the provider sees addresses
+   regardless.
+
+   Disclosure and secondary use: public topics are public by design;
+   the client warns users.  Public messages never contain mesh
+   identifiers.
+
+   Stored data compromise: the panic button stops the Faro and rotates
+   its address.  Python cannot guarantee that every copy of a key or
+   message in memory is overwritten, so erasure is best effort.
+
+11.  Security Considerations
+
+   o  CRC-32 detects accidental errors only.  Anyone in the light path
+      can forge or replay link frames; the mesh layer authenticates
+      content (Poly1305 in each layer, Box at the destination), so a
+      forged frame can cause loss but not a forged delivery.
+
+   o  Jamming: a light source that keeps the receiver busy blocks
+      CSMA/CA indefinitely, and one that collides with frames forces
+      retries until the session fails.  Optical denial of service is not
+      prevented.
+
+   o  Box uses long-term keys and therefore has no forward secrecy.
+      Compromise of a key exposes recorded past messages.
+
+   o  The HMAC secret is shared by the Gateway and the Edge; compromise
+      of either allows forgery for that key.  Replay is prevented only
+      within the claim window of Section 6.
+
+   o  The Edge relies on rate limits, connection caps and size limits
+      against abuse.  Limits per client can be bypassed with many
+      addresses; limiter eviction resets counts.
+
+   o  Directory bootstrap is unspecified: a Node must obtain trusted
+      entries out of band in this version.
+
+   o  Physical safety: no GPIO input may exceed 3.3 V; the receiver
+      output is pulled up to 3.3 V, not 5 V.
+
+12.  References
+
+12.1.  Normative References
+
+   [RFC2104]  Krawczyk, H., Bellare, M., and R. Canetti, "HMAC:
+              Keyed-Hashing for Message Authentication", RFC 2104,
+              February 1997.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC4287]  Nottingham, M. and R. Sayre, "The Atom Syndication
+              Format", RFC 4287, December 2005.
+
+   [RFC6234]  Eastlake 3rd, D. and T. Hansen, "US Secure Hash
+              Algorithms (SHA and SHA-based HMAC and HKDF)", RFC 6234,
+              May 2011.
+
+   [RFC6455]  Fette, I. and A. Melnikov, "The WebSocket Protocol",
+              RFC 6455, December 2011.
+
+   [RFC7748]  Langley, A., Hamburg, M., and S. Turner, "Elliptic Curves
+              for Security", RFC 7748, January 2016.
+
+   [RFC8032]  Josefsson, S. and I. Liusvaara, "Edwards-Curve Digital
+              Signature Algorithm (EdDSA)", RFC 8032, January 2017.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, May 2017.
+
+12.2.  Informative References
+
+   [RFC6973]  Cooper, A., Tschofenig, H., Aboba, B., Peterson, J.,
+              Morris, J., Hansen, M., and R. Smith, "Privacy
+              Considerations for Internet Protocols", RFC 6973,
+              July 2013.
+
+   [RFC7322]  Flanagan, H. and S. Ginoza, "RFC Style Guide", RFC 7322,
+              September 2014.
+
+   [RFC7942]  Sheffer, Y. and A. Farrel, "Improving Awareness of
+              Running Code: The Implementation Status Section",
+              BCP 205, RFC 7942, July 2016.
+
+   [RFC9110]  Fielding, R., Ed., Nottingham, M., Ed., and J. Reschke,
+              Ed., "HTTP Semantics", STD 97, RFC 9110, June 2022.
+
+   [IEEE802.11]
+              IEEE, "IEEE Standard for Information Technology -
+              Wireless LAN Medium Access Control (MAC) and Physical
+              Layer (PHY) Specifications", IEEE Std 802.11.
+
+   [LIBSODIUM]
+              libsodium documentation, "Sealed boxes",
+              https://doc.libsodium.org/public-key_cryptography/
+              sealed_boxes.
+
+   [TOR]      The Tor Project, "Tor Protocol Specification",
+              https://spec.torproject.org/tor-spec/.
+
+Appendix A.  Implementation Status
+
+   Per [RFC7942].  Repository paths are relative to the project root.
+
+   Faro frame, CRC, Manchester, simulator: implemented in
+   python/src/faronet/dispositivo_luz_adaptador/; unit tests and shared
+   vectors in fixtures/optical-v1.json.
+
+   GPIO backend and acquisition: implemented in python/src/faronet/faro/
+   (libgpiod v2).  Hardware evidence on one Faro (Pi 3), 2026-10-31:
+   single-board reflection loopback decoded 3 of 3 full frames with 0
+   bit errors at T = 10 ms; the receiver followed 10 ms toggling in
+   every sample window; reflection worked up to about 8-10 cm.  Shorter
+   T values stopped on the TX timing budget before a timing fix that
+   is not yet re-measured.  No two-Faro exchange, distance, throughput
+   or BER measurement exists yet.
+
+   CSMA/CA (Section 4.6): implemented in medium.py with a two-Faro
+   collision simulator and the optical-link command; tested in
+   simulation only.
+
+   Link address rotation and non-volatile storage (Section 4.4): not
+   implemented; addresses are given on the command line.  Sessions are
+   random per run.
+
+   Panic (Section 4.8): output stop, GPIO release and session clearing
+   implemented and tested on hardware; address rotation and key erasure
+   not implemented.
+
+   Mesh (Section 5): directory, fragmentation, onion envelopes and
+   private messages implemented in python/src/faronet/node/ with a
+   laptop simulation.  LAN transport and private chat client: not
+   implemented.
+
+   Gateway authentication (Section 6): canonicalization, MAC and
+   freshness implemented in Python and Rust with shared vectors; no live
+   route or Durable Object claim store yet.
+
+   Edge (Section 7): rooms, feeds, rate limiting and no-logging
+   configuration implemented in rust/src/ and deployed; a deployed smoke
+   test passed on 2026-10-31.  Dead drop and public directory: not
+   implemented.
+
+Appendix B.  Test Vectors
+
+   CRC-32/ISO-HDLC of ASCII "123456789": 0xCBF43926.
+
+   DATA frame, source "FAKE0001", destination "FAKE0002", session
+   "SESSION1", sequence 7, payload "FaroNet M1" (hex, 128 bytes):
+
+      55555555d391010146414b453030303146414b45303030325345
+      5353494f4e3100000007000a4661726f4e6574204d3100000000
+      0000000000000000000000000000000000000000000000000000
+      0000000000000000000000000000000000000000000000000000
+      00000000000000000000000000000000000000000029e56a
+
+   More vectors: fixtures/optical-v1.json, fixtures/directory-v1.json,
+   fixtures/mesh-fragment-v1.json and fixtures/gateway-auth-v1.json.
+
+Appendix C.  Open Issues
+
+   1.  Session bootstrap: the session is still shared manually between
+       the two Faros of a link.
+   2.  Negotiated circuits with per-hop keys instead of source routing.
+   3.  Forward secrecy for private messages.
+   4.  Directory bootstrap, replication through the Gateway, revocation.
+   5.  Dead drop and public directory formats at the Edge.
+   6.  Faros sharing one optical path beyond two, and hidden terminals.
+   7.  Minimum T and maximum distance after two-Faro measurements.
