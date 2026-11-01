@@ -9,11 +9,14 @@ a laptop simulator, and matching Python/Rust gateway-authentication helpers.
 The second slice adds the node foundation: signed directory entries,
 fragmentation, fixed-size onion envelopes and a laptop mesh simulation that
 reuses the optical link, following a contract that is still a proposal.
-The Student A slice adds a GPIO optical smoke-test adapter with explicit
-sender/listener turns, ACK/retry handling, indicators and panic stop, plus
-an opt-in local Rust public-room/WebSocket demo. Autonomous optical
-negotiation, LAN transport, private terminal chat and live gateway services
-remain pending. Start with [the October 26 optical test guide](docs/optical-bringup.md).
+The Student A slices add the GPIO optical adapter (ACK/retry, indicators,
+panic stop, single-board loopback) with CSMA/CA medium access
+([proposal 0003](docs/rfc/0003-optical-medium-access-proposal.md)), and the
+edge's public topic rooms, Atom feeds and rate limiting. LAN transport,
+private terminal chat and the gateway relay remain pending.
+
+**Public edge deployment:** <https://faronet-edge.faronet.workers.dev>
+(rooms at `/rooms`, feeds at `/rooms/{topic}/feed.atom`). Start with [the October 26 optical test guide](docs/optical-bringup.md).
 See [the milestone guide](docs/milestone-1.md) and
 [the node slice guide](docs/milestone-2.md) for demonstrations and tests.
 

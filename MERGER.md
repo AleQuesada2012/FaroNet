@@ -348,3 +348,10 @@ relaxed in a scratch copy), and a dry run listing both Durable Objects.
 Wrangler is not logged in; the owner must run `npx wrangler login` and
 deploy, then record the public URL.
 
+Deployed by the owner on 2026-10-31 to
+https://faronet-edge.faronet.workers.dev with `npm run deploy`. The owner
+reports `npm run smoke` passed against it (health, landing, rooms, origin
+check, relay, feed). Agent check: `GET /health` returned 200 "FaroNet edge
+ready", the health text introduced in 797c6c7, so the deployed Worker runs
+that revision's code or later.
+

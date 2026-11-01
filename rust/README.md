@@ -110,6 +110,9 @@ teammate can install the same resolved dependencies.
 
 ## Deployment (Cloudflare Workers free plan)
 
+Live: <https://faronet-edge.faronet.workers.dev>, deployed by the owner on
+2026-10-31 with `npm run deploy`; `npm run smoke` passed against it.
+
 The versioned `wrangler.jsonc` is the deployment configuration. It keeps
 `PUBLIC_ROOMS_ENABLED` false so plain local runs stay closed; `npm run
 deploy` and `npm run dry-run` pass `--var PUBLIC_ROOMS_ENABLED:true`, so the
