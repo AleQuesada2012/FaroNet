@@ -202,7 +202,8 @@ sudo .venv/bin/python -m faronet optical-loopback --hardware-ready --count 3 --h
 
    Each DATA frame is decoded from its echo and compared with what was sent;
    expect `matches: true` for every frame. Repeat at 5 ms and below to find
-   this board's timing limit. No ACK is involved and the board talks only to
+   this board's timing limit. Faro A passed 10/10 frames at 5, 3 and 2 ms
+   (2 ms is the shortest half-bit the bring-up accepts). No ACK is involved and the board talks only to
    itself, so this does not replace the two-Faro exchange. Normal
    `optical-send` still ignores its own reflections.
 

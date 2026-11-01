@@ -426,5 +426,12 @@ Fix (agent): `transmit()` encodes the frame before entering the on-air
 section and taking the first deadline. A regression test with a 2.5 ms
 encoder fails without the change and passes with it. Python suite: 123
 passed on the Mac. The 0.4 half-bit budget and `SPIN_NS` are unchanged;
-the evidence does not call for changing them. Pending: rerun on Faro A
-without `--timing-report`.
+the evidence does not call for changing them.
+
+User-reported, Faro A at 08fc33b, plain `optical-loopback --count 10`:
+2 ms 10/10 matched, 0 bit errors, 0 rejected, TX max lateness 0.191 ms,
+20.744 payload B/s; 3 ms 10/10, 0.219 ms, 13.846 B/s; 5 ms 10/10,
+0.204 ms, 8.316 B/s. 2 ms, the shortest half-bit the bring-up accepts,
+is the fastest qualified setting on one board; two-Faro rates and
+distance remain unmeasured. Documentation, RFC Section 4 and Appendix A
+updated to match.

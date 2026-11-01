@@ -282,7 +282,7 @@ sudo .venv/bin/python -m faronet gpio-preflight
 ```bash
 sudo .venv/bin/python -m faronet gpio-monitor --hardware-ready --seconds 20
 sudo .venv/bin/python -m faronet gpio-calibrate --hardware-ready --blink
-sudo .venv/bin/python -m faronet optical-loopback --hardware-ready --half-bit-ms 10
+sudo .venv/bin/python -m faronet optical-loopback --hardware-ready --count 10 --half-bit-ms 2
 ```
 
 Enlace entre dos Faros, sin roles (mismo comando en ambos, direcciones
@@ -355,8 +355,8 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 
 | Componente | Estado |
 | --- | --- |
-| Trama, Manchester, CRC, simuladores | Completo y probado (121 pruebas de Python) |
-| Faro A en protoboard | Funciona: transmisión, recepción calibrada, pánico; *loopback* de 3/3 tramas sin errores a *T* = 10 ms |
+| Trama, Manchester, CRC, simuladores | Completo y probado (123 pruebas de Python) |
+| Faro A en protoboard | Funciona: transmisión, recepción calibrada, pánico; *loopback* de 10/10 tramas sin errores a *T* = 5, 3 y 2 ms (2 ms: 20,7 B/s de carga útil) |
 | CSMA/CA y `optical-link` | Implementado y probado en simulación; falta la prueba entre dos Faros |
 | Faro B | En montaje; su ambiente de software no se ha verificado |
 | Medición de tasa y BER a tres distancias | Pendiente: requiere dos Faros |
@@ -379,8 +379,12 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
   descartaba tramas por fallas rápidas fusionadas por Linux; se corrigió
   validando con Manchester y CRC en lugar de descartar.
 - **Temporización de transmisión**: a medio bit de 5 ms o menos el sistema
-  no cumplía el margen de 0,4 *T*; se agregó espera activa y prioridad de
-  tiempo real, pendiente de volver a medir.
+  no cumplía el margen de 0,4 *T*. Se agregó espera activa y prioridad de
+  tiempo real, pero el error siguió. Un reporte de temporización por símbolo
+  (`--timing-report`) mostró que solo el primer símbolo llegaba tarde: la
+  Pi 3 tardaba unos 2,5 ms en codificar la trama después de fijar el primer
+  plazo. Codificar antes de ese plazo bajó el retraso máximo de 2,4 ms a
+  unos 0,2 ms.
 - El borrado de llaves en memoria con Python es de mejor esfuerzo.
 
 ## Reporte de commits
@@ -405,6 +409,9 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | 3e69b54 | AleQuesada2012 | 2026-10-31 | Record the public edge deployment URL |
 | 4cbd035 | AleQuesada2012 | 2026-10-31 | Add the unified FaroNet RFC (FN-1) |
 | e285e08 | AleQuesada2012 | 2026-10-31 | Add the Faro BOM with approximate costs in colones |
+| 95b4338 | AleQuesada2012 | 2026-10-31 | Add the project documentation, its PDF build and the rev-7 schematic |
+| cd95998 | AleQuesada2012 | 2026-10-31 | Add a TX timing report to optical-loopback |
+| 08fc33b | AleQuesada2012 | 2026-10-31 | Encode each frame before its first TX deadline |
 
 La lista completa y actualizada se obtiene con
 `git log --format='%h %an %ad %s' --date=short`.

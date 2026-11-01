@@ -176,8 +176,8 @@ Table of Contents
       bit 1  ->  ON for T, then OFF for T
 
    T is configured identically on both ends of a link.  Implementations
-   MUST support T from 2 ms to 20 ms and SHOULD default to 5 ms; 10 ms
-   is the value qualified on hardware so far (Appendix A).  There is no
+   MUST support T from 2 ms to 20 ms and SHOULD default to 5 ms; single-
+   board loopback has qualified 5, 3 and 2 ms (Appendix A).  There is no
    clock negotiation and no drift tracking: a frame is short enough that
    the configured clocks of two Pis agree within the sampling margin.
 
@@ -723,11 +723,12 @@ Appendix A.  Implementation Status
    GPIO backend and acquisition: implemented in python/src/faronet/faro/
    (libgpiod v2).  Hardware evidence on one Faro (Pi 3), 2026-10-31:
    single-board reflection loopback decoded 3 of 3 full frames with 0
-   bit errors at T = 10 ms; the receiver followed 10 ms toggling in
-   every sample window; reflection worked up to about 8-10 cm.  Shorter
-   T values stopped on the TX timing budget before a timing fix that
-   is not yet re-measured.  No two-Faro exchange, distance, throughput
-   or BER measurement exists yet.
+   bit errors at T = 10 ms, and 10 of 10 at each of T = 5, 3 and 2 ms
+   after the frame was encoded before its first TX deadline (maximum
+   TX lateness about 0.2 ms; 20.7 payload bytes per second at 2 ms);
+   the receiver followed 10 ms toggling in every sample window;
+   reflection worked up to about 8-10 cm.  No two-Faro exchange,
+   distance, throughput or BER measurement exists yet.
 
    CSMA/CA (Section 4.6): implemented in medium.py with a two-Faro
    collision simulator and the optical-link command; tested in
