@@ -27,8 +27,9 @@ STAGES = {
            "LED quede fuera de la placa. Ánodo (pata larga) en F4, cátodo en F5. Q1: los 2N2222 "
            "del equipo son E–B–C mirando la cara plana (comprobado con el probador de "
            "transistores), al revés de lo que suponía la protoboard. Va con la cara plana hacia "
-           "la izquierda (hacia R2; línea amarilla en el dibujo): C arriba (F5), B al centro (F6), E abajo (F7). Confírmalo con "
-           "el probador antes de soldar. R3 queda de pie justo a la derecha de Q1; inclínala un "
+           "la derecha (hacia R3 y el borde; línea amarilla en el dibujo): C arriba (F5), B al centro (F6), "
+           "E abajo (F7). Comprobación: parado al lado derecho de la placa, mirando la cara plana, "
+           "debes leer E–B–C de izquierda a derecha. Confírmalo con el probador antes de soldar. R3 queda de pie justo a la derecha de Q1; inclínala un "
            "poco hacia el borde. R1 va acostada con patas largas de C21 a C29."),
     "rx": ("5 · Receptor",
            "Suelda el zócalo DIP8 con la muesca hacia abajo (hacia F24); el LM393 se pone al "

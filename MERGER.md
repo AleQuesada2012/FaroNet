@@ -606,3 +606,15 @@ the directory replica. Agent check against the deployment: health text
 POST /gateway/directory refused with 400, and `directory-fetch` from the
 Mac verified the one entry published by the owner's Gateway node
 (`pi-gateway#07a11975`) with 0 rejected.
+
+## Q1 flat face turned to the right (2026-11-01)
+
+Owner-reported while soldering: with the flat face away, the 2N2222 reads
+C-B-E left to right, which is E-B-C from the flat side, as the tester
+said. The earlier correction put the flat face toward the left, but seen
+from the left the top hole (C, F5) is on the viewer's left, so that
+placement reads C-B-E from the flat side and would have swapped C and E.
+The guide and drawing now place the flat face toward the right (toward R3
+and the board edge), with a check: from the right side of the board, the
+flat face reads E-B-C left to right. Holes and `check.py` are unchanged
+(13 mistakes still caught).

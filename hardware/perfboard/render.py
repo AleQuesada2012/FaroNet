@@ -187,16 +187,17 @@ class View:
             for k, (x, y) in pts.items():
                 self.text(x, y - 9, k, size=9, fill="#fff", cls="halo")
         elif ref == "Q1":
-            # The team's 2N2222 reads E-B-C facing the flat side (transistor tester),
-            # so with C on top the flat face points left, toward R2.
+            # The team's 2N2222 reads E-B-C facing the flat side (transistor tester).
+            # Seen from the right, the top leg is on the right, so with C on top the
+            # flat face points right, toward R3 and the board edge.
             (xc, yc), (xb, yb), (xe, ye) = pts["C"], pts["B"], pts["E"]
-            self.add(f'<path d="M{xb - 9},{yc - 12} L{xb - 9},{ye + 12} A30,30 0 0 0 {xb - 9},{yc - 12} z" '
+            self.add(f'<path d="M{xb + 9},{yc - 12} L{xb + 9},{ye + 12} A30,30 0 0 1 {xb + 9},{yc - 12} z" '
                      f'fill="#263238" stroke="#000" stroke-width="1.5" opacity="0.92"/>')
-            self.add(f'<line x1="{xb - 9}" y1="{yc - 12}" x2="{xb - 9}" y2="{ye + 12}" stroke="#ffeb3b" stroke-width="3"/>')
+            self.add(f'<line x1="{xb + 9}" y1="{yc - 12}" x2="{xb + 9}" y2="{ye + 12}" stroke="#ffeb3b" stroke-width="3"/>')
             for k, (x, y) in pts.items():
                 self.add(f'<circle cx="{x}" cy="{y}" r="3" fill="#bbb"/>')
                 self.text(x + 11, y + 4, k, size=9, fill="#fff", weight="bold")
-            self.text(xb - 14, yc + 4, "Q1", size=10, fill="#fff", weight="bold", anchor="end", cls="halo")
+            self.text(xb - 30, yb + 4, "Q1", size=10, fill="#fff", weight="bold", anchor="end", cls="halo")
         elif ref == "U1":
             xs = [x for x, _ in pts.values()]
             ys = [y for _, y in pts.values()]
