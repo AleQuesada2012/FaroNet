@@ -52,8 +52,8 @@ $R_6$ = \SI{47}{\kilo\ohm} en la placa soldada (\SI{100}{\kilo\ohm} en la protob
 
 % ---------------- Indicators and panic ----------------
 \node[net, anchor=west] at (-4.2,-5.3) {Indicadores y botón de pánico};
-\draw (-3.6,-6.2) node[left]{LED\_TX} to[R, l={$R_{10}$ \SI{1}{\kilo\ohm}}, o-] (-1.2,-6.2) to[led, l=$D_2$ verde] (0.8,-6.2) -- (1.2,-6.2) node[ground]{};
-\draw (-3.6,-8.0) node[left]{LED\_RX} to[R, l={$R_{11}$ \SI{1}{\kilo\ohm}}, o-] (-1.2,-8.0) to[led, l=$D_3$ amarillo] (0.8,-8.0) -- (1.2,-8.0) node[ground]{};
+\draw (-3.6,-6.2) node[left]{LED\_TX} to[R, l={$R_{10}$ \SI{330}{\ohm}}, o-] (-1.2,-6.2) to[led, l=$D_2$ verde] (0.8,-6.2) -- (1.2,-6.2) node[ground]{};
+\draw (-3.6,-8.0) node[left]{LED\_RX} to[R, l={$R_{11}$ \SI{330}{\ohm}}, o-] (-1.2,-8.0) to[led, l=$D_3$ amarillo] (0.8,-8.0) -- (1.2,-8.0) node[ground]{};
 \draw (4,-5.4) node[vcc]{3V3} to[R, l_={$R_{12}$ \SI{10}{\kilo\ohm}}] (4,-7.0) coordinate (pn) to[push button, l_=$S_1$ pánico] (4,-9.0) node[ground]{};
 \draw (pn) to[short, *-o] (5.6,-7.0) node[right]{PANIC (pulsado = 0)};
 

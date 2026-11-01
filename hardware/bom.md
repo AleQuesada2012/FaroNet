@@ -3,10 +3,12 @@
 Lista de materiales del dispositivo de transmisión ("Faro") con costo
 aproximado en colones, para la versión soldada en perfboard del circuito de
 [revisión 7](breadboard/README.md). Los valores eléctricos vienen de
-[`circuit-reference.json`](breadboard/circuit-reference.json); el único
-cambio para la versión soldada es **R6 = 47 kΩ** (más histéresis, decisión
-del equipo del 31 de octubre de 2026; la protoboard usa 100 kΩ). El valor
-final de R6 se confirma al medir la placa soldada.
+[`circuit-reference.json`](breadboard/circuit-reference.json). Cambios para la
+versión soldada (decisiones del equipo del 31 de octubre de 2026): **R6 =
+47 kΩ** (más histéresis; la protoboard usa 100 kΩ) y **R10, R11 = 330 Ω**
+(antes 1 kΩ). La colocación en la perfboard está en
+[`perfboard/guia.html`](perfboard/guia.html). El valor final de R6 se
+confirma al medir la placa soldada.
 
 ## Cómo leer los precios
 
@@ -38,17 +40,17 @@ final de R6 se confirma al medir la placa soldada.
 | D2 | 1 | LED verde 5 mm, indicador TX (referencia Broadcom HLMP-3507) | H2ElectronicsCR | HLMP-3507 | ₡191,00 | ₡191,00 |
 | D3 | 1 | LED amarillo 5 mm, indicador RX (referencia Lite-On LTL-307YLC) | H2ElectronicsCR | LTL-307YLC | ₡196,00 | ₡196,00 |
 | S1 | 1 | Pulsador táctil 6 × 6 mm, 4 pines, NA (pánico) | MicroJPM | AD595 | ₡113,75 | ₡113,75 |
-| R1 | 1 | Resistencia 330 Ω ¼ W (corriente del LED IR) | MicroJPM | 330 Ω ¼ W | ₡18,20 | ₡18,20 |
-| R2, R8, R10, R11 | 4 | Resistencia 1 kΩ ¼ W | MicroJPM | 1 kΩ ¼ W | ₡22,75 | ₡91,00 |
+| R1, R10, R11 | 3 | Resistencia 330 Ω ¼ W (LED IR; LED verde y amarillo en la placa soldada) | MicroJPM | 330 Ω ¼ W | ₡18,20 | ₡54,60 |
+| R2, R8 | 2 | Resistencia 1 kΩ ¼ W | MicroJPM | 1 kΩ ¼ W | ₡22,75 | ₡45,50 |
 | R3, R4, R12 | 3 | Resistencia 10 kΩ ¼ W | MicroJPM | 10 kΩ ¼ W | ₡18,20 | ₡54,60 |
 | R5 | 1 | Resistencia 4,7 kΩ ¼ W (pull-up de OPT_RX a 3,3 V) | MicroJPM | 4.7 kΩ ¼ W | ₡18,20 | ₡18,20 |
 | R6 | 1 | Resistencia 47 kΩ ¼ W (histéresis; 100 kΩ en protoboard) | MicroJPM | 47 kΩ ¼ W | ₡22,75 | ₡22,75 |
 | R9 | 1 | Resistencia 2,2 kΩ ¼ W (divisor VBIAS) | MicroJPM | 2.2 kΩ ¼ W | ₡18,20 | ₡18,20 |
-| PCB | 1 | Perfboard doble cara 8 × 12 cm | CRCibernética | Perfboard 8 × 12 | ₡887,25 + IVA | ₡1 002,59 |
-| J1 | 1 | Header macho 1 × 40, 2,54 mm (se usan 8 contactos hacia la Pi) | MicroJPM | AD112 | ₡227,50 | ₡227,50 |
+| PCB | 1 | Perfboard una cara 7 × 9 cm, azul (parejas de 2 agujeros y 4 rieles) | Equipo | — | *(completar)* | no costeado |
 | Cableado | 1 | Alambre sólido 22 AWG, 1 m (estimado por placa) | MicroJPM | 22 AWG, 1 m | ₡364,00 | ₡364,00 |
 
-**Subtotal por Faro: ₡4 654,54** (reserva de IVA MicroJPM: ₡289,28).
+**Subtotal por Faro: ₡3 415,35** (reserva de IVA MicroJPM: ₡258,49). La perfboard de
+7 × 9 cm la compró el equipo; su precio queda por completar y no se suma.
 
 ## Por nodo: computadora y alimentación
 
@@ -57,11 +59,13 @@ final de R6 se confirma al medir la placa soldada.
 | Pi | 1 | Raspberry Pi 3 Model B (Faro A) / Pi 2 Model B (Faro B) | Existente | — | — | no costeado |
 | SD | 1 | Tarjeta microSD con el sistema operativo | Existente | — | — | no costeado |
 | Fuente | 1 | Fuente Micro-USB 5 V / 2,5 A con cable | CRCibernética | Fuente 5 V 2,5 A | ₡2 707,25 + IVA | ₡3 059,19 |
-| Cables | 8 | Jumpers Dupont hembra (de la Pi a J1) | Existente | — | — | no costeado |
+| Cables | 9 | Jumpers Dupont hembra cortados: hembra en la Pi, extremo cortado soldado a la placa | Existente | — | — | no costeado |
 
 La Raspberry Pi, la microSD y los jumpers ya eran del equipo; no se
 compraron para el proyecto y no se costean aquí. La Pi se conecta a la
-placa con jumpers sobre el header J1, por lo que se retira sin desoldar.
+placa con jumpers hembra cortados: el lado hembra queda en el header de la
+Pi y el extremo cortado se suelda a la placa (nueve, con un segundo GND), por
+lo que la Pi se retira sin desoldar.
 
 **Subtotal por nodo (costeado): ₡3 059,19.**
 
@@ -69,11 +73,11 @@ placa con jumpers sobre el header J1, por lo que se retira sin desoldar.
 
 | Concepto | Un Faro | Dos Faros |
 | --- | ---: | ---: |
-| Placa del Faro | ₡4 654,54 | ₡9 309,08 |
+| Placa del Faro | ₡3 415,35 | ₡6 830,70 |
 | Fuente de alimentación | ₡3 059,19 | ₡6 118,38 |
-| **Total** | **₡7 713,73** | **₡15 427,46** |
-| Reserva posible IVA MicroJPM | ₡289,28 | ₡578,56 |
-| **Total con reserva** | **₡8 003,01** | **₡16 006,02** |
+| **Total** | **₡6 474,54** | **₡12 949,08** |
+| Reserva posible IVA MicroJPM | ₡258,49 | ₡516,98 |
+| **Total con reserva** | **₡6 733,03** | **₡13 466,06** |
 
 ## Fuera del BOM del Faro
 

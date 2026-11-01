@@ -69,8 +69,8 @@ ejecutar todo y el estado final.
 
 - Raspberry Pi 3 Model B (Faro A) y Raspberry Pi 2 Model B (Faro B), cada
   una con su microSD y fuente de 5 V / 2,5 A.
-- Protoboard para el prototipo; perfboard de doble cara para la versión
-  soldada.
+- Protoboard para el prototipo; perfboard azul de una cara (7 × 9 cm,
+  parejas de dos agujeros y cuatro rieles) para la versión soldada.
 - Multímetros: XL830L (con prueba de hFE), Truper y MY-64.
 - Cautín, soldadura, pinzas y pelacables (propios o prestados).
 - Cámara de un teléfono para ver la emisión infrarroja.
@@ -130,7 +130,12 @@ receptor, dos indicadores y el botón de pánico. Decisiones principales:
 - **Revisión 7a**: un segundo puente de GND (TG:21 a BG:21) tras encontrar
   contacto intermitente en los orificios del riel.
 - **Placa soldada**: R6 baja de 100 kΩ a 47 kΩ para más histéresis, porque
-  la telemetría mostró rebotes en una de las transiciones.
+  la telemetría mostró rebotes en una de las transiciones; R10 y R11 bajan a
+  330 Ω. La colocación en la perfboard (`hardware/perfboard/`) también se
+  generó desde un modelo de la placa y se valida contra la netlist: dos
+  puentes de GND entre los rieles, un segundo GND de la Pi, jumpers hembra
+  cortados y soldados, y D1 y Q2 a unos 4 cm en filas espejo del borde
+  derecho, con funda negra para aislar el receptor del emisor propio.
 
 ![Esquemático del Faro, revisión 7 (placa soldada).](../hardware/schematic/faro-rev7.svg)
 
@@ -394,7 +399,7 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | CSMA/CA y `optical-link` | Implementado y probado en simulación; falta la prueba entre dos Faros |
 | Faro B | En montaje; su ambiente de software no se ha verificado |
 | Medición de tasa y BER a tres distancias | Pendiente: requiere dos Faros |
-| Placa soldada, fotos y bitácora de multímetro | Pendiente (entrega de hardware) |
+| Placa soldada, fotos y bitácora de multímetro | Plano de perfboard validado y guía de soldadura listos; falta soldar, fotos y bitácora (entrega de hardware) |
 | Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac y entre la Pi del Faro A y la Mac (tres relevos en la Mac); falta repartir los relevos en más máquinas |
 | Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`); mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos |
 | Enlace óptico como enlace de la mesh en vivo | Pendiente: los nodos en vivo solo usan enlaces LAN |

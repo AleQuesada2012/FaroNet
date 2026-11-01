@@ -13,10 +13,12 @@ D1 (F4–F5) y Q2 (F20–F21) salen por el borde derecho, a unos 4 cm entre sí;
 sus filas centrales suman 25, así que un segundo Faro girado 180° queda
 emisor frente a receptor. Cubrir D1 y Q2 con funda negra (termoencogible).
 
-- `soldering-sheet.md`: qué va en cada agujero, por etapas, y el mapa.
-- `board.py`: modelo de la placa y validador; `layout.py`: la colocación;
-  `check.py`: prueba la netlist y que se rechacen errores típicos;
-  `sheet.py`: regenera la hoja.
+Abrir **[guia.html](guia.html)**: los dos lados dibujados, el montaje por
+etapas con casillas, las pruebas de continuidad y aislamiento sin energía y
+el primer encendido.
 
-Pendiente: diagramas dibujados (lado de componentes y de cobre) y la guía
-HTML con pruebas de continuidad.
+- `perfboard-componentes.svg`, `perfboard-cobre.svg`: los dos lados.
+- `soldering-sheet.md`: la misma información en texto, con un mapa.
+- `board.py`: modelo de la placa y validador; `layout.py`: la colocación;
+  `check.py`: prueba la netlist y que se rechacen 13 errores típicos;
+  `render.py` y `guide.py`: regeneran todo (`python3 guide.py`).

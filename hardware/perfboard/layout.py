@@ -7,7 +7,6 @@ centres add up to 25, so a second Faro turned 180° faces emitter to
 detector.
 """
 
-import board
 from board import Layout, netlist
 
 CHANGES = {"R6": "47 kΩ", "R10": "330 Ω", "R11": "330 Ω"}

@@ -3,7 +3,6 @@
 import copy
 
 import layout
-import board  # noqa: F401  (sheet.py reaches HERE through layout.board)
 
 
 def rejected(label, change):
