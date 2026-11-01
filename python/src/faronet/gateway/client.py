@@ -15,6 +15,7 @@ the secret. Errors carry static text only; secrets and text are never logged.
 
 from dataclasses import dataclass
 import hashlib
+import json
 import time
 import urllib.error
 import urllib.request
@@ -24,6 +25,7 @@ from nacl.secret import SecretBox
 
 from faronet import __version__
 from faronet.gateway.auth import AuthError, GatewayRequest, new_nonce, sign_request
+from faronet.node.identity import DirectoryEntry, DirectoryError
 
 DROP_BYTES = 1024
 DROP_PLAIN = DROP_BYTES - SecretBox.NONCE_SIZE - SecretBox.MACBYTES
@@ -89,6 +91,32 @@ def open_drop(shared: bytes, blob: bytes) -> str:
         raise GatewayError("El texto del buzón no es UTF-8") from None
 
 
+def fetch_directory(base_url: str, now: int | None = None, timeout: float = 10.0
+                ) -> tuple[list[DirectoryEntry], int]:
+    """Public read; every entry is verified here again. Returns (valid, rejected)."""
+    request = urllib.request.Request(base_url.rstrip("/") + "/directory",
+                                     headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            data = json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        error.close()
+        raise GatewayError("El edge rechazó la lectura del directorio", error.code) from None
+    except (urllib.error.URLError, OSError, ValueError):
+        raise GatewayError("No se pudo leer el directorio del edge") from None
+    now = int(time.time()) if now is None else now
+    valid, rejected = [], 0
+    for item in data.get("entries", []) if isinstance(data, dict) else []:
+        try:
+            entry = DirectoryEntry.decode(bytes.fromhex(item))
+            entry.check_valid_at(now)
+        except (DirectoryError, ValueError, TypeError):
+            rejected += 1
+            continue
+        valid.append(entry)
+    return valid, rejected
+
+
 @dataclass(repr=False)
 class EdgeClient:
     """One Gateway key talking to one Edge origin. Never print this object."""
@@ -131,6 +159,15 @@ class EdgeClient:
         status, _ = self._send("POST", f"/gateway/drop/{drop_slot_id(shared, slot)}", seal_drop(shared, text))
         if status != 201:
             raise GatewayError("La casilla del buzón está ocupada" if status == 409 else "El edge rechazó el contenido", status)
+
+    def publish_entry(self, entry: DirectoryEntry) -> bool:
+        """Add a signed entry to the Edge's public replica; False if it holds a newer one."""
+        status, _ = self._send("POST", "/gateway/directory", entry.encode())
+        if status in (200, 201):
+            return True
+        if status == 409:
+            return False
+        raise GatewayError("El edge rechazó la entrada del directorio", status)
 
     def drop_take(self, shared: bytes, slot: int) -> str | None:
         """Read and delete the slot; None when it is empty or expired."""

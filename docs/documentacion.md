@@ -408,7 +408,7 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | Rotación de direcciones físicas | Implementada (`optical-address`): aleatoria, en disco, cada 24 h y al pulsar pánico |
 | Edge: salas, feeds, límite, no registro | Desplegado y verificado con prueba de humo |
 | Edge: relevo del gateway y buzón muerto | Implementado y probado en local (Worker en Rust y cliente en Python con HMAC y anti-reenvío); falta desplegar con el secreto del gateway |
-| Edge: réplica pública del directorio | Pendiente |
+| Edge: réplica pública del directorio | Implementada y probada en local: el edge verifica cada entrada firmada (Ed25519) y la sirve en `/directory`; el nodo gateway publica con `--edge-publish`; falta desplegar |
 | RFC, BOM, esquemático | Completos |
 
 ## Problemas encontrados y limitaciones

@@ -53,6 +53,9 @@ def add_commands(commands) -> None:
                             help=f"HOST:PUERTO donde aceptar enlaces (por defecto 0.0.0.0:{DEFAULT_PORT}).")
         parser.add_argument("--peer", type=address, action="append", default=[],
                             help="HOST:PUERTO de un vecino al cual enlazarse; repetir para más.")
+        parser.add_argument("--edge-publish", metavar="URL", nargs="?", const="https://faronet-edge.faronet.workers.dev",
+                            help="Solo en el gateway: publicar en la réplica pública del edge cada entrada "
+                                 "del directorio que este nodo conozca (usa el secreto de gateway-secret).")
         parser.add_argument("--panic-gpio", metavar="CHIP",
                             help="Vigilar el botón de pánico del Faro en este chip GPIO (por ejemplo "
                                  "/dev/gpiochip0); al pulsarlo se borran llaves y mensajes y se sale.")
@@ -216,6 +219,8 @@ async def _serve(args) -> int:
     if args.panic_gpio:
         threading.Thread(target=watch_panic, args=(args.panic_gpio, lambda: loop.call_soon_threadsafe(press)),
                          daemon=True).start()
+    if args.edge_publish:
+        _publish_directory(lan, args.edge_publish)
     port = await lan.listen(*args.listen)
     _print(f"FaroNet {args.command} {name_of(lan, lan.node_id)} en el puerto {port}; "
            + ("/help muestra los comandos" if session else "Ctrl+C lo detiene"))
@@ -236,6 +241,41 @@ async def _serve(args) -> int:
     labels = {"sent": "enviados", "relayed": "retransmitidos", "delivered": "recibidos", "rejected": "rechazados"}
     _print("· detenido; no se guardó nada. " + ", ".join(f"{labels[k]} {v}" for k, v in counters.items()))
     return 0
+
+
+def _publish_directory(lan: LanNode, url: str) -> None:
+    """Gateway node: send each new verified entry to the Edge replica, off the event loop."""
+    from faronet.gateway.client import EdgeClient, GatewayError
+    from faronet.gateway.commands import load_secret
+
+    client = EdgeClient(url, load_secret())
+    published: dict[bytes, int] = {}
+    loop = asyncio.get_running_loop()
+    previous = lan.on_change
+
+    async def push(entries) -> None:
+        sent = 0
+        for entry in entries:
+            try:
+                await loop.run_in_executor(None, client.publish_entry, entry)
+                sent += 1
+            except GatewayError as error:
+                published.pop(entry.node_id, None)
+                _print(f"! directorio: {error}")
+        if sent:
+            _print(f"· directorio: {sent} entrada(s) publicadas en el edge")
+
+    def changed() -> None:
+        previous()
+        fresh = [lan.directory.get(n) for n in lan.directory.node_ids()
+                 if published.get(n) != lan.directory.get(n).issued_at]
+        for entry in fresh:
+            published[entry.node_id] = entry.issued_at
+        if fresh:
+            loop.create_task(push(fresh))
+
+    lan.on_change = changed
+    changed()
 
 
 async def _panic(lan: LanNode) -> int:

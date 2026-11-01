@@ -596,6 +596,8 @@ Table of Contents
    POST    /gateway/rooms/{topic}      Gateway relay into a topic (7.2)
    POST    /gateway/drop/{id}          Dead drop: store a blob (7.6)
    GET     /gateway/drop/{id}          Dead drop: read and delete (7.6)
+   POST    /gateway/directory          Publish a directory entry (7.6)
+   GET     /directory                  Public directory replica (7.6)
 
    {topic} is 1-32 characters from [a-z0-9-].  Query strings are
    rejected on room and gateway routes.  Gateway routes require the
@@ -662,8 +664,16 @@ Table of Contents
    Each slot is a SQLite-backed Durable Object holding only the blob
    and its expiry.
 
-   A read-only replica of the signed directory of Section 5.2 is not
-   specified in this version (Appendix C).
+   The Edge also keeps a public, read-only replica of the signed
+   directory of Section 5.2.  The Gateway publishes one canonical entry
+   per POST /gateway/directory.  The Edge MUST verify it as a Node does
+   (format, Node ID, lifetime, Ed25519 signature) and that it is usable
+   now; a newer entry for a Node ID replaces an older one (201), the
+   same one is accepted again (200) and an older one is refused (409).
+   It keeps at most 256 entries and erases expired ones.  GET
+   /directory answers {"version":1,"entries":[...]} with each entry in
+   lowercase hex.  Readers MUST verify every entry themselves: the Edge
+   cannot forge entries, but it can withhold them.
 
 8.  Version Summary
 
@@ -723,6 +733,9 @@ Table of Contents
    entries for 24 hours at minute resolution; rate-limit counters stay
    in memory; gateway nonce claims are kept at most 120 seconds;
    dead-drop blobs are opaque, fixed-size and kept at most 24 hours.
+   The directory replica publishes Node IDs, public keys and optional
+   aliases on the open Web for the life of each entry; the chat client
+   uses a new identity on every run, which limits linking over time.
    Private messages carry a sender-chosen expiry.  No component writes
    logs with addresses or identifiers.  Hashing an IPv4 address for the
    limiter name is not anonymization, and the provider sees addresses
@@ -879,8 +892,11 @@ Appendix A.  Implementation Status
    Edge (Section 7): rooms, feeds, rate limiting and no-logging
    configuration implemented in rust/src/ and deployed; a deployed smoke
    test passed on 2026-10-31.  Gateway relay and dead drop: implemented
-   and tested locally, not yet deployed.  Public directory replica: not
-   implemented.
+   and tested locally, then deployed and checked from the Gateway Pi on
+   2026-11-01.  Public directory replica: implemented (Edge
+   verification with ed25519-dalek against the Python-signed fixture;
+   publishing from a Gateway mesh node with --edge-publish) and tested
+   locally, not yet deployed.
 
 Appendix B.  Test Vectors
 
@@ -905,6 +921,5 @@ Appendix C.  Open Issues
    2.  Negotiated circuits with per-hop keys instead of source routing.
    3.  Forward secrecy for private messages.
    4.  Directory bootstrap, replication through the Gateway, revocation.
-   5.  Public directory replica format at the Edge.
-   6.  Faros sharing one optical path beyond two, and hidden terminals.
-   7.  Minimum T and maximum distance after two-Faro measurements.
+   5.  Faros sharing one optical path beyond two, and hidden terminals.
+   6.  Minimum T and maximum distance after two-Faro measurements.

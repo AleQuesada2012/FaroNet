@@ -14,11 +14,12 @@ import sys
 from faronet.faro.address import state_dir
 
 from faronet.gateway.client import (
-    DEFAULT_AUDIENCE, DEFAULT_KEY_ID, MAX_DROP_TEXT, EdgeClient, GatewayError, secret_from_hex,
+    DEFAULT_AUDIENCE, DEFAULT_KEY_ID, MAX_DROP_TEXT, EdgeClient, GatewayError, fetch_directory,
+    secret_from_hex,
 )
 
 EDGE_URL = "https://faronet-edge.faronet.workers.dev"
-NAMES = ("gateway-secret", "gateway-publish", "drop-secret", "drop-put", "drop-take")
+NAMES = ("gateway-secret", "gateway-publish", "drop-secret", "drop-put", "drop-take", "directory-fetch")
 
 
 def secret_path():
@@ -54,7 +55,9 @@ def add_commands(commands) -> None:
     commands.add_parser("drop-secret", help="Generar un secreto nuevo de 32 bytes para el buzón, a compartir fuera de banda.")
     put = commands.add_parser("drop-put", help=f"Dejar hasta {MAX_DROP_TEXT} bytes en una casilla del buzón.")
     take = commands.add_parser("drop-take", help="Leer y borrar una casilla del buzón.")
-    for parser in (publish, put, take):
+    fetch = commands.add_parser("directory-fetch",
+                                help="Leer y verificar la réplica pública del directorio en el edge.")
+    for parser in (publish, put, take, fetch):
         parser.add_argument("--url", default=EDGE_URL, help=f"Origen del edge (por defecto {EDGE_URL}).")
     publish.add_argument("--topic", required=True, help="Tema: 1-32 caracteres de a-z, 0-9 y -.")
     publish.add_argument("--text", required=True, help="Texto público; cualquiera puede leerlo.")
@@ -73,6 +76,12 @@ def run(args) -> int:
     try:
         if args.command == "drop-secret":
             print(secrets.token_hex(32))
+            return 0
+        if args.command == "directory-fetch":
+            entries, rejected = fetch_directory(args.url)
+            print(f"Directorio del edge: {len(entries)} entradas verificadas, {rejected} rechazadas.")
+            for entry in entries:
+                print(f"  {entry.alias or '?'}#{entry.node_id.hex()[:8]}")
             return 0
         if args.command == "gateway-secret":
             store_secret(getpass.getpass("Secreto del gateway (hex, no se muestra): ").strip())

@@ -577,3 +577,25 @@ cargo test, npm run check, test:rooms and test:gateway on fresh local
 Workers (the feed-root expectation now includes xml:lang), the rooms page
 viewed in the browser pane, Python suite 147 passed, and a five-process
 local chat run. The edge change needs the owner's `npm run deploy`.
+
+## Public directory replica (2026-11-01)
+
+Owner's choice. Rust `directory.rs`: `POST /gateway/directory` (gateway
+HMAC) verifies a signed directory entry exactly as a Python node does
+(format, Node ID from the verify key, 30-day lifetime rule, Ed25519 with
+`ed25519-dalek` 3.0.0 verify_strict, usable now) before a
+`DirectoryReplica` SQLite Durable Object stores it; newer replaces older
+(201), same is 200, older 409, at most 256 entries, alarm erases expired
+ones. `GET /directory` serves the entries as hex JSON. Python:
+`fetch_directory` and `directory-fetch` re-verify every entry;
+`EdgeClient.publish_entry`; `mesh-node --edge-publish [URL]` publishes each
+entry the Gateway node learns, off the event loop.
+
+Agent-verified on the Mac: Rust unit tests including the Python-signed
+fixture and tampering (alias, Node ID, expiry, prefix), wasm clippy,
+build, `npm run test:gateway` with Ed25519 entries signed by Node (201,
+200, 409, tampered 400, forged ID 400, listing), 3 new Python tests
+against the verifying stub (publish, older refused, forged and expired
+rejected on fetch, the mesh node publishing), the suite, and a local run
+where a gateway mesh-node published its own and its neighbour's entries
+to the Rust Worker and `directory-fetch` verified them. Not deployed.

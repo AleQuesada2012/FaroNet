@@ -1,11 +1,14 @@
 """Gateway client: dead-drop format and signed requests against a local verifying stub."""
 
+import asyncio
 import hashlib
 import io
+import json
 import os
 from pathlib import Path
 import stat
 import tempfile
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import threading
 import unittest
@@ -14,9 +17,10 @@ from unittest.mock import patch
 from faronet.gateway import commands
 from faronet.gateway.auth import GatewayRequest, verify_and_admit, AuthError
 from faronet.gateway.client import (
-    DROP_BYTES, MAX_DROP_TEXT, EdgeClient, GatewayError, drop_slot_id, open_drop, seal_drop,
-    secret_from_hex,
+    DROP_BYTES, MAX_DROP_TEXT, EdgeClient, GatewayError, drop_slot_id, fetch_directory, open_drop,
+    seal_drop, secret_from_hex,
 )
+from faronet.node.identity import DirectoryEntry, Identity
 from faronet.gateway.testing import FakeNonceStore
 
 GATEWAY_SECRET = bytes(range(32))     # synthetic test value only
@@ -66,11 +70,17 @@ class EdgeStub(BaseHTTPRequestHandler):
     slots: dict = {}
     published: list = []
     agents: list = []
+    directory: dict = {}
+    extra: list = []
+    now = 1_792_000_000   # None: the real clock
 
     def log_message(self, *_):
         pass
 
     def _handle(self, method):
+        if method == "GET" and self.path == "/directory":
+            entries = [e.hex() for e in self.directory.values()] + self.extra
+            return self._reply(200, json.dumps({"version": 1, "entries": entries}).encode())
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         self.agents.append(self.headers.get("User-Agent", ""))
         request = GatewayRequest("faronet-edge", self.headers["X-FaroNet-Key"], method, self.path,
@@ -78,9 +88,16 @@ class EdgeStub(BaseHTTPRequestHandler):
         try:
             verify_and_admit(request, self.headers["X-FaroNet-Signature"], GATEWAY_SECRET,
                              expected_audience="faronet-edge", expected_key_id="gateway-1",
-                             clock=lambda: 1_792_000_000, store=self.store)
+                             clock=lambda: EdgeStub.now or int(time.time()), store=self.store)
         except AuthError:
             return self._reply(401)
+        if self.path == "/gateway/directory":
+            entry = DirectoryEntry.decode(body)
+            current = self.directory.get(entry.node_id)
+            if current is not None and DirectoryEntry.decode(current).issued_at > entry.issued_at:
+                return self._reply(409)
+            self.directory[entry.node_id] = body
+            return self._reply(201)
         if self.path.startswith("/gateway/rooms/"):
             self.published.append(body.decode())
             return self._reply(202)
@@ -127,6 +144,41 @@ class EdgeClientTests(unittest.TestCase):
         self.assertNotIn(SHARED.hex(), "".join(EdgeStub.slots))
         # Cloudflare blocks "Python-urllib" with 403 before the Worker runs.
         self.assertTrue(all(agent.startswith("FaroNet-Gateway/") for agent in EdgeStub.agents))
+
+    def test_directory_entries_publish_and_fetch_verified(self):
+        identity = Identity.generate()
+        newer = identity.directory_entry(1_792_000_000, 1_792_000_000 + 3600, "pi-gw")
+        older = identity.directory_entry(1_791_999_000, 1_791_999_000 + 3600, "pi-gw")
+        self.assertTrue(self.client.publish_entry(newer))
+        self.assertFalse(self.client.publish_entry(older))
+        forged = bytearray(newer.encode())
+        forged[-1] ^= 1
+        EdgeStub.extra = [bytes(forged).hex(), "zz"]
+        entries, rejected = fetch_directory(self.client.base_url, now=1_792_000_100)
+        EdgeStub.extra = []
+        self.assertIn(newer, entries)
+        self.assertEqual(rejected, 2)
+        _, rejected = fetch_directory(self.client.base_url, now=1_792_000_000 + 7200)
+        self.assertGreaterEqual(rejected, 1)  # expired entries are not trusted
+
+    def test_gateway_mesh_node_publishes_what_it_learns(self):
+        from faronet.node import chat
+        from faronet.node.lan import LanNode
+
+        async def scenario():
+            lan = LanNode(Identity.generate(), "gw-node")
+            with patch.dict(os.environ, {"FARONET_GATEWAY_SECRET": GATEWAY_SECRET.hex()}), \
+                    patch.object(EdgeStub, "now", None), patch("sys.stdout", io.StringIO()):
+                chat._publish_directory(lan, self.client.base_url)
+                for _ in range(200):
+                    if lan.node_id in EdgeStub.directory:
+                        break
+                    await asyncio.sleep(0.01)
+            await lan.close()
+            return lan.node_id
+
+        node_id = asyncio.run(scenario())
+        self.assertIn(node_id, EdgeStub.directory)
 
     def test_wrong_gateway_secret_is_refused(self):
         client = EdgeClient(self.client.base_url, bytes(32), clock=lambda: 1_792_000_000)

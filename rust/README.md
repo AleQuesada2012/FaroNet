@@ -231,3 +231,15 @@ The Python side is `python -m faronet gateway-publish`, `drop-secret`,
 `drop-put` and `drop-take` (`python/src/faronet/gateway/client.py`). The
 client sends `User-Agent: FaroNet-Gateway/<version>`: Cloudflare blocks
 Python's default agent with 403 (error 1010) before the Worker runs.
+
+## Public directory replica
+
+`src/directory.rs`: `POST /gateway/directory` (same HMAC headers) stores a
+signed mesh directory entry (RFC FN-1 5.2) after the Edge verifies its
+format, Node ID, lifetime and Ed25519 signature with `ed25519-dalek`
+(verification only). A newer entry replaces an older one; at most 256
+entries; expired ones are erased by an alarm. `GET /directory` is public:
+`{"version":1,"entries":["<hex>", ...]}`, which readers verify again.
+`npm run test:gateway` covers it. From Python: `python -m faronet
+directory-fetch` reads and verifies the replica, and a Gateway relay node
+publishes everything it learns with `mesh-node --edge-publish`.
