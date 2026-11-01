@@ -26,6 +26,7 @@ pub enum Route<'a> {
     Relay(&'a str),
     DropPut(&'a str),
     DropTake(&'a str),
+    DirectoryPublish,
 }
 
 fn lower_hex(value: &str, length: usize) -> bool {
@@ -51,6 +52,13 @@ pub fn route<'a>(method: &str, path: &'a str) -> Result<Route<'a>, u16> {
             Err(405)
         };
     }
+    if path == "/gateway/directory" {
+        return if method == "POST" {
+            Ok(Route::DirectoryPublish)
+        } else {
+            Err(405)
+        };
+    }
     if let Some(id) = path.strip_prefix("/gateway/drop/") {
         if !valid_drop_id(id) {
             return Err(404);
@@ -72,6 +80,8 @@ pub fn valid_body(route: Route<'_>, body: &[u8]) -> bool {
         }
         Route::DropPut(_) => body.len() == DROP_BYTES,
         Route::DropTake(_) => body.is_empty(),
+        // Shape only; directory.rs verifies the entry itself.
+        Route::DirectoryPublish => (181..=197).contains(&body.len()),
     }
 }
 
@@ -232,6 +242,13 @@ pub mod runtime {
                 env.durable_object("DEAD_DROPS")?
                     .get_by_name(id)?
                     .fetch_with_request(internal("/put", Method::Post, Some(blob.into()))?)
+                    .await
+            }
+            Route::DirectoryPublish => {
+                let entry = Uint8Array::from(body.as_slice());
+                env.durable_object("DIRECTORY")?
+                    .get_by_name("replica")?
+                    .fetch_with_request(internal("/publish", Method::Post, Some(entry.into()))?)
                     .await
             }
             Route::DropTake(id) => {
@@ -408,6 +425,11 @@ mod tests {
             Ok(Route::DropTake(ID))
         );
         assert_eq!(route("PUT", &format!("/gateway/drop/{ID}")), Err(405));
+        assert_eq!(
+            route("POST", "/gateway/directory"),
+            Ok(Route::DirectoryPublish)
+        );
+        assert_eq!(route("GET", "/gateway/directory"), Err(405));
         for path in [
             "/gateway/rooms/Demo",
             "/gateway/rooms/",
@@ -415,7 +437,7 @@ mod tests {
             "/gateway/drop/ABCDEF",
             &format!("/gateway/drop/{}", &ID[..63]),
             &format!("/gateway/drop/{}", ID.to_uppercase()),
-            "/gateway/directory",
+            "/gateway/directory/x",
             "/gateway",
         ] {
             assert_eq!(route("POST", path), Err(404), "{path}");
@@ -439,6 +461,10 @@ mod tests {
         assert!(!valid_body(Route::DropPut(ID), &[7; DROP_BYTES + 1]));
         assert!(valid_body(Route::DropTake(ID), b""));
         assert!(!valid_body(Route::DropTake(ID), b"x"));
+        assert!(valid_body(Route::DirectoryPublish, &[0; 181]));
+        assert!(valid_body(Route::DirectoryPublish, &[0; 197]));
+        assert!(!valid_body(Route::DirectoryPublish, &[0; 180]));
+        assert!(!valid_body(Route::DirectoryPublish, &[0; 198]));
     }
 
     #[test]

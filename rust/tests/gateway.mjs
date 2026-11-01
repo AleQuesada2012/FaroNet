@@ -1,7 +1,7 @@
 // Run against a freshly started `npm run dev:gateway` on this Mac. The secret
 // below is a local test value, never a deployed one. Only synthetic data is sent.
 import assert from "node:assert/strict";
-import { createHash, createHmac, randomBytes } from "node:crypto";
+import { createHash, createHmac, generateKeyPairSync, randomBytes, sign as edSign } from "node:crypto";
 import { once } from "node:events";
 import WebSocket from "ws";
 
@@ -49,7 +49,7 @@ try {
   assert.equal((await fetch(`${base}${relayPath}`, { method: "POST", body: text })).status, 400);
   assert.equal((await fetch(`${base}${relayPath}`)).status, 405);
   assert.equal((await fetch(`${base}${relayPath}?x=1`, sign({ method: "POST", path: relayPath, body: text }))).status, 400);
-  assert.equal((await fetch(`${base}/gateway/directory`)).status, 404);
+  assert.equal((await fetch(`${base}/gateway/unknown`)).status, 404);
 
   // Wrong secret, wrong key, stale clock: all 401.
   assert.equal((await send(relayPath, { method: "POST", body: text, secret: "11".repeat(32) })).status, 401);
@@ -84,7 +84,41 @@ try {
   assert.ok(taken.body.equals(blob));
   assert.equal((await send(dropPath, { method: "GET" })).status, 404);
   assert.equal((await send(`/gateway/drop/${slot.toUpperCase()}`, { method: "GET" })).status, 404);
-  console.log("Gateway runtime checks passed: auth, replay, relay into a topic and its feed, dead drop.");
+  // Directory replica: RFC 5.2 entries signed here with Node's Ed25519.
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  const verifyKey = Buffer.from(publicKey.export({ format: "jwk" }).x, "base64url");
+  const entry = (issued, alias = "gw-test") => {
+    const times = Buffer.alloc(16);
+    times.writeBigUInt64BE(BigInt(issued), 0);
+    times.writeBigUInt64BE(BigInt(issued + 3600), 8);
+    const signed = Buffer.concat([
+      Buffer.from("FARONET-DIRECTORY-V1"), createHash("sha256").update(verifyKey).digest().subarray(0, 16),
+      verifyKey, randomBytes(32), times, Buffer.from([alias.length]), Buffer.from(alias),
+    ]);
+    return Buffer.concat([signed, edSign(null, signed, privateKey)]);
+  };
+  const now = Math.floor(Date.now() / 1000);
+  const first = entry(now - 30);
+  assert.equal((await send("/gateway/directory", { method: "POST", body: first })).status, 201);
+  assert.equal((await send("/gateway/directory", { method: "POST", body: first })).status, 200);
+  assert.equal((await send("/gateway/directory", { method: "POST", body: entry(now - 60) })).status, 409);
+  const tampered = Buffer.from(entry(now));
+  tampered[117] ^= 1; // first alias byte, after the fixed 117-byte header
+  assert.equal((await send("/gateway/directory", { method: "POST", body: tampered })).status, 400);
+  const forged = Buffer.from(entry(now));
+  forged[20] ^= 1; // Node ID no longer matches the key
+  assert.equal((await send("/gateway/directory", { method: "POST", body: forged })).status, 400);
+  const newer = entry(now);
+  assert.equal((await send("/gateway/directory", { method: "POST", body: newer })).status, 201);
+  const listing = await fetch(`${base}/directory`);
+  assert.equal(listing.status, 200);
+  const { version, entries } = await listing.json();
+  assert.equal(version, 1);
+  assert.ok(entries.includes(newer.toString("hex")));
+  assert.ok(!entries.includes(first.toString("hex")));
+  assert.equal((await fetch(`${base}/directory`, { method: "POST" })).status, 405);
+  assert.equal((await fetch(`${base}/gateway/directory`)).status, 405);
+  console.log("Gateway runtime checks passed: auth, replay, relay into a topic and its feed, dead drop, directory replica.");
 } finally {
   ws.terminate();
 }

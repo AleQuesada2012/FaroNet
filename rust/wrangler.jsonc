@@ -17,7 +17,8 @@
       { "name": "PUBLIC_ROOMS", "class_name": "PublicRoom" },
       { "name": "EDGE_LIMITER", "class_name": "EdgeLimiter" },
       { "name": "GATEWAY_REPLAY", "class_name": "GatewayReplay" },
-      { "name": "DEAD_DROPS", "class_name": "DeadDrop" }
+      { "name": "DEAD_DROPS", "class_name": "DeadDrop" },
+      { "name": "DIRECTORY", "class_name": "DirectoryReplica" }
     ]
   },
   // SQLite-backed classes are the only Durable Objects on the free plan.
@@ -26,7 +27,8 @@
     "PublicRoom": { "type": "durable-object", "storage": "sqlite" },
     "EdgeLimiter": { "type": "durable-object", "storage": "sqlite" },
     "GatewayReplay": { "type": "durable-object", "storage": "sqlite" },
-    "DeadDrop": { "type": "durable-object", "storage": "sqlite" }
+    "DeadDrop": { "type": "durable-object", "storage": "sqlite" },
+    "DirectoryReplica": { "type": "durable-object", "storage": "sqlite" }
   },
   "build": {
     "command": "npm run build",

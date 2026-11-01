@@ -10,6 +10,7 @@ description = "FaroNet Rust Cloudflare Worker development scaffold"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+ed25519-dalek = { version = "=3.0.0", default-features = false }
 hmac = "=0.13.0"
 sha2 = "=0.11.0"
 

@@ -1,11 +1,14 @@
 //! Worker entry: health, rate limiting, opt-in public topic rooms and feeds,
 //! and the authenticated gateway routes (relay and dead drop).
 
+pub mod directory;
 pub mod gateway;
 pub mod gateway_auth;
 pub mod public_rooms;
 pub mod rate_limit;
 
+#[cfg(target_arch = "wasm32")]
+pub use directory::runtime::DirectoryReplica;
 #[cfg(target_arch = "wasm32")]
 pub use gateway::runtime::{DeadDrop, GatewayReplay};
 #[cfg(target_arch = "wasm32")]
@@ -100,6 +103,19 @@ async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response
                 .await;
         }
         return Response::error("No encontrado", 404);
+    }
+    if path == "/directory" {
+        if request.method() != Method::Get {
+            return Response::error("Método no permitido", 405);
+        }
+        if request.url()?.query().is_some() {
+            return Response::error("No se admiten parámetros de consulta", 400);
+        }
+        return env
+            .durable_object("DIRECTORY")?
+            .get_by_name("replica")?
+            .fetch_with_request(request)
+            .await;
     }
     match (request.method(), request.path().as_str()) {
         (Method::Get, "/health") => Response::ok("Edge de FaroNet listo"),
