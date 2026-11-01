@@ -1,17 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FaroNet edge</title>
+<title>FaroNet · edge</title>
 <style>
 body{font:17px/1.5 system-ui;margin:3rem auto;padding:0 1rem;max-width:46rem;background:#101b28;color:#e5f0fa}h1{line-height:1.2}a{color:#afe0cd}code{background:#182b3d;padding:.1rem .3rem;border-radius:.3rem}.notice{padding:1rem;border-left:4px solid #ecbe73;background:#292b2a}
 </style>
-<h1>FaroNet edge</h1>
-<p>FaroNet carries private messages inside a light-based mesh. This Cloudflare Worker is its public side: only messages explicitly marked public leave the mesh and appear here.</p>
+<h1>FaroNet · edge</h1>
+<p>FaroNet lleva mensajes privados dentro de una mesh que se comunica con luz. Este Worker de Cloudflare es su lado público: solo los mensajes marcados explícitamente como públicos salen de la mesh y aparecen aquí.</p>
 <ul>
-<li><a href="/rooms">Public topic rooms</a>: live WebSocket rooms, one per topic.</li>
-<li>Topic feeds: <code>/rooms/{topic}/feed.atom</code>, the last 20 public messages of a topic for at most 24 hours.</li>
-<li><a href="/health">Health check</a>.</li>
+<li><a href="/rooms">Salas públicas por tema</a>: salas en vivo por WebSocket, una por tema.</li>
+<li>Feeds por tema: <code>/rooms/{tema}/feed.atom</code>, los últimos 20 mensajes públicos de un tema durante 24 horas como máximo.</li>
+<li><a href="/health">Estado del servicio</a>.</li>
 </ul>
-<p class="notice">No accounts. The Worker stores no names, IP addresses or request logs; rate limiting counts requests in memory only. The hosting provider still sees connection metadata.</p>
+<p class="notice">Sin cuentas. El Worker no guarda nombres, direcciones IP ni bitácoras de solicitudes; el límite de solicitudes cuenta solo en memoria. El proveedor del hosting igual ve los metadatos de conexión.</p>
 </html>

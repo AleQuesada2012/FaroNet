@@ -120,10 +120,10 @@ pub fn atom_feed(origin: &str, room: &str, entries: &[FeedEntry], now_ms: u64) -
     let self_url = xml_text(&format!("{origin}/rooms/{room}/feed.atom"));
     let mut feed = format!(
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n\
-         <feed xmlns=\"http://www.w3.org/2005/Atom\">\n\
+         <feed xmlns=\"http://www.w3.org/2005/Atom\" xml:lang=\"es\">\n\
          <id>urn:faronet:public-topic:{room}</id>\n\
-         <title>FaroNet public topic: {room}</title>\n\
-         <subtitle>Explicitly public messages; entries expire after 24 hours.</subtitle>\n\
+         <title>Tema público de FaroNet: {room}</title>\n\
+         <subtitle>Mensajes explícitamente públicos; cada entrada caduca a las 24 horas.</subtitle>\n\
          <updated>{}</updated>\n\
          <author><name>FaroNet</name></author>\n\
          <link rel=\"self\" type=\"application/atom+xml\" href=\"{self_url}\"/>\n",
@@ -195,7 +195,7 @@ pub mod runtime {
             self.record(text).await?;
             for peer in self.state.get_websockets() {
                 if peer.send_with_str(text).is_err() {
-                    let _ = peer.close(Some(1011), Some("Connection unavailable"));
+                    let _ = peer.close(Some(1011), Some("Conexión no disponible"));
                 }
             }
             Ok(())
@@ -214,14 +214,14 @@ pub mod runtime {
             if url.path() == "/gateway-relay" && req.method() == Method::Post {
                 let text = req.text().await?;
                 if !valid_message(&text) {
-                    return Response::error("Invalid public message", 400);
+                    return Response::error("Mensaje público inválido", 400);
                 }
                 self.publish(&text).await?;
                 return Ok(Response::empty()?.with_status(202));
             }
             if let Some(room) = feed_room_from_path(url.path()) {
                 if req.method() != Method::Get {
-                    return Response::error("Method not allowed", 405);
+                    return Response::error("Método no permitido", 405);
                 }
                 let now = Date::now().as_millis();
                 let entries = self.load_feed(now).await?;
@@ -236,10 +236,10 @@ pub mod runtime {
             if req.method() != Method::Get
                 || req.headers().get("Upgrade")?.as_deref() != Some("websocket")
             {
-                return Response::error("WebSocket upgrade required", 426);
+                return Response::error("Se requiere WebSocket", 426);
             }
             if self.state.get_websockets().len() >= MAX_CONNECTIONS {
-                return Response::error("Room is full", 503);
+                return Response::error("La sala está llena", 503);
             }
             let pair = WebSocketPair::new()?;
             pair.server
@@ -254,17 +254,17 @@ pub mod runtime {
             message: WebSocketIncomingMessage,
         ) -> Result<()> {
             let WebSocketIncomingMessage::String(text) = message else {
-                return ws.close(Some(1003), Some("Text messages only"));
+                return ws.close(Some(1003), Some("Solo mensajes de texto"));
             };
             if text.len() > MAX_MESSAGE_BYTES {
-                return ws.close(Some(1009), Some("Message too large"));
+                return ws.close(Some(1009), Some("Mensaje demasiado grande"));
             }
             if !valid_message(&text) {
-                return ws.close(Some(1008), Some("Invalid public message"));
+                return ws.close(Some(1008), Some("Mensaje público inválido"));
             }
             let window = ws.deserialize_attachment::<[u64; 2]>()?.unwrap_or([0, 5]);
             let Some(next) = admit_message(window, Date::now().as_millis()) else {
-                return ws.close(Some(1008), Some("Message rate exceeded"));
+                return ws.close(Some(1008), Some("Demasiados mensajes"));
             };
             ws.serialize_attachment(next)?;
             self.publish(&text).await
@@ -283,11 +283,11 @@ pub mod runtime {
             _reason: String,
             _was_clean: bool,
         ) -> Result<()> {
-            ws.close(Some(1000), Some("Closed"))
+            ws.close(Some(1000), Some("Cerrada"))
         }
 
         async fn websocket_error(&self, ws: WebSocket, _error: Error) -> Result<()> {
-            ws.close(Some(1011), Some("Connection unavailable"))
+            ws.close(Some(1011), Some("Conexión no disponible"))
         }
     }
 }
@@ -381,7 +381,7 @@ mod tests {
             ),
         ];
         let feed = atom_feed("https://edge.example", "demo", &entries, 180_000);
-        assert!(feed.starts_with("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<feed xmlns=\"http://www.w3.org/2005/Atom\">"));
+        assert!(feed.starts_with("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<feed xmlns=\"http://www.w3.org/2005/Atom\" xml:lang=\"es\">"));
         assert!(feed.contains(
             "&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &apos;more&apos;\u{FFFD}"
         ));

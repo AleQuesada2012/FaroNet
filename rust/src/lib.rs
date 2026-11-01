@@ -21,7 +21,7 @@ use worker::{event, Context, Env, Method, Request, Response, Result};
 async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response> {
     let path = request.path();
     if path != "/health" && !rate_limit::runtime::admitted(&request, &env).await? {
-        let mut response = Response::error("Too many requests", 429)?;
+        let mut response = Response::error("Demasiadas solicitudes", 429)?;
         response.headers_mut().set("Retry-After", "60")?;
         return Ok(response);
     }
@@ -35,7 +35,7 @@ async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response
                 .as_deref()
                 != Some("true")
         {
-            return Response::error("Not found", 404);
+            return Response::error("No encontrado", 404);
         }
         return gateway::runtime::handle(request, &env).await;
     }
@@ -47,10 +47,10 @@ async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response
             .as_deref()
             != Some("true")
         {
-            return Response::error("Not found", 404);
+            return Response::error("No encontrado", 404);
         }
         if request.method() != Method::Get {
-            return Response::error("Method not allowed", 405);
+            return Response::error("Método no permitido", 405);
         }
         if path == "/rooms" {
             let mut response = Response::from_html(include_str!("../static/rooms.html"))?;
@@ -74,14 +74,14 @@ async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response
         }
         if let Some(room) = public_rooms::room_from_path(&path) {
             if request.url()?.query().is_some() {
-                return Response::error("Query parameters are not supported", 400);
+                return Response::error("No se admiten parámetros de consulta", 400);
             }
             if request.headers().get("Upgrade")?.as_deref() != Some("websocket") {
-                return Response::error("WebSocket upgrade required", 426);
+                return Response::error("Se requiere WebSocket", 426);
             }
             let origin = request.url()?.origin().ascii_serialization();
             if request.headers().get("Origin")?.as_deref() != Some(origin.as_str()) {
-                return Response::error("Same-origin browser required", 403);
+                return Response::error("Se requiere un navegador del mismo origen", 403);
             }
             return env
                 .durable_object("PUBLIC_ROOMS")?
@@ -91,7 +91,7 @@ async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response
         }
         if let Some(room) = public_rooms::feed_room_from_path(&path) {
             if request.url()?.query().is_some() {
-                return Response::error("Query parameters are not supported", 400);
+                return Response::error("No se admiten parámetros de consulta", 400);
             }
             return env
                 .durable_object("PUBLIC_ROOMS")?
@@ -99,10 +99,10 @@ async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response
                 .fetch_with_request(request)
                 .await;
         }
-        return Response::error("Not found", 404);
+        return Response::error("No encontrado", 404);
     }
     match (request.method(), request.path().as_str()) {
-        (Method::Get, "/health") => Response::ok("FaroNet edge ready"),
+        (Method::Get, "/health") => Response::ok("Edge de FaroNet listo"),
         (Method::Get, "/") => {
             let mut response = Response::from_html(include_str!("../static/index.html"))?;
             let headers = response.headers_mut();
@@ -111,6 +111,6 @@ async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response
             headers.set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")?;
             Ok(response)
         }
-        _ => Response::error("Not found", 404),
+        _ => Response::error("No encontrado", 404),
     }
 }

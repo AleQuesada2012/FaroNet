@@ -12,11 +12,11 @@ byId("join").addEventListener("submit", (event) => {
   if (!/^[a-z0-9-]{1,32}$/.test(room)) return;
   const candidate = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/rooms/${room}/ws`);
   socket = candidate;
-  byId("status").textContent = "Connecting…";
+  byId("status").textContent = "Conectando…";
   candidate.addEventListener("open", () => {
     connected(true);
     byId("messages").replaceChildren();
-    byId("status").textContent = `Connected to public room: ${room}`;
+    byId("status").textContent = `Conectado a la sala pública: ${room}`;
     byId("feed").href = `/rooms/${room}/feed.atom`;
     byId("feed").hidden = false;
   });
@@ -29,17 +29,17 @@ byId("join").addEventListener("submit", (event) => {
   });
   candidate.addEventListener("close", (event) => {
     connected(false);
-    byId("status").textContent = `Disconnected (${event.code}). Connect again to resume.`;
+    byId("status").textContent = `Desconectado (${event.code}). Conecta de nuevo para seguir.`;
   });
-  candidate.addEventListener("error", () => { byId("status").textContent = "Connection failed."; });
+  candidate.addEventListener("error", () => { byId("status").textContent = "No se pudo conectar."; });
 });
-byId("disconnect").addEventListener("click", () => socket?.close(1000, "Leaving"));
+byId("disconnect").addEventListener("click", () => socket?.close(1000, "Saliendo"));
 byId("publish").addEventListener("submit", (event) => {
   event.preventDefault();
   const text = byId("message").value;
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
   if (!text.trim() || new TextEncoder().encode(text).length > 1024) {
-    byId("status").textContent = "Use 1–1,024 UTF-8 bytes of public text.";
+    byId("status").textContent = "Escribe de 1 a 1024 bytes UTF-8 de texto público.";
     return;
   }
   socket.send(text);

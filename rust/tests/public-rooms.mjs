@@ -105,7 +105,7 @@ try {
   assert.equal(feed.status, 200);
   assert.equal(feed.headers.get("content-type"), "application/atom+xml; charset=utf-8");
   const atom = await feed.text();
-  assert.match(atom, /^<\?xml version="1.0" encoding="utf-8"\?>\n<feed xmlns="http:\/\/www.w3.org\/2005\/Atom">/);
+  assert.match(atom, /^<\?xml version="1.0" encoding="utf-8"\?>\n<feed xmlns="http:\/\/www.w3.org\/2005\/Atom" xml:lang="es">/);
   assert.ok(atom.includes("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;"));
   assert.ok(!atom.includes("<img"));
   const order = ["synthetic reconnect", "&lt;img", "synthetic public message"].map((text) => atom.indexOf(text));

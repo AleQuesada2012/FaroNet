@@ -124,12 +124,12 @@ pub mod runtime {
 
     fn reject(status: u16) -> Result<Response> {
         let message = match status {
-            400 => "Invalid gateway request",
-            401 => "Authentication failed",
-            404 => "Not found",
-            405 => "Method not allowed",
-            409 => "Request already admitted",
-            _ => "Gateway unavailable",
+            400 => "Solicitud del gateway inválida",
+            401 => "Autenticación fallida",
+            404 => "No encontrado",
+            405 => "Método no permitido",
+            409 => "Solicitud ya admitida",
+            _ => "Gateway no disponible",
         };
         Response::error(message, status)
     }
@@ -337,7 +337,7 @@ pub mod runtime {
             if req.path() == "/put" {
                 let blob = req.bytes().await?;
                 if blob.len() != DROP_BYTES {
-                    return Response::error("Invalid blob", 400);
+                    return Response::error("Blob inválido", 400);
                 }
                 let expires = now_seconds() + DROP_TTL_SECONDS;
                 let inserted = sql
@@ -348,7 +348,7 @@ pub mod runtime {
                     .raw()
                     .count();
                 if inserted != 1 {
-                    return Response::error("Slot occupied", 409);
+                    return Response::error("Casilla ocupada", 409);
                 }
                 self.state
                     .storage()
@@ -369,7 +369,7 @@ pub mod runtime {
                 Err(_) => None,
             });
             let Some(blob) = blob else {
-                return Response::error("Not found", 404);
+                return Response::error("No encontrado", 404);
             };
             self.state.storage().delete_alarm().await?;
             let mut response = Response::from_bytes(blob)?;

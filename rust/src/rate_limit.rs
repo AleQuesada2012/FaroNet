@@ -63,7 +63,7 @@ pub mod runtime {
                     self.window.set(next);
                     Response::empty()
                 }
-                None => Response::error("Too many requests", 429),
+                None => Response::error("Demasiadas solicitudes", 429),
             }
         }
     }
