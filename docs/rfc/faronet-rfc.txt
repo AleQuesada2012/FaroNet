@@ -830,8 +830,9 @@ Appendix A.  Implementation Status
    laptop simulation.  LAN links, gossip, route choice, the terminal
    chat and relay-only Nodes implemented in node/lan.py and
    node/chat.py; tested over localhost TCP with five Nodes, in one
-   process and as five separate processes.  Not yet run between Pis
-   and laptops; Faro links are not yet attached to live Nodes.
+   process and as five separate processes, and on 2026-10-31 between
+   a Pi 3 and a laptop (message and reply over three relays, all on
+   the laptop).  Faro links are not yet attached to live Nodes.
 
    Gateway authentication (Section 6): canonicalization, MAC and
    freshness implemented in Python and Rust with shared vectors; no live

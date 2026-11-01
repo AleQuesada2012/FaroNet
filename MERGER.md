@@ -465,3 +465,12 @@ sides settle on one, chat commands); the suite passed 5 times in a row
 127.0.0.1 exchanged a message and a reply, each through three relays,
 with 0 rejections. Not yet run between Pis and laptops; Faro links are
 not attached to live nodes.
+
+User-reported, first run across machines at d377dce: `chat --alias alice`
+on Faro A's Pi 3 (Wi-Fi), and on the Mac three `mesh-node` relays (r1
+dialing the Pi, r2 and r3 on localhost) plus `chat --alias bob`. Bob's
+"hola" went via r3 > r2 > r1 and appeared on the Pi as from bob with the
+reply target set; alice's reply went via r1 > r2 > r3 and appeared on
+bob. Both chats ended with sent 1, delivered 1, rejected 0. Only the
+Pi-r1 hop crossed the network; a run with relays on separate machines
+(Faro B, a second laptop) is still pending.

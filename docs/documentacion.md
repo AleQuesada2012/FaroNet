@@ -395,8 +395,8 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | Faro B | En montaje; su ambiente de software no se ha verificado |
 | Medición de tasa y BER a tres distancias | Pendiente: requiere dos Faros |
 | Placa soldada, fotos y bitácora de multímetro | Pendiente (entrega de hardware) |
-| Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac (un proceso y cinco procesos); falta correrla entre Pis y laptops |
-| Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`); mensaje y respuesta por tres relevos verificados en la Mac |
+| Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac y entre la Pi del Faro A y la Mac (tres relevos en la Mac); falta repartir los relevos en más máquinas |
+| Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`); mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos |
 | Enlace óptico como enlace de la mesh en vivo | Pendiente: los nodos en vivo solo usan enlaces LAN |
 | Botón de pánico | Detiene el Faro y libera el GPIO; falta rotar dirección y borrar llaves |
 | Rotación de direcciones físicas | Especificada en el RFC, no implementada |
