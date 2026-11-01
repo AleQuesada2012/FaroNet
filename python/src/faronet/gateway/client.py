@@ -47,15 +47,15 @@ def secret_from_hex(value: str, minimum: int = 32) -> bytes:
     try:
         secret = bytes.fromhex(value or "")
     except ValueError:
-        raise GatewayError("Secrets must be hexadecimal") from None
+        raise GatewayError("Los secretos deben estar en hexadecimal") from None
     if len(secret) < minimum:
-        raise GatewayError(f"Secrets need at least {minimum} bytes")
+        raise GatewayError(f"Los secretos necesitan al menos {minimum} bytes")
     return secret
 
 
 def drop_slot_id(shared: bytes, slot: int) -> str:
     if len(shared) != 32 or not 0 <= slot < 1 << 64:
-        raise GatewayError("Dead-drop secret must be 32 bytes and the slot a u64")
+        raise GatewayError("El secreto del buzón debe tener 32 bytes y la casilla ser un u64")
     return hashlib.sha256(b"FARONET-DEAD-DROP-ID-V1" + shared + slot.to_bytes(8, "big")).hexdigest()
 
 
@@ -66,7 +66,7 @@ def _drop_box(shared: bytes) -> SecretBox:
 def seal_drop(shared: bytes, text: str) -> bytes:
     data = text.encode("utf-8")
     if len(data) > MAX_DROP_TEXT:
-        raise GatewayError("Dead-drop text exceeds the fixed blob size")
+        raise GatewayError("El texto excede el tamaño fijo del buzón")
     plain = (len(data).to_bytes(2, "big") + data).ljust(DROP_PLAIN, b"\0")
     blob = bytes(_drop_box(shared).encrypt(plain))
     assert len(blob) == DROP_BYTES
@@ -75,18 +75,18 @@ def seal_drop(shared: bytes, text: str) -> bytes:
 
 def open_drop(shared: bytes, blob: bytes) -> str:
     if len(blob) != DROP_BYTES:
-        raise GatewayError("Dead-drop blob has the wrong size")
+        raise GatewayError("El contenido del buzón tiene un tamaño incorrecto")
     try:
         plain = _drop_box(shared).decrypt(blob)
     except CryptoError:
-        raise GatewayError("Dead-drop blob does not open with this secret") from None
+        raise GatewayError("El contenido del buzón no abre con este secreto") from None
     length = int.from_bytes(plain[:2], "big")
     if length > MAX_DROP_TEXT or any(plain[2 + length:]):
-        raise GatewayError("Dead-drop padding is invalid")
+        raise GatewayError("El relleno del buzón es inválido")
     try:
         return plain[2:2 + length].decode("utf-8")
     except UnicodeDecodeError:
-        raise GatewayError("Dead-drop text is not UTF-8") from None
+        raise GatewayError("El texto del buzón no es UTF-8") from None
 
 
 @dataclass(repr=False)
@@ -119,18 +119,18 @@ class EdgeClient:
             error.close()
             return error.code, b""
         except (urllib.error.URLError, OSError):
-            raise GatewayError("Edge unreachable") from None
+            raise GatewayError("No se pudo contactar el edge") from None
 
     def publish(self, topic: str, text: str) -> None:
         """Post public text to a topic room. Anyone can read it there and in the feed."""
         status, _ = self._send("POST", f"/gateway/rooms/{topic}", text.encode("utf-8"))
         if status != 202:
-            raise GatewayError("Edge refused the public message", status)
+            raise GatewayError("El edge rechazó el mensaje público", status)
 
     def drop_put(self, shared: bytes, slot: int, text: str) -> None:
         status, _ = self._send("POST", f"/gateway/drop/{drop_slot_id(shared, slot)}", seal_drop(shared, text))
         if status != 201:
-            raise GatewayError("Dead-drop slot is occupied" if status == 409 else "Edge refused the blob", status)
+            raise GatewayError("La casilla del buzón está ocupada" if status == 409 else "El edge rechazó el contenido", status)
 
     def drop_take(self, shared: bytes, slot: int) -> str | None:
         """Read and delete the slot; None when it is empty or expired."""
@@ -138,5 +138,5 @@ class EdgeClient:
         if status == 404:
             return None
         if status != 200:
-            raise GatewayError("Edge refused the read", status)
+            raise GatewayError("El edge rechazó la lectura", status)
         return open_drop(shared, body)

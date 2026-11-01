@@ -7,7 +7,6 @@ FARONET_GATEWAY_KEY     key ID (default gateway-1); FARONET_EDGE_AUDIENCE (defau
 """
 
 import getpass
-import json
 import os
 import secrets
 import sys
@@ -44,23 +43,23 @@ def load_secret() -> bytes:
         try:
             value = secret_path().read_text().strip()
         except OSError:
-            raise GatewayError("No Gateway secret: run gateway-secret or set FARONET_GATEWAY_SECRET") from None
+            raise GatewayError("No hay secreto del gateway: ejecuta gateway-secret o define FARONET_GATEWAY_SECRET") from None
     return secret_from_hex(value)
 
 
 def add_commands(commands) -> None:
     commands.add_parser("gateway-secret",
-                        help="Store this Gateway's secret (typed hidden) in an owner-only file.")
-    publish = commands.add_parser("gateway-publish", help="Post PUBLIC text to an Edge topic as the Gateway.")
-    commands.add_parser("drop-secret", help="Generate a new 32-byte dead-drop secret to share out of band.")
-    put = commands.add_parser("drop-put", help=f"Leave up to {MAX_DROP_TEXT} bytes in a dead-drop slot.")
-    take = commands.add_parser("drop-take", help="Read and delete a dead-drop slot.")
+                        help="Guardar el secreto de este gateway (se escribe oculto) en un archivo privado.")
+    publish = commands.add_parser("gateway-publish", help="Publicar texto PÚBLICO en un tema del edge como gateway.")
+    commands.add_parser("drop-secret", help="Generar un secreto nuevo de 32 bytes para el buzón, a compartir fuera de banda.")
+    put = commands.add_parser("drop-put", help=f"Dejar hasta {MAX_DROP_TEXT} bytes en una casilla del buzón.")
+    take = commands.add_parser("drop-take", help="Leer y borrar una casilla del buzón.")
     for parser in (publish, put, take):
-        parser.add_argument("--url", default=EDGE_URL, help=f"Edge origin (default {EDGE_URL}).")
-    publish.add_argument("--topic", required=True, help="Topic: 1-32 of a-z, 0-9 and -.")
-    publish.add_argument("--text", required=True, help="Public text; anyone can read it.")
+        parser.add_argument("--url", default=EDGE_URL, help=f"Origen del edge (por defecto {EDGE_URL}).")
+    publish.add_argument("--topic", required=True, help="Tema: 1-32 caracteres de a-z, 0-9 y -.")
+    publish.add_argument("--text", required=True, help="Texto público; cualquiera puede leerlo.")
     for parser in (put, take):
-        parser.add_argument("--slot", type=int, required=True, help="Slot number agreed with the other party.")
+        parser.add_argument("--slot", type=int, required=True, help="Número de casilla acordado con la otra persona.")
     put.add_argument("--text", required=True)
 
 
@@ -76,29 +75,31 @@ def run(args) -> int:
             print(secrets.token_hex(32))
             return 0
         if args.command == "gateway-secret":
-            store_secret(getpass.getpass("Gateway secret (hex, not shown): ").strip())
-            print(json.dumps({"stored": str(secret_path())}))
+            store_secret(getpass.getpass("Secreto del gateway (hex, no se muestra): ").strip())
+            print(f"Secreto guardado en {secret_path()}.")
             return 0
         client = _client(args)
         if args.command == "gateway-publish":
             client.publish(args.topic, args.text)
-            print(json.dumps({"published": args.topic}))
+            print(f"Publicado en el tema {args.topic}.")
             return 0
         shared = secret_from_hex(os.environ.get("FARONET_DROP_SECRET", ""))
         if len(shared) != 32:
-            raise GatewayError("FARONET_DROP_SECRET must be exactly 32 bytes (see drop-secret)")
+            raise GatewayError("FARONET_DROP_SECRET debe tener exactamente 32 bytes (ver drop-secret)")
         if args.command == "drop-put":
             client.drop_put(shared, args.slot, args.text)
-            print(json.dumps({"stored_slot": args.slot, "expires_hours": 24}))
+            print(f"Guardado en la casilla {args.slot}; caduca en 24 horas o al leerlo.")
             return 0
         text = client.drop_take(shared, args.slot)
-        print(json.dumps({"slot": args.slot, "empty": text is None}))
-        if text is not None:
+        if text is None:
+            print(f"La casilla {args.slot} está vacía.")
+        else:
+            print(f"Casilla {args.slot} (ya borrada del edge):")
             print(text)
         return 0
     except GatewayError as error:
         status = f" (HTTP {error.status})" if error.status else ""
         if error.status == 403:
-            status += "; blocked by Cloudflare before the Worker, not by FaroNet"
-        print(f"Gateway command failed: {error}{status}", file=sys.stderr)
+            status += "; bloqueado por Cloudflare antes del Worker, no por FaroNet"
+        print(f"Falló el comando del gateway: {error}{status}", file=sys.stderr)
         return 2

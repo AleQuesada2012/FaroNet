@@ -392,7 +392,7 @@ class LanNode:
         message = PrivateMessage(text, self.clock() + ttl)
         routes = self.routes_to(destination)
         if not routes:
-            raise LanError("No route with three distinct relays to that node yet")
+            raise LanError("Aún no hay una ruta con tres relevos distintos hacia ese nodo")
         route = secrets.choice(routes)
         self.node.send(route, message)
         return route

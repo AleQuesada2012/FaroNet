@@ -246,8 +246,8 @@ def run(args) -> int:
     except PanicStop:
         # RFC FN-1 4.8: outputs are off and the lines released; also forget this address.
         AddressStore().rotate()
-        print("Panic: outputs off, GPIO released, session discarded and link address rotated. "
-              "Exchange the new address (optical-address) and a new session before restarting.",
+        print("Pánico: salidas apagadas, GPIO liberado, sesión descartada y dirección física rotada. "
+              "Intercambia la nueva dirección (optical-address) y una sesión nueva antes de reiniciar.",
               file=sys.stderr)
         return 3
     except (ImportError, OSError, ValueError, RuntimeError) as exc:

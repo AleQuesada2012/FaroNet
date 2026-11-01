@@ -136,7 +136,7 @@ class EdgeClientTests(unittest.TestCase):
 
     def test_unreachable_edge_is_a_static_error(self):
         client = EdgeClient("http://127.0.0.1:9", GATEWAY_SECRET, timeout=1)
-        with self.assertRaisesRegex(GatewayError, "^Edge unreachable$"):
+        with self.assertRaisesRegex(GatewayError, "^No se pudo contactar el edge$"):
             client.publish("demo", "x")
 
 

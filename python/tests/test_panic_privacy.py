@@ -89,7 +89,7 @@ class PanicRotationTests(unittest.TestCase):
                                    rx_inverted=False, seconds=1, blink=False, blink_ms=1000)
             with patch("sys.stderr", io.StringIO()) as err:
                 self.assertEqual(commands.run(args), 3)
-            self.assertIn("link address rotated", err.getvalue())
+            self.assertIn("dirección física rotada", err.getvalue())
             self.assertNotEqual(AddressStore().current(), before)
         self.assertTrue(self.request.released)
         self.assertTrue(all(v == Value.INACTIVE for p, v in self.request.values.items() if p != PANIC

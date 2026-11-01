@@ -21,13 +21,13 @@ DEFAULT_PORT = 7400
 DEFAULT_TTL = 300
 MAX_TTL = 24 * 3600
 
-HELP = f"""Commands:
-  /peers          known nodes: name, whether linked directly, whether reachable
-  /to NAME        choose the destination (alias, alias#idprefix or idprefix)
-  /ttl SECONDS    message lifetime, 10-{MAX_TTL} (now {{ttl}})
-  /quit           leave; nothing is saved
-  /panic          erase keys, links and messages, clear the screen and leave
-Any other line is sent to the destination (at most {MAX_TEXT_BYTES} UTF-8 bytes)."""
+HELP = f"""Comandos:
+  /peers          nodos conocidos: nombre, si hay enlace directo, si hay ruta
+  /to NOMBRE      elige el destino (alias, alias#prefijo o prefijo del ID)
+  /ttl SEGUNDOS   vida del mensaje, 10-{MAX_TTL} (ahora {{ttl}})
+  /quit           salir; no se guarda nada
+  /panic          borrar llaves, enlaces y mensajes, limpiar la pantalla y salir
+Cualquier otra línea se envía al destino (máximo {MAX_TEXT_BYTES} bytes UTF-8)."""
 
 
 def address(value: str) -> tuple[str, int]:
@@ -39,27 +39,27 @@ def address(value: str) -> tuple[str, int]:
         host, _, port = value.rpartition(":") if ":" in value else (value, "", "")
     port = port or str(DEFAULT_PORT)
     if not host or not port.isdigit() or not 0 <= int(port) <= 65535:
-        raise ValueError("Addresses must be HOST:PORT")
+        raise ValueError("Las direcciones deben ser HOST:PUERTO")
     return host, int(port)
 
 
 def add_commands(commands) -> None:
-    for name, text in (("chat", "Private terminal chat over the anonymous LAN mesh."),
-                       ("mesh-node", "Relay-only mesh Node on the LAN.")):
+    for name, text in (("chat", "Chat privado de terminal sobre la mesh anónima en la LAN."),
+                       ("mesh-node", "Nodo de la mesh en la LAN que solo retransmite.")):
         parser = commands.add_parser(name, help=text)
         parser.add_argument("--alias", default="",
-                            help="Optional public alias: 0-16 letters, digits, - or _.")
+                            help="Alias público opcional: 0-16 letras, dígitos, - o _.")
         parser.add_argument("--listen", type=address, default=("0.0.0.0", DEFAULT_PORT),
-                            help=f"HOST:PORT to accept links on (default 0.0.0.0:{DEFAULT_PORT}).")
+                            help=f"HOST:PUERTO donde aceptar enlaces (por defecto 0.0.0.0:{DEFAULT_PORT}).")
         parser.add_argument("--peer", type=address, action="append", default=[],
-                            help="HOST:PORT of a neighbor to link to; repeat for more.")
+                            help="HOST:PUERTO de un vecino al cual enlazarse; repetir para más.")
         parser.add_argument("--panic-gpio", metavar="CHIP",
-                            help="Watch the Faro's panic button on this GPIO chip (for example "
-                                 "/dev/gpiochip0); pressing it erases keys and messages and exits.")
+                            help="Vigilar el botón de pánico del Faro en este chip GPIO (por ejemplo "
+                                 "/dev/gpiochip0); al pulsarlo se borran llaves y mensajes y se sale.")
         if name == "chat":
-            parser.add_argument("--to", help="Initial destination (alias or ID prefix).")
+            parser.add_argument("--to", help="Destino inicial (alias o prefijo del ID).")
             parser.add_argument("--ttl", type=int, default=DEFAULT_TTL,
-                                help=f"Message lifetime in seconds (default {DEFAULT_TTL}).")
+                                help=f"Vida del mensaje en segundos (por defecto {DEFAULT_TTL}).")
 
 
 def name_of(lan: LanNode, node_id: bytes) -> str:
@@ -75,7 +75,7 @@ class ChatSession:
 
     def __init__(self, lan: LanNode, write, ttl: int = DEFAULT_TTL, to: str | None = None) -> None:
         if not 10 <= ttl <= MAX_TTL:
-            raise ValueError(f"TTL must be 10-{MAX_TTL} seconds")
+            raise ValueError(f"El TTL debe estar entre 10 y {MAX_TTL} segundos")
         self.lan, self.write, self.ttl = lan, write, ttl
         self.destination: bytes | None = None
         self.panicked = False
@@ -93,7 +93,7 @@ class ChatSession:
         if not matches and not prefix and len(alias) >= 4:
             matches = [n for n in known if n.hex().startswith(alias.lower())]
         if len(matches) != 1:
-            raise LanError("No single known node matches that name; see /peers")
+            raise LanError("Ningún nodo conocido coincide con ese nombre de forma única; mira /peers")
         return matches[0]
 
     def changed(self) -> None:
@@ -101,21 +101,21 @@ class ChatSession:
         status = (len(self.lan.neighbors()), len(self.lan.directory) - 1, reachable)
         if status != self._status:
             self._status = status
-            self.write("· linked {}, known {}, reachable {}".format(*status))
+            self.write("· enlazados {}, conocidos {}, con ruta {}".format(*status))
         if self._pending_to:
             try:
                 self.destination = self.resolve(self._pending_to)
             except LanError:
                 return
             self._pending_to = None
-            self.write(f"· destination: {name_of(self.lan, self.destination)}")
+            self.write(f"· destino: {name_of(self.lan, self.destination)}")
 
     def delivered(self, delivery: Delivery) -> None:
         sender = name_of(self.lan, delivery.sender_id)
         self.write(f"[{sender}] {delivery.message.text}")
         if self.destination is None and self._pending_to is None:
             self.destination = delivery.sender_id
-            self.write(f"· replies go to {sender}")
+            self.write(f"· las respuestas van a {sender}")
 
     def handle(self, line: str) -> bool:
         """Run one terminal line; False means quit."""
@@ -134,32 +134,32 @@ class ChatSession:
                 self.peers()
             elif command == "/to":
                 self.destination, self._pending_to = self.resolve(rest.strip()), None
-                self.write(f"· destination: {name_of(self.lan, self.destination)}")
+                self.write(f"· destino: {name_of(self.lan, self.destination)}")
             elif command == "/ttl":
                 if not rest.strip().isdigit() or not 10 <= int(rest) <= MAX_TTL:
-                    raise LanError(f"TTL must be 10-{MAX_TTL} seconds")
+                    raise LanError(f"El TTL debe estar entre 10 y {MAX_TTL} segundos")
                 self.ttl = int(rest)
-                self.write(f"· ttl {self.ttl} s")
+                self.write(f"· TTL {self.ttl} s")
             elif line.startswith("/"):
-                self.write("Unknown command; /help lists them")
+                self.write("Comando desconocido; /help los muestra")
             elif line.strip():
                 if self.destination is None:
-                    raise LanError("Choose a destination first: /peers, then /to NAME")
+                    raise LanError("Primero elige un destino: /peers y luego /to NOMBRE")
                 route = self.lan.send_text(self.destination, line, self.ttl)
                 hops = " > ".join(name_of(self.lan, hop) for hop in route.relays)
-                self.write(f"· sent via {hops} (expires in {self.ttl} s)")
+                self.write(f"· enviado por {hops} (caduca en {self.ttl} s)")
         except (LanError, EnvelopeError) as error:
             self.write(f"! {error}")
         return True
 
     def peers(self) -> None:
         known = [n for n in self.lan.directory.node_ids() if n != self.lan.node_id]
-        self.write(f"· you are {name_of(self.lan, self.lan.node_id)}")
+        self.write(f"· tú eres {name_of(self.lan, self.lan.node_id)}")
         if not known:
-            self.write("· no other nodes known yet")
+            self.write("· aún no se conoce ningún otro nodo")
         for node_id in known:
-            linked = "linked" if node_id in self.lan.neighbors() else "      "
-            reachable = "reachable" if self.lan.routes_to(node_id) else "no route yet"
+            linked = "enlazado" if node_id in self.lan.neighbors() else "        "
+            reachable = "con ruta" if self.lan.routes_to(node_id) else "aún sin ruta"
             self.write(f"  {name_of(self.lan, node_id):<26} {linked} {reachable}")
 
 
@@ -202,7 +202,7 @@ async def _serve(args) -> int:
             now = (len(lan.neighbors()), len(lan.directory) - 1)
             if now != status[0]:
                 status[0] = now
-                _print("· linked {}, known {}".format(*now))
+                _print("· enlazados {}, conocidos {}".format(*now))
 
         lan.on_change = changed
     loop = asyncio.get_running_loop()
@@ -217,8 +217,8 @@ async def _serve(args) -> int:
         threading.Thread(target=watch_panic, args=(args.panic_gpio, lambda: loop.call_soon_threadsafe(press)),
                          daemon=True).start()
     port = await lan.listen(*args.listen)
-    _print(f"FaroNet {args.command} {name_of(lan, lan.node_id)} on port {port}; "
-           + ("/help lists commands" if session else "Ctrl+C stops"))
+    _print(f"FaroNet {args.command} {name_of(lan, lan.node_id)} en el puerto {port}; "
+           + ("/help muestra los comandos" if session else "Ctrl+C lo detiene"))
     for host, peer_port in args.peer:
         lan.dial(host, peer_port)
     try:
@@ -233,7 +233,8 @@ async def _serve(args) -> int:
     finally:
         counters = {key: lan.counters[key] for key in ("sent", "relayed", "delivered", "rejected")}
         await lan.close()
-    _print("· stopped; nothing was saved. " + ", ".join(f"{k} {v}" for k, v in counters.items()))
+    labels = {"sent": "enviados", "relayed": "retransmitidos", "delivered": "recibidos", "rejected": "rechazados"}
+    _print("· detenido; no se guardó nada. " + ", ".join(f"{labels[k]} {v}" for k, v in counters.items()))
     return 0
 
 
@@ -247,7 +248,7 @@ async def _panic(lan: LanNode) -> int:
         pass  # The keys are gone either way; the address rotates on the next optical command.
     # Clear the visible screen and, where the terminal supports it, its scrollback.
     print("\033[3J\033[2J\033[H", end="", flush=True)
-    print("Panic: keys, links and messages erased; link address rotated.", file=sys.stderr)
+    print("Pánico: llaves, enlaces y mensajes borrados; dirección física rotada.", file=sys.stderr)
     return 3
 
 
@@ -257,5 +258,5 @@ def run(args) -> int:
     except KeyboardInterrupt:
         return 130
     except (OSError, ValueError) as error:
-        print(f"Mesh command failed: {error}", file=sys.stderr)
+        print(f"Falló el comando de la mesh: {error}", file=sys.stderr)
         return 2

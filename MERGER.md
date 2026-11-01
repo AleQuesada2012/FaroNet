@@ -563,3 +563,17 @@ around with the base in the same hole. The perfboard holes stay (C F5,
 B F6, E F7); the guide and drawing now place the flat face toward the
 left (toward R2), and the reference note and breadboard README record
 the correction. The electrical layout and `check.py` are unchanged.
+
+## Spanish user-facing text (2026-11-01)
+
+Owner direction: like the documentation, everything an end user sees is in
+Spanish. The edge (landing and rooms pages, rooms.js, Atom feeds with
+xml:lang es, HTTP error texts, WebSocket close reasons, gateway answers,
+health text "Edge de FaroNet listo"), the terminal chat and relay node
+(help, status lines, errors shown in the chat), the gateway commands
+(plain Spanish sentences instead of JSON) and the panic messages are
+translated. Code, comments and bench JSON stay in English. Agent-verified:
+cargo test, npm run check, test:rooms and test:gateway on fresh local
+Workers (the feed-root expectation now includes xml:lang), the rooms page
+viewed in the browser pane, Python suite 147 passed, and a five-process
+local chat run. The edge change needs the owner's `npm run deploy`.

@@ -64,9 +64,9 @@ class PrivateMessage:
 
     def __post_init__(self) -> None:
         if not isinstance(self.text, str):
-            raise EnvelopeError("Message text must be a string")
+            raise EnvelopeError("El texto del mensaje debe ser una cadena")
         if len(self.text.encode("utf-8")) > MAX_TEXT_BYTES:
-            raise EnvelopeError("Message text exceeds the fixed message size")
+            raise EnvelopeError("El texto excede el tamaño fijo del mensaje")
         if type(self.expires_at) is not int or not 0 <= self.expires_at <= MAX_TIMESTAMP:
             raise EnvelopeError("Expiry must be unsigned 64-bit Unix seconds")
 
