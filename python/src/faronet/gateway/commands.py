@@ -79,7 +79,9 @@ def run(args) -> int:
             return 0
         if args.command == "directory-fetch":
             entries, rejected = fetch_directory(args.url)
-            print(f"Directorio del edge: {len(entries)} entradas verificadas, {rejected} rechazadas.")
+            ok = "" if len(entries) == 1 else "s"
+            bad = "" if rejected == 1 else "s"
+            print(f"Directorio del edge: {len(entries)} entrada{ok} verificada{ok}, {rejected} rechazada{bad}.")
             for entry in entries:
                 print(f"  {entry.alias or '?'}#{entry.node_id.hex()[:8]}")
             return 0

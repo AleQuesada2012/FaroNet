@@ -263,7 +263,8 @@ def _publish_directory(lan: LanNode, url: str) -> None:
                 published.pop(entry.node_id, None)
                 _print(f"! directorio: {error}")
         if sent:
-            _print(f"· directorio: {sent} entrada(s) publicadas en el edge")
+            s = "" if sent == 1 else "s"
+            _print(f"· directorio: {sent} entrada{s} publicada{s} en el edge")
 
     def changed() -> None:
         previous()

@@ -599,3 +599,10 @@ against the verifying stub (publish, older refused, forged and expired
 rejected on fetch, the mesh node publishing), the suite, and a local run
 where a gateway mesh-node published its own and its neighbour's entries
 to the Rust Worker and `directory-fetch` verified them. Not deployed.
+
+Deployment (owner, 2026-11-01): `npm run deploy` with the Spanish edge and
+the directory replica. Agent check against the deployment: health text
+"Edge de FaroNet listo", landing and rooms pages in Spanish, unsigned
+POST /gateway/directory refused with 400, and `directory-fetch` from the
+Mac verified the one entry published by the owner's Gateway node
+(`pi-gateway#07a11975`) with 0 rejected.
