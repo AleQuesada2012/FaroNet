@@ -161,7 +161,8 @@ de materiales con costos en colones está en `hardware/bom.md` (anexo A).
 
 ## Capas 2 y 3: mesh anónima
 
-Diseño del Estudiante B (propuesta 0002, implementada en simulación):
+Diseño del Estudiante B (propuesta 0002); el transporte LAN y el chat los
+implementó el Estudiante A para liberar al Estudiante B con el Faro B:
 
 - Identidad por nodo: claves Ed25519 y X25519; el ID es SHA-256 de la clave
   de verificación, truncado a 16 bytes.
@@ -172,6 +173,15 @@ Diseño del Estudiante B (propuesta 0002, implementada en simulación):
   relevo re-rellena con bytes aleatorios para que todo sobre mida lo mismo.
 - Mensaje privado de 190 bytes con versión, tipo, caducidad (TTL) y texto
   de hasta 178 bytes.
+- Enlaces LAN: registros fijos de 493 bytes sobre TCP (un byte de tipo y un
+  cuerpo de 492). Al conectar, cada extremo demuestra con su firma que
+  posee la clave de la entrada de directorio que presenta.
+- Las entradas de directorio y las listas firmadas de vecinos se propagan
+  por inundación; cada nodo elige al azar una ruta de tres relevos sobre
+  enlaces que ambos extremos confirman (enrutamiento de origen). Cada
+  relevo espera entre 0 y 200 ms al azar antes de reenviar.
+- Chat privado de terminal (`chat`) y nodos solo de relevo (`mesh-node`);
+  cada ejecución genera una identidad nueva que nunca se guarda en disco.
 
 ## Privacidad y modelo de amenazas
 
@@ -237,6 +247,9 @@ Desplegado en **<https://faronet-edge.faronet.workers.dev>**:
 | `fragment()`, `Reassembler` | Divide un sobre en 6 cargas y lo rearma por vecino. |
 | `build_envelope()`, `peel()`, `PrivateMessage`, `Route` | Construcción y apertura de capas onion y del mensaje privado. |
 | `Node`, `MeshSimulation`, `OpticalLink`, `DirectLink` | Mesh simulada sobre enlaces directos y sobre el enlace óptico simulado. |
+| `LanNode` (`lan.py`) | Nodo real sobre TCP: `listen()`, `dial()`, saludo con prueba de firma, propagación de entradas y vecinos, `routes_to()` y `send_text()`. |
+| `LinksRecord`, `encode_record()`, `decode_record()` | Lista firmada de vecinos y registros LAN de tamaño fijo. |
+| `ChatSession` (`chat.py`) | Comandos del chat de terminal: `/peers`, `/to`, `/ttl`, `/quit`; muestra los mensajes recibidos. |
 | `gateway.auth` | Firma y verificación HMAC con frescura y admisión de nonce. |
 
 ## Rust: `rust/src`
@@ -299,6 +312,25 @@ La guía completa de puesta en marcha y medición está en
 `docs/optical-bringup.md`; el montaje paso a paso, en
 `hardware/breadboard/faronet-breadboard-review.html`.
 
+## Mesh y chat privado en la LAN (Pis y laptops, desde `python/`)
+
+Cada máquina corre un nodo; una ruta necesita al menos cinco nodos (quien
+envía, tres relevos y quien recibe), así que una laptop puede correr
+varios en puertos distintos. Cada `--peer` crea un enlace; basta
+declararlo en uno de los dos extremos.
+
+```bash
+.venv/bin/python -m faronet chat --alias alice --listen 0.0.0.0:7400
+.venv/bin/python -m faronet mesh-node --alias r1 --listen 0.0.0.0:7401 --peer IP_ALICE:7400
+.venv/bin/python -m faronet mesh-node --alias r2 --listen 0.0.0.0:7402 --peer IP_R1:7401
+.venv/bin/python -m faronet mesh-node --alias r3 --listen 0.0.0.0:7403 --peer IP_R2:7402
+.venv/bin/python -m faronet chat --alias bob --peer IP_R3:7403 --to alice
+```
+
+En el chat, `/peers` lista los nodos conocidos y si hay ruta hacia ellos;
+`/to NOMBRE` elige el destino y cualquier otra línea se envía. Cada
+mensaje enviado muestra los tres relevos usados.
+
 ## Edge (en la Mac, desde `rust/`)
 
 ```bash
@@ -338,6 +370,8 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | 2026-10-31 | Calibración, loopback, corrección de huecos de secuencia, CSMA/CA, temporización | *(completar)* |
 | 2026-10-31 | Edge: feeds Atom, límite de peticiones y despliegue | *(completar)* |
 | 2026-10-31 a 11-01 | RFC unificado, BOM, esquemático y documentación | *(completar)* |
+| 2026-10-31 | Diagnóstico de temporización TX (loopback a 2, 3 y 5 ms) | *(completar)* |
+| 2026-10-31 | Enlaces LAN de la mesh y chat privado de terminal (trabajo del Estudiante B asumido por A) | *(completar)* |
 | | **Total** | *(completar)* |
 
 ## Estudiante B (An-Gi)
@@ -355,13 +389,15 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 
 | Componente | Estado |
 | --- | --- |
-| Trama, Manchester, CRC, simuladores | Completo y probado (123 pruebas de Python) |
+| Trama, Manchester, CRC, simuladores | Completo y probado (132 pruebas de Python) |
 | Faro A en protoboard | Funciona: transmisión, recepción calibrada, pánico; *loopback* de 10/10 tramas sin errores a *T* = 5, 3 y 2 ms (2 ms: 20,7 B/s de carga útil) |
 | CSMA/CA y `optical-link` | Implementado y probado en simulación; falta la prueba entre dos Faros |
 | Faro B | En montaje; su ambiente de software no se ha verificado |
 | Medición de tasa y BER a tres distancias | Pendiente: requiere dos Faros |
 | Placa soldada, fotos y bitácora de multímetro | Pendiente (entrega de hardware) |
-| Mesh, directorio, sobres onion | Implementado en simulación; falta transporte LAN y chat de terminal |
+| Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac (un proceso y cinco procesos); falta correrla entre Pis y laptops |
+| Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`); mensaje y respuesta por tres relevos verificados en la Mac |
+| Enlace óptico como enlace de la mesh en vivo | Pendiente: los nodos en vivo solo usan enlaces LAN |
 | Botón de pánico | Detiene el Faro y libera el GPIO; falta rotar dirección y borrar llaves |
 | Rotación de direcciones físicas | Especificada en el RFC, no implementada |
 | Edge: salas, feeds, límite, no registro | Desplegado y verificado con prueba de humo |
@@ -412,6 +448,8 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | 95b4338 | AleQuesada2012 | 2026-10-31 | Add the project documentation, its PDF build and the rev-7 schematic |
 | cd95998 | AleQuesada2012 | 2026-10-31 | Add a TX timing report to optical-loopback |
 | 08fc33b | AleQuesada2012 | 2026-10-31 | Encode each frame before its first TX deadline |
+| 8afa8b7 | AleQuesada2012 | 2026-10-31 | Record 2, 3 and 5 ms loopback passes on Faro A |
+| 5521917 | AleQuesada2012 | 2026-10-31 | Add LAN mesh links, the private terminal chat and relay nodes |
 
 La lista completa y actualizada se obtiene con
 `git log --format='%h %an %ad %s' --date=short`.

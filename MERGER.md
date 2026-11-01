@@ -435,3 +435,33 @@ User-reported, Faro A at 08fc33b, plain `optical-loopback --count 10`:
 is the fastest qualified setting on one board; two-Faro rates and
 distance remain unmeasured. Documentation, RFC Section 4 and Appendix A
 updated to match.
+
+## LAN mesh links and private terminal chat (2026-10-31)
+
+Student B is bringing up Faro B, so Student A took over the LAN transport
+and the private terminal chat (the owner chose this over the edge items
+and panic work). `git fetch` showed no An-Gi commits after e1007e0.
+
+Added `node/lan.py`: fixed 493-byte records over TCP (type byte plus a
+492-byte body; envelopes fill it, control records are length-prefixed and
+zero-padded). Links start with HELLO (signed directory entry, random
+challenge) and PROOF (Ed25519 over the peer's challenge and both Node
+IDs); only then is the peer a neighbor. Directory entries and new signed
+neighbor lists (`FARONET-LINKS-V1`) are flooded; an edge counts only when
+both ends list it; senders pick a random route of three relays with a live
+first hop. Relays forward after a random 0-200 ms delay. Duplicate links
+between a pair settle on the one dialed by the smaller Node ID. Limits:
+16 neighbors, 256 directory entries. `node/chat.py` adds `chat` and
+`mesh-node`; each run generates an in-memory identity that is never
+saved. RFC Sections 5.6-5.8, 8, 10, 11 and Appendix A updated; the
+documentation gained run instructions.
+
+Agent-verified on the Mac: 9 new tests over localhost TCP (records,
+signed lists, five-node message and reply across three relays, no route
+with only two relays, a relay leaving removes the route, an impostor
+replaying another node's entry is never linked, links dialed from both
+sides settle on one, chat commands); the suite passed 5 times in a row
+(132 tests). Five separate processes (two `chat`, three `mesh-node`) on
+127.0.0.1 exchanged a message and a reply, each through three relays,
+with 0 rejections. Not yet run between Pis and laptops; Faro links are
+not attached to live nodes.

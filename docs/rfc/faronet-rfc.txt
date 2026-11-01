@@ -55,6 +55,8 @@ Table of Contents
      5.4.  Onion Layers
      5.5.  Private Message
      5.6.  Routing and Links
+     5.7.  LAN Links
+     5.8.  Private Terminal Chat
    6.  Gateway to Edge Authentication
    7.  Public Edge Application
      7.1.  Routes
@@ -132,7 +134,7 @@ Table of Contents
    Layering:
 
       +--------------------------------------------------------------+
-      | Private application: one-to-one messages (Section 5.5)       |
+      | Private application: terminal chat (Sections 5.5, 5.8)       |
       | Public application:  Edge rooms and feeds (Section 7)        |
       +--------------------------------------------------------------+
       | FaroNet mesh: directory, onion envelopes, routing (Sec. 5)   |
@@ -461,10 +463,80 @@ Table of Contents
 
    The sender chooses the route from the signed directory and known
    adjacency (source routing).  Links between Nodes are Faro links
-   (Section 4) or LAN links over Ethernet or Wi-Fi.  This version
-   proposes that LAN links carry envelopes as fixed 492-byte records
-   over TCP; onion layers provide confidentiality.  Negotiated circuits
-   with per-hop session keys are left to a future version (Appendix C).
+   (Section 4) or LAN links over Ethernet or Wi-Fi (Section 5.7).
+   Negotiated circuits with per-hop session keys are left to a future
+   version (Appendix C).
+
+   An edge between two Nodes is usable only when both list each other
+   in their current neighbor lists (Section 5.7).  The sender MUST pick
+   the first relay among its live neighbors, MUST use only confirmed
+   edges and SHOULD choose uniformly at random among all valid routes.
+
+5.7.  LAN Links
+
+   A LAN link is a TCP connection carrying fixed records of 493 bytes:
+   one type byte followed by a 492-byte body.
+
+   Type  Name      Body
+   ----  --------  -------------------------------------------------
+      1  HELLO     Length (2) || own directory entry || challenge (32)
+      2  PROOF     Length (2) || Ed25519 signature (64)
+      3  ENTRY     Length (2) || a directory entry (Section 5.2)
+      4  LINKS     Length (2) || a neighbor list (below)
+      5  ENVELOPE  The 492-byte envelope itself
+
+   Control bodies are padded with zero bytes after their length-
+   prefixed content; a receiver MUST reject a record with an unknown
+   type, a length over 490 or non-zero padding, and MUST close the
+   link.  The stream is not encrypted: envelopes are protected by their
+   onion layers, and the control records are public mesh state.
+
+   Both ends first send HELLO with a fresh random challenge.  Each then
+   sends PROOF, a signature by its directory key over
+
+      "FARONET-LAN-PROOF-V1" || peer challenge || own Node ID
+                             || peer Node ID
+
+   A Node MUST NOT treat the peer as a neighbor, or add its entry,
+   until the PROOF verifies against the entry in the peer's HELLO, and
+   SHOULD close links that do not finish within 10 seconds.  When two
+   links connect the same pair, both ends keep the one dialed by the
+   smaller Node ID.  A Node keeps at most 16 neighbors.
+
+   Neighbor list (LINKS), signed by the listed Node's directory key:
+
+   Field         Size  Rule
+   ------------  ----  ---------------------------------------------
+   Prefix          16  ASCII "FARONET-LINKS-V1"
+   Node ID         16  The Node whose neighbors these are
+   Issued at        8  Unsigned seconds, strictly increasing per Node
+   Count            1  0-16
+   Neighbors    16*N   Distinct Node IDs in ascending order, not self
+   Signature       64  Ed25519 over all preceding bytes
+
+   After the handshake each end sends every directory entry and
+   neighbor list it holds.  A Node publishes a new neighbor list
+   whenever a neighbor joins or leaves.  A received entry or list that
+   is new (a different entry, or a later issued time) is verified,
+   stored and forwarded to every other neighbor; anything else is
+   dropped, so flooding ends.  A Node holds at most 256 entries.
+
+   A relay SHOULD wait a random 0 to 200 ms before forwarding each
+   envelope, which weakens timing correlation on a quiet mesh but does
+   not replace cover traffic.
+
+5.8.  Private Terminal Chat
+
+   The private application is a terminal chat over the mesh: one line
+   of input becomes one private message (Section 5.5) to the selected
+   destination over a random route of three relays.  Its parameters
+   come from the command line (alias, listening address, neighbors,
+   initial destination, message lifetime) and from commands typed at
+   the terminal.  Each run generates a fresh identity that is never
+   written to disk, so a Node ID lives only while the program runs.
+   Received text is shown on the terminal only and never logged.  The
+   alias is self-chosen and unauthenticated; users compare the short
+   Node ID shown with each message out of band.
 
 6.  Gateway to Edge Authentication
 
@@ -568,6 +640,8 @@ Table of Contents
    Faro frame                Version byte at offset 6 (value 1)
    Fragment                  Count field (6 in this version)
    Directory entry           Prefix "FARONET-DIRECTORY-V1"
+   Neighbor list             Prefix "FARONET-LINKS-V1"
+   LAN link proof            Prefix "FARONET-LAN-PROOF-V1"
    Private message           Version byte (value 1)
    Gateway authentication    Label "FARONET-GATEWAY-HMAC-V1"
    Medium access             Bound to Faro frame version 1
@@ -601,11 +675,16 @@ Table of Contents
    relay sees both endpoints, but relays 1 and 3 colluding, or timing
    analysis on a quiet mesh, can link them; there is no cover traffic.
    Each relay learns its position from the ciphertext length.
+   Neighbor lists are flooded so senders can choose routes, so every
+   Node learns the mesh topology.  A LAN observer sees which Nodes link
+   and when envelopes move, but not their contents; relays add a random
+   forwarding delay of up to 200 ms.
 
    Identification: optical link addresses identify a Faro to anyone who
    watches the light, so they rotate (Section 4.4).  Node IDs are
-   pseudonyms that are stable while a directory entry lives; the alias
-   is optional.
+   pseudonyms that are stable while a directory entry lives; the chat
+   client generates a new identity on every run.  The alias is
+   optional.
 
    Data minimization and retention: the Edge stores only public feed
    entries for 24 hours at minute resolution; rate-limit counters stay
@@ -646,8 +725,12 @@ Table of Contents
       against abuse.  Limits per client can be bypassed with many
       addresses; limiter eviction resets counts.
 
-   o  Directory bootstrap is unspecified: a Node must obtain trusted
-      entries out of band in this version.
+   o  Directory bootstrap is unspecified: entries are self-signed and
+      flooded, so a Node cannot tell who stands behind an alias, and a
+      malicious Node can fill a directory (at most 256 entries) or
+      advertise itself to attract routes.  A LAN peer must prove the
+      key of the entry it presents, so it cannot impersonate an
+      existing Node ID.
 
    o  Physical safety: no GPIO input may exceed 3.3 V; the receiver
       output is pulled up to 3.3 V, not 5 V.
@@ -744,8 +827,11 @@ Appendix A.  Implementation Status
 
    Mesh (Section 5): directory, fragmentation, onion envelopes and
    private messages implemented in python/src/faronet/node/ with a
-   laptop simulation.  LAN transport and private chat client: not
-   implemented.
+   laptop simulation.  LAN links, gossip, route choice, the terminal
+   chat and relay-only Nodes implemented in node/lan.py and
+   node/chat.py; tested over localhost TCP with five Nodes, in one
+   process and as five separate processes.  Not yet run between Pis
+   and laptops; Faro links are not yet attached to live Nodes.
 
    Gateway authentication (Section 6): canonicalization, MAC and
    freshness implemented in Python and Rust with shared vectors; no live
