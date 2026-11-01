@@ -371,3 +371,17 @@ TCP (proposed). The Appendix B frame vector was checked against
 fixtures/optical-v1.json. Author lines say Student A and Student B; the
 team should put names there and Teammate B should review Section 5.
 
+## BOM (2026-10-31)
+
+Added `hardware/bom.md` and `hardware/bom.csv`: every part of the soldered
+revision-7 Faro (refs from `circuit-reference.json`, R6 = 47 kOhm for the
+soldered board), plus the per-node power supply. Prices come from the
+team's "Team Parts List redes" (14 Oct 2026, 455 CRC/USD; DBU and H2
+prices include tax, CRCibernetica +13 % IVA, MicroJPM IVA unconfirmed with
+a separate 13 % reserve) and two MicroJPM lookups on 31 Oct (AD595 button,
+AD7480 DIP8 socket). Raspberry Pis, microSD cards and Dupont jumpers are
+team-owned and not costed. Totals: CRC 4,654.54 per board; CRC 15,427.46
+for two Faros with power supplies (16,006.02 with the MicroJPM reserve).
+Several installed parts came from earlier MJ Electronica purchases or are
+unidentified (the IR LED); they are costed with the list's equivalent.
+

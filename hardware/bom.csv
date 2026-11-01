@@ -1,0 +1,25 @@
+seccion,referencias,cantidad,descripcion,proveedor,codigo,unitario_crc,iva,subtotal_crc
+faro,D1,1,"LED emisor IR 940 nm, 5 mm (referencia Vishay TSAL4400; pieza física sin modelo identificado)",DBU,TSAL4400,850.00,incluido,850.00
+faro,Q1,1,"Transistor NPN 2N2222, TO-92 (referencia PN2222A)",MicroJPM,AD44592,136.50,no confirmado,136.50
+faro,Q2,1,Fototransistor IR Everlight PT333-3B,DBU,PT333-3B,190.00,incluido,190.00
+faro,U1,1,"Comparador dual LM393, DIP8",MicroJPM,AD16960,341.25,no confirmado,341.25
+faro,U1 (base),1,Socket DIP8 para U1 (retirable sin desoldar),MicroJPM,AD7480,182.00,no confirmado,182.00
+faro,RV1,1,"Trimpot 10 kΩ, umbral del receptor",MicroJPM,AD8289,318.50,no confirmado,318.50
+faro,C1,1,Electrolítico 100 µF (en uso: 63 V del inventario; referencia 35 V),MicroJPM,AD9792,136.50,no confirmado,136.50
+faro,"C2, C3",2,Cerámico 100 nF / 50 V,MicroJPM,AD17288,91.00,no confirmado,182.00
+faro,D2,1,"LED verde 5 mm, indicador TX (referencia Broadcom HLMP-3507)",H2ElectronicsCR,HLMP-3507,191.00,incluido,191.00
+faro,D3,1,"LED amarillo 5 mm, indicador RX (referencia Lite-On LTL-307YLC)",H2ElectronicsCR,LTL-307YLC,196.00,incluido,196.00
+faro,S1,1,"Pulsador táctil 6 × 6 mm, 4 pines, NA (pánico)",MicroJPM,AD595,113.75,no confirmado,113.75
+faro,R1,1,Resistencia 330 Ω ¼ W (corriente del LED IR),MicroJPM,330 Ω ¼ W,18.20,no confirmado,18.20
+faro,"R2, R8, R10, R11",4,Resistencia 1 kΩ ¼ W,MicroJPM,1 kΩ ¼ W,22.75,no confirmado,91.00
+faro,"R3, R4, R12",3,Resistencia 10 kΩ ¼ W,MicroJPM,10 kΩ ¼ W,18.20,no confirmado,54.60
+faro,R5,1,"Resistencia 4,7 kΩ ¼ W (pull-up de OPT_RX a 3,3 V)",MicroJPM,4.7 kΩ ¼ W,18.20,no confirmado,18.20
+faro,R6,1,Resistencia 47 kΩ ¼ W (histéresis; 100 kΩ en protoboard),MicroJPM,47 kΩ ¼ W,22.75,no confirmado,22.75
+faro,R9,1,"Resistencia 2,2 kΩ ¼ W (divisor VBIAS)",MicroJPM,2.2 kΩ ¼ W,18.20,no confirmado,18.20
+faro,PCB,1,Perfboard doble cara 8 × 12 cm,CRCibernética,Perfboard 8 × 12,887.25,13% sumado,1002.59
+faro,J1,1,"Header macho 1 × 40, 2,54 mm (se usan 8 contactos hacia la Pi)",MicroJPM,AD112,227.50,no confirmado,227.50
+faro,Cableado,1,"Alambre sólido 22 AWG, 1 m (estimado por placa)",MicroJPM,"22 AWG, 1 m",364.00,no confirmado,364.00
+nodo,Pi,1,Raspberry Pi 3 Model B (Faro A) / Pi 2 Model B (Faro B),Existente,—,,,
+nodo,SD,1,Tarjeta microSD con el sistema operativo,Existente,—,,,
+nodo,Fuente,1,"Fuente Micro-USB 5 V / 2,5 A con cable",CRCibernética,"Fuente 5 V 2,5 A",2707.25,13% sumado,3059.19
+nodo,Cables,8,Jumpers Dupont hembra (Pi ↔ J1),Existente,—,,,

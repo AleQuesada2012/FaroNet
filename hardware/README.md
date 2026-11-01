@@ -43,9 +43,12 @@ emitter/detector pair. Per the owner's instruction, assume laser acceptance
 for planning and keep IR as fallback if the grader rejects that substitution;
 no instructor approval record has been supplied.
 
-As the circuit is developed, keep schematic sources, a BOM with approximate
-costs in colones, photographs of both board faces, and the multimeter test
-record here. Record continuity, VCC/GND short checks before power, and key
+**BOM:** [bom.md](bom.md) (also [bom.csv](bom.csv)) lists every part of the
+soldered revision-7 Faro with approximate costs in colones: about
+₡4 655 per Faro board and ₡15 427 for two Faros with their power supplies.
+
+As the circuit is developed, keep schematic sources, photographs of both
+board faces, and the multimeter test record here. Record continuity, VCC/GND short checks before power, and key
 voltages. Also record effective throughput and BER at three or more distances
 under normal ambient light.
 
