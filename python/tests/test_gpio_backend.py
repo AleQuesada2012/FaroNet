@@ -74,6 +74,19 @@ class EchoRequest(FakeRequest):
                 ))
 
 
+class SlowWriteRequest(EchoRequest):
+    """Every TX write costs time, as an ioctl on a slow CPU would."""
+
+    def __init__(self, clock, write_ns):
+        super().__init__(clock)
+        self.write_ns = write_ns
+
+    def set_value(self, pin, value):
+        if pin == TX:
+            self.clock[0] += self.write_ns
+        super().set_value(pin, value)
+
+
 class GpioBackendTests(unittest.TestCase):
     def setUp(self):
         self.request = FakeRequest()
@@ -218,19 +231,21 @@ class GpioBackendTests(unittest.TestCase):
             self._calibrate(10, blink=True, panic_at=1.2)
         self.assertTrue(self.request.released)
 
-    def _loopback(self, **echo):
+    def _loopback(self, timing_report=False, write_ns=None, **echo):
         clock = [10**12]
         fake_time = SimpleNamespace(
             monotonic_ns=lambda: clock[0], monotonic=lambda: clock[0] / 1e9,
             sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(1, int(seconds * 1e9))),
         )
-        self.request = EchoRequest(clock, **echo)
+        self.request = (EchoRequest(clock, **echo) if write_ns is None
+                        else SlowWriteRequest(clock, write_ns))
         with patch("faronet.faro.gpio.time", fake_time), \
                 patch("faronet.faro.commands.time", fake_time), \
-                patch("sys.stdout", io.StringIO()) as output:
+                patch("sys.stdout", io.StringIO()) as output, \
+                patch("sys.stderr", io.StringIO()) as self.stderr:
             code = commands.run(SimpleNamespace(
                 command="optical-loopback", chip="/dev/fake", half_bit_ms=2,
-                rx_inverted=False, count=2,
+                rx_inverted=False, count=2, timing_report=timing_report,
             ))
         lines = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertTrue(self.request.released)
@@ -260,6 +275,26 @@ class GpioBackendTests(unittest.TestCase):
                 self.assertFalse(lines[1]["echoed"])
                 self.assertEqual(lines[-1]["matched"], 1 if "drop" in echo else 0)
                 self.assertGreaterEqual(lines[-1]["rejected_waveforms"], rejected)
+
+    def test_timing_report_attributes_lateness_instead_of_stopping(self):
+        code, _ = self._loopback(write_ns=1_000_000)  # Half of a 2 ms half-bit.
+        self.assertEqual(code, 2)
+        self.assertIn("timing budget", self.stderr.getvalue())
+
+        code, lines = self._loopback(timing_report=True, write_ns=1_000_000)
+        self.assertEqual(code, 0)
+        self.assertIn("sched_rt_runtime_us", lines[0]["system_timing"])
+        timing = lines[1]["tx_timing"]
+        self.assertEqual(timing["symbols"], 2048)
+        self.assertFalse(timing["realtime"])  # Not root, and not Linux on every runner.
+        self.assertGreater(timing["over_40pct"], 1000)
+        self.assertEqual(timing["write_ms"]["max"], 1.0)
+        self.assertEqual(timing["late_ms"]["max"], 1.0)
+        self.assertEqual(len(timing["worst"]), 5)
+        self.assertEqual(timing["worst"][0]["wake_ms"], 0.0)
+        self.assertIn("encode_ms", timing)
+        self.assertEqual(lines[2]["tx_timing"]["symbols"], 2048)  # Reset between frames.
+        self.assertEqual(lines[-1]["matched"], 2)
 
     def test_normal_transmit_still_ignores_its_own_reflection(self):
         clock = [10**12]

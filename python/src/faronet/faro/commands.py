@@ -8,11 +8,13 @@ import sys
 import time
 
 from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
+from faronet.dispositivo_luz_adaptador.manchester import encode
 from faronet.dispositivo_luz_adaptador.physical import PhysicalDispositivoLuzAdaptador
 from faronet.dispositivo_luz_adaptador.medium import CsmaLink
 from faronet.faro.calibrate import rx_telemetry
 from faronet.faro.link import run_link
 from faronet.faro.profile import PINS, inspect_chip
+from faronet.faro.timing import TxTiming, system_timing
 
 
 def test_payload(index: int) -> bytes:
@@ -48,6 +50,9 @@ def add_commands(commands):
                                 help="IR on/off period half (ms) with --blink; 10 matches a 10 ms half-bit.")
         elif name == "optical-loopback":
             parser.add_argument("--count", type=int, default=3)
+            parser.add_argument("--timing-report", action="store_true",
+                                help="Report each frame's TX lateness and its sources instead of "
+                                     "stopping at the timing budget.")
         else:
             parser.add_argument("--local", type=link_id, required=True)
             parser.add_argument("--peer", type=link_id, required=True)
@@ -66,17 +71,25 @@ LOOPBACK_SOURCE = bytes.fromhex("0101010101010101")
 LOOPBACK_DESTINATION = bytes.fromhex("0202020202020202")
 
 
-def _loopback(io, count: int) -> int:
+def _loopback(io, count: int, timing_report: bool = False) -> int:
     """Send DATA frames and decode each one's reflection on the same board."""
     session = secrets.token_bytes(8)
-    _print({"ready": "optical-loopback", "frame_seconds": io.frame_seconds,
-            "test_frames": count, "synthetic_only": True})
+    ready = {"ready": "optical-loopback", "frame_seconds": io.frame_seconds,
+             "test_frames": count, "synthetic_only": True}
+    if timing_report:
+        io.timing = TxTiming(io.half_ns)
+        ready["system_timing"] = system_timing()
+    _print(ready)
     start = time.monotonic()
     echoed = matched = bit_errors = 0
     for index in range(count):
         frame = Frame(FrameType.DATA, LOOPBACK_SOURCE, LOOPBACK_DESTINATION,
                       session, index, test_payload(index))
         io.guard()
+        # Same work transmit() does after its first deadline is set.
+        encoding_ns = time.monotonic_ns()
+        encode(frame.encode())
+        encoding_ns = time.monotonic_ns() - encoding_ns
         echo = io.transmit(frame, loopback=True)
         errors = None
         if echo is not None:
@@ -84,8 +97,12 @@ def _loopback(io, count: int) -> int:
             errors = sum((a ^ b).bit_count() for a, b in zip(echo.encode(), frame.encode()))
             bit_errors += errors
             matched += echo == frame
-        _print({"frame": index, "echoed": echo is not None, "matches": echo == frame,
-                "bit_errors": errors})
+        report = {"frame": index, "echoed": echo is not None, "matches": echo == frame,
+                  "bit_errors": errors}
+        if io.timing is not None:
+            report["tx_timing"] = io.timing.summary() | {"encode_ms": round(encoding_ns / 1e6, 3)}
+            io.timing.reset()
+        _print(report)
     elapsed = time.monotonic() - start
     _print({"sent": count, "echoed": echoed, "matched": matched,
             "elapsed_seconds": round(elapsed, 3),
@@ -164,7 +181,7 @@ def run(args) -> int:
                 return rx_telemetry(io, args.seconds, args.blink, _print,
                                     blink_seconds=args.blink_ms / 1000)
             if args.command == "optical-loopback":
-                return _loopback(io, args.count)
+                return _loopback(io, args.count, args.timing_report)
             if args.command == "optical-link":
                 return _link(io, args)
             adapter = PhysicalDispositivoLuzAdaptador(io, args.local, args.peer, args.session)

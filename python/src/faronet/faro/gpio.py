@@ -20,7 +20,10 @@ REALTIME_PRIORITY = 50
 
 @contextmanager
 def _on_air():
-    """Best effort while a waveform is on air: SCHED_FIFO (needs root) and no GC pauses."""
+    """Best effort while a waveform is on air: SCHED_FIFO (needs root) and no GC pauses.
+
+    Yields whether SCHED_FIFO actually took effect.
+    """
     previous = None
     try:
         previous = os.sched_getscheduler(0), os.sched_getparam(0)
@@ -30,7 +33,7 @@ def _on_air():
     collecting = gc.isenabled()
     gc.disable()
     try:
-        yield
+        yield previous is not None and os.sched_getscheduler(0) == os.SCHED_FIFO
     finally:
         if collecting:
             gc.enable()
@@ -65,6 +68,8 @@ class GpioFrameIO:
         self.max_lateness_ns = 0
         self.rejected = 0
         self.overruns = 0
+        # A TxTiming here records each symbol's lateness instead of stopping at the budget.
+        self.timing = None
         self._panic = False
         self._last_seq = 0
         self._ignore_before = 0
@@ -150,15 +155,19 @@ class GpioFrameIO:
         self.set_output(LED_TX, True)
         try:
             try:
-                with _on_air():
+                with _on_air() as realtime:
+                    if self.timing is not None:
+                        self.timing.realtime = realtime
                     start = time.monotonic_ns()
                     for index, level in enumerate(encode(frame.encode())):
                         deadline = start + index * self.half_ns
                         self._wait_until(deadline)
+                        woke = time.monotonic_ns()
                         self.set_output(TX, bool(level))
-                        lateness = time.monotonic_ns() - deadline
+                        written = time.monotonic_ns()
+                        lateness = written - deadline
                         self.max_lateness_ns = max(self.max_lateness_ns, lateness)
-                        if lateness > self.half_ns * 0.4:
+                        if lateness > self.half_ns * 0.4 and self.timing is None:
                             raise TimingError("TX missed its timing budget; increase --half-bit-ms")
                         if loopback:
                             self.set_output(LED_RX, self._decoder.start is not None)
@@ -166,6 +175,9 @@ class GpioFrameIO:
                             # Drain self-reflections; panic presses still latch below.
                             self._ignore_before = time.monotonic_ns() + self.half_ns
                         self._events()
+                        if self.timing is not None:
+                            self.timing.record(index, woke - deadline, written - woke,
+                                               time.monotonic_ns() - written)
                     self._wait_until(start + FRAME_SYMBOLS * self.half_ns)
             finally:
                 self.set_output(TX, False)

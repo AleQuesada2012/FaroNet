@@ -206,6 +206,14 @@ sudo .venv/bin/python -m faronet optical-loopback --hardware-ready --count 3 --h
    itself, so this does not replace the two-Faro exchange. Normal
    `optical-send` still ignores its own reflections.
 
+   If a run stops with "TX missed its timing budget", add `--timing-report`.
+   The frames are then sent in full and each one reports its per-symbol
+   lateness (p50/p90/p99/max, counts above 25 % and 40 % of the half-bit),
+   the worst symbols split into wait overshoot, GPIO write cost and the
+   previous symbol's work, whether SCHED_FIFO took effect, and the frame
+   encoding time. The ready line adds the kernel, RT throttling limits,
+   timer slack and CPU frequency governor.
+
    `event_overruns` counts gaps in the kernel's event sequence numbers: lost
    events, or fast comparator glitches the kernel merged into one event that
    reports the final level. Gaps no longer abandon a capture; Manchester and
