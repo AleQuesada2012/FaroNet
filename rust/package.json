@@ -13,6 +13,8 @@
     "dev": "wrangler dev --local --ip 127.0.0.1 --port 8787",
     "dev:rooms": "wrangler dev --local --ip 127.0.0.1 --port 8787 --var PUBLIC_ROOMS_ENABLED:true",
     "test:rooms": "node tests/public-rooms.mjs",
+    "dev:gateway": "wrangler dev --local --ip 127.0.0.1 --port 8787 --var PUBLIC_ROOMS_ENABLED:true --var GATEWAY_SECRET:0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+    "test:gateway": "node tests/gateway.mjs",
     "dry-run": "wrangler deploy --dry-run --outdir build/dry-run --var PUBLIC_ROOMS_ENABLED:true",
     "deploy": "wrangler deploy --var PUBLIC_ROOMS_ENABLED:true",
     "smoke": "node tests/deployed-smoke.mjs"

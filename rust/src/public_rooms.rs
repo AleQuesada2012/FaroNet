@@ -11,7 +11,7 @@ const PUBLISHED_RESOLUTION_MS: u64 = 60_000;
 /// (sequence, published minute in Unix ms, public text). No identity or address.
 pub type FeedEntry = (u64, u64, String);
 
-fn valid_room(room: &str) -> bool {
+pub fn valid_room(room: &str) -> bool {
     !room.is_empty()
         && room.len() <= 32
         && room
@@ -189,6 +189,17 @@ pub mod runtime {
             storage.put("sequence", sequence + 1).await?;
             self.save_feed(&entries, now).await
         }
+
+        /// Record a public entry and send it to every connection in the topic.
+        async fn publish(&self, text: &str) -> Result<()> {
+            self.record(text).await?;
+            for peer in self.state.get_websockets() {
+                if peer.send_with_str(text).is_err() {
+                    let _ = peer.close(Some(1011), Some("Connection unavailable"));
+                }
+            }
+            Ok(())
+        }
     }
 
     impl DurableObject for PublicRoom {
@@ -196,8 +207,18 @@ pub mod runtime {
             Self { state }
         }
 
-        async fn fetch(&self, req: Request) -> Result<Response> {
+        async fn fetch(&self, mut req: Request) -> Result<Response> {
             let url = req.url()?;
+            // Internal path: only gateway.rs reaches it, after authenticating the
+            // Gateway and claiming its nonce. The Worker never forwards it from outside.
+            if url.path() == "/gateway-relay" && req.method() == Method::Post {
+                let text = req.text().await?;
+                if !valid_message(&text) {
+                    return Response::error("Invalid public message", 400);
+                }
+                self.publish(&text).await?;
+                return Ok(Response::empty()?.with_status(202));
+            }
             if let Some(room) = feed_room_from_path(url.path()) {
                 if req.method() != Method::Get {
                     return Response::error("Method not allowed", 405);
@@ -246,13 +267,7 @@ pub mod runtime {
                 return ws.close(Some(1008), Some("Message rate exceeded"));
             };
             ws.serialize_attachment(next)?;
-            self.record(&text).await?;
-            for peer in self.state.get_websockets() {
-                if peer.send_with_str(&text).is_err() {
-                    let _ = peer.close(Some(1011), Some("Connection unavailable"));
-                }
-            }
-            Ok(())
+            self.publish(&text).await
         }
 
         async fn alarm(&self) -> Result<Response> {

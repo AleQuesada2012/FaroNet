@@ -5,18 +5,28 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
   "send_metrics": false,
-  "vars": { "PUBLIC_ROOMS_ENABLED": "false" },
+  // GATEWAY_SECRET (64+ lowercase hex) is a secret: `npx wrangler secret put
+  // GATEWAY_SECRET`. Without it every /gateway/ route answers 404.
+  "vars": {
+    "PUBLIC_ROOMS_ENABLED": "false",
+    "GATEWAY_AUDIENCE": "faronet-edge",
+    "GATEWAY_KEY_ID": "gateway-1"
+  },
   "durable_objects": {
     "bindings": [
       { "name": "PUBLIC_ROOMS", "class_name": "PublicRoom" },
-      { "name": "EDGE_LIMITER", "class_name": "EdgeLimiter" }
+      { "name": "EDGE_LIMITER", "class_name": "EdgeLimiter" },
+      { "name": "GATEWAY_REPLAY", "class_name": "GatewayReplay" },
+      { "name": "DEAD_DROPS", "class_name": "DeadDrop" }
     ]
   },
   // SQLite-backed classes are the only Durable Objects on the free plan.
   // EdgeLimiter keeps its counters in memory and never writes storage.
   "exports": {
     "PublicRoom": { "type": "durable-object", "storage": "sqlite" },
-    "EdgeLimiter": { "type": "durable-object", "storage": "sqlite" }
+    "EdgeLimiter": { "type": "durable-object", "storage": "sqlite" },
+    "GatewayReplay": { "type": "durable-object", "storage": "sqlite" },
+    "DeadDrop": { "type": "durable-object", "storage": "sqlite" }
   },
   "build": {
     "command": "npm run build",

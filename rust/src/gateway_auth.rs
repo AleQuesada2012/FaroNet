@@ -1,4 +1,4 @@
-//! The accepted offline HMAC contract. No HTTP route uses it yet.
+//! The accepted HMAC contract; `gateway.rs` applies it to the Worker's gateway routes.
 //!
 //! Keep provider admission in a durable atomic coordinator, never a Worker-
 //! global cache. The fake store here is solely for local contract evidence.
@@ -180,6 +180,34 @@ impl<'a> Verifier<'a> {
         clock: &mut dyn FnMut() -> u64,
         store: &mut impl NonceStore,
     ) -> Result<(), AuthError> {
+        // The clock is read only after the MAC has been checked.
+        let timestamp = self.check_mac(request, signature)?;
+        check_freshness(timestamp, clock())?;
+        if !store.claim(
+            (request.audience, request.key_id, request.nonce),
+            timestamp,
+            clock,
+        )? {
+            return Err(AuthError::Replay);
+        }
+        Ok(())
+    }
+
+    /// Every check except the nonce claim; returns the request timestamp.
+    /// The Worker claims the nonce afterwards in its durable replay store.
+    pub fn authenticate(
+        &self,
+        request: &GatewayRequest<'_>,
+        signature: &str,
+        now: u64,
+    ) -> Result<u64, AuthError> {
+        let timestamp = self.check_mac(request, signature)?;
+        check_freshness(timestamp, now)?;
+        Ok(timestamp)
+    }
+
+    /// Syntax, scope and MAC only; returns the request timestamp.
+    fn check_mac(&self, request: &GatewayRequest<'_>, signature: &str) -> Result<u64, AuthError> {
         let timestamp = request.validate()?;
         if (request.audience, request.key_id) != (self.audience, self.key_id) {
             return Err(AuthError::WrongScope);
@@ -196,15 +224,7 @@ impl<'a> Verifier<'a> {
         mac(self.secret, &request.canonical_bytes()?)?
             .verify_slice(&tag)
             .map_err(|_| AuthError::Authentication)?;
-        check_freshness(timestamp, clock())?;
-        if !store.claim(
-            (request.audience, request.key_id, request.nonce),
-            timestamp,
-            clock,
-        )? {
-            return Err(AuthError::Replay);
-        }
-        Ok(())
+        Ok(timestamp)
     }
 }
 

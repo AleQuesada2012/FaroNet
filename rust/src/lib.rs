@@ -1,9 +1,13 @@
-//! Worker entry: health, rate limiting, and opt-in public topic rooms and feeds.
+//! Worker entry: health, rate limiting, opt-in public topic rooms and feeds,
+//! and the authenticated gateway routes (relay and dead drop).
 
+pub mod gateway;
 pub mod gateway_auth;
 pub mod public_rooms;
 pub mod rate_limit;
 
+#[cfg(target_arch = "wasm32")]
+pub use gateway::runtime::{DeadDrop, GatewayReplay};
 #[cfg(target_arch = "wasm32")]
 pub use public_rooms::runtime::PublicRoom;
 #[cfg(target_arch = "wasm32")]
@@ -20,6 +24,20 @@ async fn fetch(request: Request, env: Env, _context: Context) -> Result<Response
         let mut response = Response::error("Too many requests", 429)?;
         response.headers_mut().set("Retry-After", "60")?;
         return Ok(response);
+    }
+    if path.starts_with("/gateway/") {
+        // The relay feeds public topics, so it follows the rooms switch too.
+        if path.starts_with("/gateway/rooms/")
+            && env
+                .var("PUBLIC_ROOMS_ENABLED")
+                .map(|v| v.to_string())
+                .ok()
+                .as_deref()
+                != Some("true")
+        {
+            return Response::error("Not found", 404);
+        }
+        return gateway::runtime::handle(request, &env).await;
     }
     if path == "/rooms" || path == "/rooms.js" || path.starts_with("/rooms/") {
         if env
