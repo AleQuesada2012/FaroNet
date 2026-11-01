@@ -171,6 +171,10 @@ class Identity:
     def public_key(self) -> PublicKey:
         return self._box_key.public_key
 
+    def sign(self, message: bytes) -> bytes:
+        """Detached Ed25519 signature, verified against this node's directory entry."""
+        return self._signing_key.sign(message).signature
+
     def directory_entry(self, issued_at: int, expires_at: int, alias: str = "") -> DirectoryEntry:
         verify_key = bytes(self._signing_key.verify_key)
         public_key = bytes(self.public_key)
