@@ -536,3 +536,15 @@ Python CLI against the local Rust Worker (publish into the feed, drop
 put/occupied/take/empty, wrong secret 401). Not deployed: the owner must
 `wrangler secret put GATEWAY_SECRET` and deploy. RFC Sections 6, 7.1,
 7.6, 8, 10 and Appendices A and C updated; directory replica still open.
+
+Deployment (owner-reported, 2026-11-01): the owner stored GATEWAY_SECRET
+with `wrangler secret put` and redeployed. Agent check: unsigned gateway
+requests now get 400 instead of 404, so the Worker sees the secret. The
+owner's first signed run got HTTP 403 on all three commands; the agent
+reproduced it as Cloudflare error 1010 for the `Python-urllib` User-Agent
+(curl and any other agent reach the Worker). The client now sends
+`FaroNet-Gateway/<version>`; agent check against the deployment: a
+wrong-secret request now reaches the Worker and gets 401. Added
+`gateway-secret`, which stores the secret typed into a hidden prompt in
+an owner-only file on the Gateway Pi. Signed success on the deployment
+still pending the owner's rerun.

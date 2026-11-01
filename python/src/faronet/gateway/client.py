@@ -22,6 +22,7 @@ import urllib.request
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 
+from faronet import __version__
 from faronet.gateway.auth import AuthError, GatewayRequest, new_nonce, sign_request
 
 DROP_BYTES = 1024
@@ -29,6 +30,9 @@ DROP_PLAIN = DROP_BYTES - SecretBox.NONCE_SIZE - SecretBox.MACBYTES
 MAX_DROP_TEXT = DROP_PLAIN - 2
 DEFAULT_AUDIENCE = "faronet-edge"
 DEFAULT_KEY_ID = "gateway-1"
+# Cloudflare answers 403 (error 1010) to Python's default "Python-urllib" agent
+# before the Worker runs, so the client always names itself.
+USER_AGENT = f"FaroNet-Gateway/{__version__}"
 
 
 class GatewayError(RuntimeError):
@@ -107,7 +111,7 @@ class EdgeClient:
             self.base_url.rstrip("/") + path, data=body if method == "POST" else None, method=method,
             headers={"X-FaroNet-Key": self.key_id, "X-FaroNet-Timestamp": request.timestamp,
                      "X-FaroNet-Nonce": request.nonce, "X-FaroNet-Signature": signature,
-                     "Content-Type": "application/octet-stream"})
+                     "Content-Type": "application/octet-stream", "User-Agent": USER_AGENT})
         try:
             with urllib.request.urlopen(http, timeout=self.timeout) as response:
                 return response.status, response.read()

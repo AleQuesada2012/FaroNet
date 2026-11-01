@@ -200,8 +200,11 @@ npm run test:gateway
 ```
 
 To enable it on the deployment (owner's step), generate a secret, store
-it in Cloudflare, deploy, and give the same value to the Gateway Pi as
-`FARONET_GATEWAY_SECRET`:
+it in Cloudflare, deploy, and give the same value to the Gateway Pi.
+Cloudflare keeps secrets write-only: `wrangler secret put` is the only
+prompt, later deploys reuse it, and it cannot be read back. If the value
+was not kept, generate a new one and run `wrangler secret put` again (it
+replaces the old secret at once), then update the Pi.
 
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
@@ -215,5 +218,16 @@ npx wrangler secret put GATEWAY_SECRET
 npm run deploy
 ```
 
+On the Gateway Pi, over your own SSH session, paste the same value into
+the hidden prompt. It is stored in `~/.faronet/gateway-secret` (owner-only;
+`FARONET_GATEWAY_SECRET` overrides it). Never put it in Git, chat or a
+command line:
+
+```bash
+.venv/bin/python -m faronet gateway-secret
+```
+
 The Python side is `python -m faronet gateway-publish`, `drop-secret`,
-`drop-put` and `drop-take` (`python/src/faronet/gateway/client.py`).
+`drop-put` and `drop-take` (`python/src/faronet/gateway/client.py`). The
+client sends `User-Agent: FaroNet-Gateway/<version>`: Cloudflare blocks
+Python's default agent with 403 (error 1010) before the Worker runs.

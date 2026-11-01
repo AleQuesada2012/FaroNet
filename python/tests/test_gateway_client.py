@@ -1,10 +1,17 @@
 """Gateway client: dead-drop format and signed requests against a local verifying stub."""
 
 import hashlib
+import io
+import os
+from pathlib import Path
+import stat
+import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import threading
 import unittest
+from unittest.mock import patch
 
+from faronet.gateway import commands
 from faronet.gateway.auth import GatewayRequest, verify_and_admit, AuthError
 from faronet.gateway.client import (
     DROP_BYTES, MAX_DROP_TEXT, EdgeClient, GatewayError, drop_slot_id, open_drop, seal_drop,
@@ -58,12 +65,14 @@ class EdgeStub(BaseHTTPRequestHandler):
     store = FakeNonceStore()
     slots: dict = {}
     published: list = []
+    agents: list = []
 
     def log_message(self, *_):
         pass
 
     def _handle(self, method):
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        self.agents.append(self.headers.get("User-Agent", ""))
         request = GatewayRequest("faronet-edge", self.headers["X-FaroNet-Key"], method, self.path,
                                  self.headers["X-FaroNet-Timestamp"], self.headers["X-FaroNet-Nonce"], body)
         try:
@@ -116,6 +125,8 @@ class EdgeClientTests(unittest.TestCase):
         self.assertEqual(self.client.drop_take(SHARED, 3), "nos vemos a las 8")
         self.assertIsNone(self.client.drop_take(SHARED, 3))
         self.assertNotIn(SHARED.hex(), "".join(EdgeStub.slots))
+        # Cloudflare blocks "Python-urllib" with 403 before the Worker runs.
+        self.assertTrue(all(agent.startswith("FaroNet-Gateway/") for agent in EdgeStub.agents))
 
     def test_wrong_gateway_secret_is_refused(self):
         client = EdgeClient(self.client.base_url, bytes(32), clock=lambda: 1_792_000_000)
@@ -127,6 +138,25 @@ class EdgeClientTests(unittest.TestCase):
         client = EdgeClient("http://127.0.0.1:9", GATEWAY_SECRET, timeout=1)
         with self.assertRaisesRegex(GatewayError, "^Edge unreachable$"):
             client.publish("demo", "x")
+
+
+class SecretFileTests(unittest.TestCase):
+    def test_secret_is_stored_owner_only_and_environment_wins(self):
+        with tempfile.TemporaryDirectory() as folder, \
+                patch.dict(os.environ, {"FARONET_STATE_DIR": folder}, clear=False):
+            os.environ.pop("FARONET_GATEWAY_SECRET", None)
+            with self.assertRaises(GatewayError):
+                commands.load_secret()
+            with patch("getpass.getpass", return_value="ab" * 32), patch("sys.stdout", io.StringIO()):
+                self.assertEqual(commands.run(type("A", (), {"command": "gateway-secret"})()), 0)
+            path = Path(folder) / "gateway-secret"
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+            self.assertEqual(commands.load_secret(), b"\xab" * 32)
+            with patch.dict(os.environ, {"FARONET_GATEWAY_SECRET": "cd" * 32}):
+                self.assertEqual(commands.load_secret(), b"\xcd" * 32)
+            with patch("getpass.getpass", return_value="not-hex"), patch("sys.stderr", io.StringIO()):
+                self.assertEqual(commands.run(type("A", (), {"command": "gateway-secret"})()), 2)
+            self.assertEqual(commands.load_secret(), b"\xab" * 32)
 
 
 if __name__ == "__main__":
