@@ -207,6 +207,34 @@ sudo .venv/bin/python -m faronet optical-loopback --hardware-ready --count 3 --h
    itself, so this does not replace the two-Faro exchange. Normal
    `optical-send` still ignores its own reflections.
 
+   Faro B (Pi 2, November 1), 10 frames per half-bit, white paper standing
+   in front of the board edge the D1 and Q2 lenses face:
+
+   | Half-bit | Nominal | Matched | Payload | TX max lateness |
+   | ---: | ---: | ---: | ---: | ---: |
+   | 10 ms | 50 bit/s | 10/10 | 4.2 B/s | 0.58 ms |
+   | 5 ms, room lights on | 100 bit/s | 8/10 (twice) | 6.6 B/s | 0.30–0.48 ms |
+   | 5 ms, room lights off | 100 bit/s | 10/10 | 8.3 B/s | 0.48 ms |
+   | 3 ms | 167 bit/s | 10/10 | 13.8 B/s | 0.20 ms |
+   | 2 ms | 250 bit/s | 10/10 | 20.7 B/s | 0.24 ms |
+
+   No CRC-valid frame had a bit error and no event sequence gap occurred.
+   The 5 ms failures were rejected waveforms, not timing: lateness stayed
+   far below the 2 ms budget. Mains lighting on the 60 Hz grid flickers at
+   120 Hz, inside the 100–200 Hz band of 5 ms Manchester and outside the
+   bands of 10, 3 and 2 ms; with the room lights off, 5 ms passed 10/10.
+   Prefer 2 ms, and avoid 5 ms under mains lighting.
+
+   Outdoors, daylight does not flicker but carries strong IR. It can
+   saturate Q2 (SENSE near 0 V, `rx` stuck at 1), and a fixed RV1 threshold
+   drifts with clouds and shade. Night street lighting may flicker at
+   120 Hz. Before the outdoor test: put an opaque tube or hood on Q2 aimed
+   at the peer, keep both Faros out of direct sun, and calibrate RV1 on
+   site with the hood fitted. If that is not enough, AC coupling between
+   SENSE and the comparator or a smaller R4 are circuit changes to agree
+   on first. These runs are 10-frame reflection checks, not a BER
+   measurement or a two-Faro range test.
+
    If a run stops with "TX missed its timing budget", add `--timing-report`.
    The frames are then sent in full and each one reports its per-symbol
    lateness (p50/p90/p99/max, counts above 25 % and 40 % of the half-bit),
