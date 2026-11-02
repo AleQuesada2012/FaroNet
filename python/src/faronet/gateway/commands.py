@@ -111,6 +111,12 @@ def run(args) -> int:
             print(f"Casilla {args.slot} (ya borrada del edge):")
             print(text)
         return 0
+    except (EOFError, KeyboardInterrupt):
+        print("\nCancelado; no se guardó nada.", file=sys.stderr)
+        return 130
+    except OSError as error:
+        print(f"Falló el comando del gateway: {error.strerror or error}", file=sys.stderr)
+        return 2
     except GatewayError as error:
         status = f" (HTTP {error.status})" if error.status else ""
         if error.status == 403:

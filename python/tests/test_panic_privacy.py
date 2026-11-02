@@ -66,6 +66,13 @@ class AddressStoreTests(StateDir):
         self.assertNotEqual(run(True)["local"], shown["local"])
         self.assertLessEqual(shown["rotates_in_hours"], 24)
 
+    def test_cli_reports_an_unwritable_state_dir_without_a_traceback(self):
+        self.state.parent.mkdir(exist_ok=True)
+        self.state.write_text("not a folder")  # mkdir and the address file both fail.
+        with patch("sys.stderr", io.StringIO()) as err:
+            self.assertEqual(commands.run(SimpleNamespace(command="optical-address", rotate=True)), 2)
+        self.assertIn("No se pudo leer o guardar la dirección física", err.getvalue())
+
     def test_link_commands_default_to_the_stored_address(self):
         stored = AddressStore().current()
         args = SimpleNamespace(command="optical-send", chip="/dev/fake", half_bit_ms=5, rx_inverted=False,
@@ -137,6 +144,31 @@ class ChatPanicTests(StateDir, unittest.IsolatedAsyncioTestCase):
             chat.watch_panic("/dev/fake", lambda: pressed.append(True))
         self.assertEqual(pressed, [True])
         self.assertTrue(request.released)
+
+
+    def test_panic_gpio_failures_are_reported_before_the_node_starts(self):
+        with patch.dict("sys.modules", {"gpiod": None}):
+            with self.assertRaisesRegex(OSError, "necesita gpiod"):
+                chat.open_panic("/dev/gpiochip0")
+        module, line = ModuleType("gpiod"), ModuleType("gpiod.line")
+        line.Direction = SimpleNamespace(INPUT=0)
+        line.Edge = SimpleNamespace(BOTH=3)
+        module.LineSettings = lambda **kwargs: SimpleNamespace(**kwargs)
+
+        def missing(chip, **kwargs):
+            raise FileNotFoundError(2, "No such file or directory")
+
+        module.request_lines = missing
+        with patch.dict("sys.modules", {"gpiod": module, "gpiod.line": line}):
+            with self.assertRaisesRegex(OSError, "No se pudo abrir el botón de pánico"):
+                chat.open_panic("/dev/nope")
+
+    def test_input_that_is_not_utf8_keeps_the_reader_going(self):
+        lines = []
+        loop = SimpleNamespace(call_soon_threadsafe=lambda put, item: put(item))
+        queue = SimpleNamespace(put_nowait=lines.append)
+        chat._stdin_lines(loop, queue, [b"\xff\xfe hola\n", "adiós\n".encode()])
+        self.assertEqual(lines, ["\ufffd\ufffd hola\n", "adiós\n", None])
 
 
 if __name__ == "__main__":

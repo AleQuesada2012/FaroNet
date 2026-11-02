@@ -167,9 +167,11 @@ class ChatSession:
                 self.destination, self._pending_to = self.resolve(rest.strip()), None
                 self.write(f"· destino: {name_of(self.lan, self.destination)}")
             elif command == "/ttl":
-                if not rest.strip().isdigit() or not 10 <= int(rest) <= MAX_TTL:
+                value = rest.strip()
+                # isdigit() also accepts digits such as "²" that int() rejects.
+                if not (value.isascii() and value.isdigit()) or not 10 <= int(value) <= MAX_TTL:
                     raise LanError(f"El TTL debe estar entre 10 y {MAX_TTL} segundos")
-                self.ttl = int(rest)
+                self.ttl = int(value)
                 self.write(f"· TTL {self.ttl} s")
             elif line.startswith("/"):
                 self.write("Comando desconocido; /help los muestra")
@@ -194,19 +196,33 @@ class ChatSession:
             self.write(f"  {name_of(self.lan, node_id):<26} {linked} {reachable}")
 
 
-def watch_panic(chip: str, on_press) -> None:
-    """Thread body: call on_press once the Faro's active-low panic input is pressed."""
-    import gpiod
-    from gpiod.line import Direction, Edge, Value
-
+def open_panic(chip: str):
+    """Request the Faro's active-low panic input, before the node starts, so failures are reported."""
+    try:
+        import gpiod
+        from gpiod.line import Direction, Edge
+    except ImportError:
+        raise OSError("--panic-gpio necesita gpiod (pip install -r requirements-gpio.txt)") from None
     settings = gpiod.LineSettings(direction=Direction.INPUT, edge_detection=Edge.BOTH, active_low=True)
-    request = gpiod.request_lines(chip, consumer="faronet-chat-panic", config={PANIC: settings})
+    try:
+        return gpiod.request_lines(chip, consumer="faronet-chat-panic", config={PANIC: settings})
+    except (OSError, ValueError):
+        raise OSError(f"No se pudo abrir el botón de pánico en {chip}") from None
+
+
+def watch_panic(chip: str, on_press, request=None) -> None:
+    """Thread body: call on_press once the Faro's active-low panic input is pressed."""
+    from gpiod.line import Value
+
+    request = request or open_panic(chip)
     try:
         while request.get_value(PANIC) != Value.ACTIVE:
             if request.wait_edge_events(1.0):
                 if any(e.event_type == e.Type.RISING_EDGE for e in request.read_edge_events(max_events=16)):
                     break
         on_press()
+    except OSError:
+        _print("! se perdió el botón de pánico; usa /panic o reinicia con --panic-gpio")
     finally:
         request.release()
 
@@ -215,8 +231,10 @@ def _print(text: str) -> None:
     print(text, flush=True)
 
 
-def _stdin_lines(loop: asyncio.AbstractEventLoop, queue: asyncio.Queue) -> None:
-    for line in sys.stdin:
+def _stdin_lines(loop: asyncio.AbstractEventLoop, queue: asyncio.Queue, stream=None) -> None:
+    # Bytes, so input that is not UTF-8 is shown replaced instead of stopping the reader.
+    for raw in stream or sys.stdin.buffer:
+        line = raw.decode("utf-8", errors="replace")
         loop.call_soon_threadsafe(queue.put_nowait, line)
     loop.call_soon_threadsafe(queue.put_nowait, None)
 
@@ -252,7 +270,9 @@ async def _serve(args) -> int:
                          daemon=True).start()
     try:
         if args.panic_gpio:
-            threading.Thread(target=watch_panic, args=(args.panic_gpio, lambda: loop.call_soon_threadsafe(press)),
+            request = open_panic(args.panic_gpio)
+            threading.Thread(target=watch_panic,
+                             args=(args.panic_gpio, lambda: loop.call_soon_threadsafe(press), request),
                              daemon=True).start()
         if args.edge_publish:
             _publish_directory(lan, args.edge_publish)

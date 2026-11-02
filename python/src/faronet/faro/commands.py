@@ -176,8 +176,13 @@ def run(args) -> int:
         return 0
     if args.command == "optical-address":
         store = AddressStore()
-        local = store.rotate() if args.rotate else store.current()
-        age = store.age_seconds() or 0
+        try:
+            local = store.rotate() if args.rotate else store.current()
+            age = store.age_seconds() or 0
+        except OSError as exc:
+            print(f"No se pudo leer o guardar la dirección física en {store.path}: {exc.strerror or exc}",
+                  file=sys.stderr)
+            return 2
         _print({"local": local.hex(), "age_hours": round(age / 3600, 2),
                 "rotates_in_hours": round((ROTATE_SECONDS - age) / 3600, 2)})
         return 0

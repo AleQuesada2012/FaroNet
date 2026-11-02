@@ -784,3 +784,28 @@ Owner-reported from Faro B over SSH after pulling `8696272`: Raspberry Pi
 3.11.18 (GCC 11.4.0), PyNaCl 1.6.2, gpiod 2.5.0. `unittest discover`
 ran 160 tests, OK, in 32.7 s. Recorded in `hardware/pi-environment.md`
 and `python/README.md`; Python 3.11 is the floor for new syntax.
+
+### Uncaught errors found in a final code review
+
+Three read-only review agents compared the code with the assignment;
+the agent reproduced or read each of these before fixing it. Each one
+used to end in a traceback:
+- chat `/ttl ²` (a Unicode digit passes `isdigit()`, `int()` raised and
+  the chat exited 2): now refused with the usual TTL message;
+- `chat --panic-gpio` without gpiod or with a bad chip printed a thread
+  traceback and kept running unprotected: `open_panic` now requests the
+  line before the node starts, so it exits 2 with a Spanish message; a
+  failure while watching prints one line;
+- input that is not UTF-8 stopped the chat's stdin reader for good: it
+  now reads bytes and shows invalid ones as U+FFFD;
+- `optical-address` with an unwritable state dir: exit 2 with a message;
+- `gateway-secret`: Ctrl+C/Ctrl+D at the prompt exit 130 ("Cancelado"),
+  an OSError storing the file exits 2.
+
+Agent-verified on the Mac: 3 new tests and 2 extended ones; Python
+suite 163 passed; a piped chat session refused `/ttl ²`, accepted
+`/ttl 60`, survived bytes FF FE and quit with 0; `--panic-gpio` without
+gpiod exited 2 with the message. Known gaps left for the documentation
+(no time before the freeze): no private topics inside the mesh, public
+mesh text reaches the Edge only with `gateway-publish`, panic has no LED
+pattern, and the reported bit errors count only CRC-valid frames.

@@ -209,6 +209,17 @@ class SecretFileTests(unittest.TestCase):
             with patch("getpass.getpass", return_value="not-hex"), patch("sys.stderr", io.StringIO()):
                 self.assertEqual(commands.run(type("A", (), {"command": "gateway-secret"})()), 2)
             self.assertEqual(commands.load_secret(), b"\xab" * 32)
+            secret = type("A", (), {"command": "gateway-secret"})()
+            for stop in (EOFError, KeyboardInterrupt):  # Ctrl+D or Ctrl+C at the prompt.
+                with patch("getpass.getpass", side_effect=stop), patch("sys.stderr", io.StringIO()) as err:
+                    self.assertEqual(commands.run(secret), 130)
+                self.assertIn("Cancelado", err.getvalue())
+            with patch("getpass.getpass", return_value="ab" * 32), \
+                    patch("os.open", side_effect=PermissionError(13, "Permission denied")), \
+                    patch("sys.stderr", io.StringIO()) as err:
+                self.assertEqual(commands.run(secret), 2)
+            self.assertIn("Permission denied", err.getvalue())
+            self.assertEqual(commands.load_secret(), b"\xab" * 32)
 
 
 if __name__ == "__main__":

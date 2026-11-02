@@ -189,6 +189,8 @@ class LanMeshTests(unittest.IsolatedAsyncioTestCase):
         alice.handle("/to n4")
         alice.handle("/ttl 5")
         self.assertIn("El TTL debe", outputs[0][-1])
+        self.assertTrue(alice.handle("/ttl ²"))  # A Unicode digit int() rejects: refused, chat goes on.
+        self.assertIn("El TTL debe", outputs[0][-1])
         alice.handle("/ttl 60")
         alice.handle("é" * 100)
         self.assertIn("excede", outputs[0][-1])
