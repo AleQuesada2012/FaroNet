@@ -624,7 +624,7 @@ La lista completa y actualizada se obtiene con
 
 ## Autoevaluación de aprendizaje (1 a 5)
 
-| Rubro | Estudiante A | Estudiante B |
+| Rubro | Alejandro Quesada | Angie Esquivel |
 | --- | :---: | :---: |
 | Aprendizaje de soldadura y hardware | 5 | 5 |
 | Aprendizaje de la capa física | 5 | 5 |
