@@ -875,3 +875,35 @@ reports `ber` 0.0 over 2048 bits; a dropped edge yields a damaged capture
 with raw bit errors > 0 counted in `ber`; no reflection reports `ber`
 null and 2 frames without capture. Python suite 167 passed. Not run on
 a Faro.
+
+## Two-Faro link over light (2026-11-02, branch `pruebas-dos-faros`, after the freeze)
+
+`main` is frozen at `b121ccf`. This branch adds diagnostics only
+(`python/tools/capture_edges.py`, `FARONET_RX_DEBUG` reports and timeline,
+`ignored` in the `optical-link` summary); link, mesh and gateway behaviour
+is the same as on `main`.
+
+Owner-reported, both Faros facing each other at about 5 cm, soldered
+boards: the cross-board blink check (`gpio-calibrate --blink --blink-ms
+10` on one, plain on the other) followed the peer's light both ways and
+stopped when D1 was covered. Earlier the receiver of the second board read
+1 at every RV1 position: the RV1 end to GND bridge (F19·C27–C28) was
+missing, so VTH sat at VBIAS. Soldering it fixed calibration.
+
+At 10 ms the first `optical-link` runs did not finish. Edge captures of one
+peer frame in each direction were clean (clock difference 8 and -28 ppm,
+light pulses 0.2 and 0.47 ms longer than dark ones, worst edge 0.06
+half-bit from the nominal clock, no odd intervals or sequence gaps), so
+the optics and circuits were not the cause. A 150 s run with diagnostics
+delivered one DATA frame and its ACK; the rest was the protocol's designed
+recovery at 10 ms: a first frame sent before the peer was running, then a
+collision right after an ACK, each costing the 3-frame (61 s) ACK deadline,
+which the 150 s timeout cut short. Two earlier runs each reported 2
+rejected waveforms that were not captured with diagnostics.
+
+At 2 ms (default timeout, both started together, ~5 cm): both Faros sent
+3/3 DATA acknowledged and received 3/3 unique payloads with 0 payload bit
+errors, 0 rejected waveforms, 0 ignored frames and 0 event overruns. One
+DATA per side needed a second attempt after a contention with the peer's
+frame (4 attempts each, 1 ACK timeout, 1 and 2 deferrals). Payload 5.52
+and 5.53 B/s, run 93 s, TX max lateness 0.20 and 0.23 ms.
