@@ -13,6 +13,17 @@ FRAME_SYMBOLS = 2048
 GUARD_SYMBOLS = 16
 
 
+def raw_bits(levels) -> bytes:
+    """Best-effort bytes from a damaged capture: each bit is the first level of its pair."""
+    result = bytearray()
+    for offset in range(0, len(levels) - 15, 16):
+        byte = 0
+        for index in range(offset, offset + 16, 2):
+            byte = (byte << 1) | (levels[index] & 1)
+        result.append(byte)
+    return bytes(result)
+
+
 class EdgeDecoder:
     """Recover one frame at a time; require at least eight OFF units to sync."""
 
@@ -26,6 +37,8 @@ class EdgeDecoder:
         self.edges = []
         self.rejected = 0
         self._header_checked = False
+        # Bytes read from the last complete capture that failed to decode, for raw BER.
+        self.last_raw: bytes | None = None
 
     def lose_sync(self) -> None:
         self.start = None
@@ -59,10 +72,12 @@ class EdgeDecoder:
             self._header_checked = True
         if elapsed < FRAME_SYMBOLS * self.half_ns:
             return None
+        levels = self._levels(FRAME_SYMBOLS)
         try:
-            result = Frame.decode(decode(self._levels(FRAME_SYMBOLS)))
+            result = Frame.decode(decode(levels))
         except (FrameError, ManchesterError):
             self.rejected += 1
+            self.last_raw = raw_bits(levels)
             result = None
         self.start = None
         self.edges.clear()

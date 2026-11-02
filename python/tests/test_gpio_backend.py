@@ -270,6 +270,8 @@ class GpioBackendTests(unittest.TestCase):
         self.assertEqual([line["matches"] for line in lines[1:3]], [True, True])
         self.assertEqual(lines[-1]["matched"], 2)
         self.assertEqual(lines[-1]["bit_errors_in_crc_valid_frames"], 0)
+        self.assertEqual((lines[-1]["ber"], lines[-1]["raw_bits_compared"]), (0.0, 2 * 128 * 8))
+        self.assertEqual(lines[-1]["frames_without_capture"], 0)
         self.assertIn((LED_RX, Value.ACTIVE), self.request.writes)
 
     def test_loopback_survives_kernel_merged_glitch_events(self):
@@ -287,6 +289,14 @@ class GpioBackendTests(unittest.TestCase):
                 self.assertFalse(lines[1]["echoed"])
                 self.assertEqual(lines[-1]["matched"], 1 if "drop" in echo else 0)
                 self.assertGreaterEqual(lines[-1]["rejected_waveforms"], rejected)
+                if "drop" in echo:  # The damaged capture counts toward the raw BER.
+                    self.assertEqual(lines[-1]["raw_bits_compared"], 2 * 128 * 8)
+                    self.assertGreater(lines[-1]["raw_bit_errors"], 0)
+                    self.assertGreater(lines[-1]["ber"], 0)
+                    self.assertIsNotNone(lines[1]["bit_errors"])
+                else:
+                    self.assertIsNone(lines[-1]["ber"])
+                    self.assertEqual(lines[-1]["frames_without_capture"], 2)
 
     def test_timing_report_attributes_lateness_instead_of_stopping(self):
         code, _ = self._loopback(write_ns=1_000_000)  # Half of a 2 ms half-bit.

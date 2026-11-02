@@ -77,6 +77,7 @@ class GpioFrameIO:
         # A TxTiming here records each symbol's lateness instead of stopping at the budget.
         self.timing = None
         self._panic = False
+        self.last_rejected_raw = None  # Bytes of the last reflection that failed to decode.
         self._last_seq = 0
         self._ignore_before = 0
         self._last_rx_ns = time.monotonic_ns()
@@ -203,6 +204,7 @@ class GpioFrameIO:
             if loopback:
                 self.set_output(LED_RX, False)
                 self.rejected += self._decoder.rejected
+                self.last_rejected_raw = self._decoder.last_raw
             # Our reflection's tail is not peer light; peer frames start after a guard.
             self._ignore_before = time.monotonic_ns() + self.half_ns
             self._decoder = self._new_decoder()

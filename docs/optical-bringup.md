@@ -235,6 +235,13 @@ sudo .venv/bin/python -m faronet optical-loopback --hardware-ready --count 3 --h
    on first. These runs are 10-frame reflection checks, not a BER
    measurement or a two-Faro range test.
 
+   Since November 1 the loopback summary also reports a raw BER:
+   `raw_bit_errors` over `raw_bits_compared` (`ber`) counts every complete
+   capture, so a reflection that failed its CRC is compared bit by bit
+   with the frame that was sent; `frames_without_capture` counts frames
+   whose light never started a capture. Use `--count 100` or more per
+   distance for a BER figure.
+
    If a run stops with "TX missed its timing budget", add `--timing-report`.
    The frames are then sent in full and each one reports its per-symbol
    lateness (p50/p90/p99/max, counts above 25 % and 40 % of the half-bit),

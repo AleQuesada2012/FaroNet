@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 
-from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
+from faronet.dispositivo_luz_adaptador.frame import FRAME_SIZE, Frame, FrameType
 from faronet.dispositivo_luz_adaptador.manchester import encode
 from faronet.dispositivo_luz_adaptador.physical import PhysicalDispositivoLuzAdaptador
 from faronet.dispositivo_luz_adaptador.medium import CsmaLink
@@ -127,6 +127,7 @@ def _loopback(io, count: int, timing_report: bool = False) -> int:
     _print(ready)
     start = time.monotonic()
     echoed = matched = bit_errors = 0
+    raw_errors = raw_bits_seen = 0  # Over every complete capture, damaged ones included.
     for index in range(count):
         frame = Frame(FrameType.DATA, LOOPBACK_SOURCE, LOOPBACK_DESTINATION,
                       session, index, test_payload(index))
@@ -135,13 +136,23 @@ def _loopback(io, count: int, timing_report: bool = False) -> int:
         encoding_ns = time.monotonic_ns()
         encode(frame.encode())
         encoding_ns = time.monotonic_ns() - encoding_ns
+        io.last_rejected_raw = None
         echo = io.transmit(frame, loopback=True)
         errors = None
+        sent = frame.encode()
         if echo is not None:
             echoed += 1
-            errors = sum((a ^ b).bit_count() for a, b in zip(echo.encode(), frame.encode()))
+            errors = sum((a ^ b).bit_count() for a, b in zip(echo.encode(), sent))
             bit_errors += errors
             matched += echo == frame
+            raw_errors += errors
+            raw_bits_seen += len(sent) * 8
+        elif io.last_rejected_raw is not None:
+            # A capture that failed its CRC still counts toward the raw bit error rate.
+            raw = io.last_rejected_raw
+            errors = sum((a ^ b).bit_count() for a, b in zip(raw, sent)) + abs(len(raw) - len(sent)) * 8
+            raw_errors += errors
+            raw_bits_seen += len(sent) * 8
         report = {"frame": index, "echoed": echo is not None, "matches": echo == frame,
                   "bit_errors": errors}
         if io.timing is not None:
@@ -153,6 +164,9 @@ def _loopback(io, count: int, timing_report: bool = False) -> int:
             "elapsed_seconds": round(elapsed, 3),
             "payload_bytes_per_second": round(matched * 86 / elapsed, 3),
             "bit_errors_in_crc_valid_frames": bit_errors,
+            "raw_bit_errors": raw_errors, "raw_bits_compared": raw_bits_seen,
+            "ber": round(raw_errors / raw_bits_seen, 6) if raw_bits_seen else None,
+            "frames_without_capture": count - raw_bits_seen // (FRAME_SIZE * 8),
             "rejected_waveforms": io.rejected, "event_overruns": io.overruns,
             "tx_max_lateness_ms": round(io.max_lateness_ns / 1e6, 3)})
     return int(matched != count)

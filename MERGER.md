@@ -858,3 +858,20 @@ Agent-verified on the Mac with a fake GpioFrameIO: one new test (a
 DATA frame sent twice unchanged, from the argument and from stdin; a
 damaged CRC, non-hex and a short frame refused without transmitting);
 Python suite 167 passed. Not run on a Faro.
+
+### Raw BER in `optical-loopback`
+
+The review found that `bit_errors_in_crc_valid_frames` is almost always
+0, because a damaged frame never passes its CRC. `EdgeDecoder` now keeps
+the bytes of the last complete capture that failed to decode
+(`raw_bits`: the first level of each Manchester pair), `GpioFrameIO`
+exposes them after a loopback transmit, and the loopback summary adds
+`raw_bit_errors`, `raw_bits_compared`, `ber` and
+`frames_without_capture`. Existing fields are unchanged. Bring-up guide
+updated.
+
+Agent-verified on the Mac with the simulated reflection: clean loopback
+reports `ber` 0.0 over 2048 bits; a dropped edge yields a damaged capture
+with raw bit errors > 0 counted in `ber`; no reflection reports `ber`
+null and 2 frames without capture. Python suite 167 passed. Not run on
+a Faro.
