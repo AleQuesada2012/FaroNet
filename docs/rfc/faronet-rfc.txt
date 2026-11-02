@@ -370,7 +370,9 @@ Table of Contents
    The green indicator MUST be lit while a frame is transmitted and the
    yellow one while a candidate frame is being captured.  Pressing the
    panic button, even briefly, MUST latch a stop: the Faro turns every
-   output off, releases the GPIO lines, discards session state and
+   output off, shows the panic by blinking both indicators together
+   three times (150 ms on, 150 ms off) with the emitter off, releases
+   the GPIO lines with every output off, discards session state and
    pending frames, rotates its link address (Section 4.4) and requires
    an explicit restart.  The Node SHOULD also erase its keys and
    in-memory messages (Section 10).

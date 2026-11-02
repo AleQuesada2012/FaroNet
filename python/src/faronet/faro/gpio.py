@@ -15,6 +15,9 @@ from faronet.faro.waveform import EdgeDecoder, FRAME_SYMBOLS, GUARD_SYMBOLS
 # Sleep until this close to each TX deadline, then busy-wait: sleep overshoot,
 # not the GPIO write, is what makes symbols late.
 SPIN_NS = 1_000_000
+# Visible sign of a panic (RFC FN-1 4.8): both indicator LEDs blink together, the IR stays off.
+PANIC_BLINKS = 3
+PANIC_BLINK_SECONDS = 0.15
 REALTIME_PRIORITY = 50
 
 
@@ -264,8 +267,22 @@ class GpioFrameIO:
     def close(self):
         try:
             self.clear()
+            if self._panic:
+                self._show_panic()
         finally:
             self.request.release()
+
+    def _show_panic(self):
+        """Blink LED_TX and LED_RX together, then leave every output off before release."""
+        try:
+            for _ in range(PANIC_BLINKS):
+                self.request.set_values({LED_TX: self._value.ACTIVE, LED_RX: self._value.ACTIVE})
+                time.sleep(PANIC_BLINK_SECONDS)
+                self.request.set_values({LED_TX: self._value.INACTIVE, LED_RX: self._value.INACTIVE})
+                time.sleep(PANIC_BLINK_SECONDS)
+        finally:
+            # A released line keeps its last value, so end with everything off even after Ctrl+C.
+            self.request.set_values({pin: self._value.INACTIVE for pin in self.outputs})
 
     def __enter__(self):
         return self

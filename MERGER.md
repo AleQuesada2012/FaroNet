@@ -830,3 +830,17 @@ message is posted once to a fake Edge); Python suite 165 passed. End to
 end against `npm run dev:gateway`: alice > r1 > r2 > r3 > gateway,
 `/publico avisos-e2e hola desde la mesh`, and the text appeared in
 `/rooms/avisos-e2e/feed.atom`.
+
+### Panic shown on the Faro's LEDs
+
+`GpioFrameIO.close` after a panic now blinks LED_TX and LED_RX together
+3 times (150 ms on/off) with TX (the IR emitter) off, then sets every
+output INACTIVE before releasing the lines (a released line keeps its
+last value; a Ctrl+C mid-blink still ends with all off). This covers
+every optical command and the bridge, so `chat --faro-peer` shows it
+too. RFC 4.8 updated.
+
+Agent-verified on the Mac with the fake GPIO request: one new test
+(three ACTIVE writes on each LED, TX never ACTIVE, all outputs off,
+lines released); Python suite 166 passed. Not run on a Faro: check the
+blink by pressing panic during `gpio-calibrate` or `optical-link`.

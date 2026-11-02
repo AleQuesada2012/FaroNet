@@ -162,6 +162,18 @@ class GpioBackendTests(unittest.TestCase):
         self.assertTrue(self.request.released)
         self.assertEqual(self.request.values[TX], Value.INACTIVE)
 
+    def test_panic_blinks_both_indicator_leds_with_the_ir_off(self):
+        self.request.values[PANIC] = Value.ACTIVE
+        with patch("faronet.faro.gpio.time.sleep") as sleep, self.assertRaises(PanicStop):
+            GpioFrameIO("/dev/fake")
+        led_writes = [value for pin, value in self.request.writes if pin == LED_TX]
+        self.assertEqual(led_writes.count(Value.ACTIVE), 3)
+        self.assertEqual([v for p, v in self.request.writes if p == LED_RX], led_writes)
+        self.assertNotIn((TX, Value.ACTIVE), self.request.writes)
+        self.assertTrue(all(self.request.values[p] == Value.INACTIVE for p in (TX, LED_TX, LED_RX)))
+        self.assertEqual(sleep.call_count, 6)
+        self.assertTrue(self.request.released)
+
     def test_short_panic_press_is_latched_from_event_even_after_release(self):
         with GpioFrameIO("/dev/fake") as backend:
             self.request.events.append(SimpleNamespace(
