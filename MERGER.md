@@ -920,6 +920,8 @@ measure the code shown at the demo. "Faro 1" is the owner's Pi
 | 5 cm | 2 ms | 2 → 1 | 8 / 7 / 8 (frame 7 failed after 3 attempts; 8-9 never sent) | 12 / 5 | 0 | not reported | - |
 | 5 cm | 3 ms | 1 → 2 | 10 / 10 / 10 | 11 / 1 | 0 | 0 | 5.39 |
 | 5 cm | 3 ms | 2 → 1 | 10 / 10 / 10 | 11 / 1 | 0 | 0 | 5.39 |
+| 25 cm | 3 ms | 1 → 2 | 10 / 10 / 10 | 14 / 4 | 0 | 0 | 4.74 |
+| 25 cm | 3 ms | 2 → 1 | 10 / 10 / 10 | 13 / 3 | 0 | 0 | 4.74 |
 
 At 2 ms, Faro 2 failed to decode Faro 1's ACKs three times in a row while
 Faro 1 was idle, so collisions were not the cause. This matches the
@@ -929,3 +931,5 @@ half-bit before jitter and clock drift. With 3 ms, the 5 cm run was clean
 (319 s, TX max lateness 0.22 and 0.59 ms); 3 ms is used from here on.
 Faro 1 kept waiting for the two frames Faro 2 had given up on until it was
 stopped; `optical-link` ends only on its count or its timeout.
+At 25 cm (363 s, TX max lateness 0.26 and 0.31 ms) every capture decoded
+(0 rejected), so the extra ACK timeouts were collisions, not signal loss.
