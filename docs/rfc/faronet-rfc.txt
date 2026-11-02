@@ -714,11 +714,12 @@ Table of Contents
    per POST /gateway/directory.  The Edge MUST verify it as a Node does
    (format, Node ID, lifetime, Ed25519 signature) and that it is usable
    now; a newer entry for a Node ID replaces an older one (201), the
-   same one is accepted again (200) and an older one is refused (409).
-   It keeps at most 256 entries and erases expired ones.  GET
-   /directory answers {"version":1,"entries":[...]} with each entry in
-   lowercase hex.  Readers MUST verify every entry themselves: the Edge
-   cannot forge entries, but it can withhold them.
+   same one is accepted again (200), and an older one or a different
+   one with the same issue time is refused (409).  It keeps at most 256
+   entries and erases expired ones.  GET /directory answers
+   {"version":1,"entries":[...]} with each entry in lowercase hex.
+   Readers MUST verify every entry themselves: the Edge cannot forge
+   entries, but it can withhold them.
 
 8.  Version Summary
 
@@ -952,7 +953,9 @@ Appendix A.  Implementation Status
    verification with ed25519-dalek against the Python-signed fixture;
    publishing from a Gateway mesh node with --edge-publish), tested
    locally, deployed on 2026-11-01, and an entry published by the
-   Gateway Pi was fetched and verified from a laptop.
+   Gateway Pi was fetched and verified from a laptop.  Refusing a
+   different entry with the same issue time (409): tested locally on
+   2026-11-01, not yet deployed.
 
 Appendix B.  Test Vectors
 

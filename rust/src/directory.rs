@@ -88,17 +88,20 @@ pub fn verify_entry(raw: &[u8], now: u64) -> Result<Entry, EntryError> {
 pub enum Decision {
     Store,
     Unchanged,
+    Conflict,
     Older,
     Full,
 }
 
 /// A newer entry for a Node ID replaces the stored one, never the reverse (5.2).
-pub fn decide(current_issued: Option<u64>, issued: u64, stored: usize) -> Decision {
-    match current_issued {
+/// At the same issue time only the stored bytes are accepted again (7.6).
+pub fn decide(current: Option<(u64, &[u8])>, issued: u64, bytes: &[u8], stored: usize) -> Decision {
+    match current {
         None if stored >= MAX_ENTRIES => Decision::Full,
         None => Decision::Store,
-        Some(current) if issued > current => Decision::Store,
-        Some(current) if issued == current => Decision::Unchanged,
+        Some((current, _)) if issued > current => Decision::Store,
+        Some((current, held)) if issued == current && held == bytes => Decision::Unchanged,
+        Some((current, _)) if issued == current => Decision::Conflict,
         Some(_) => Decision::Older,
     }
 }
@@ -183,18 +186,23 @@ pub mod runtime {
             let id = to_hex(&entry.node_id);
             let current = sql
                 .exec(
-                    "SELECT issued FROM entries WHERE node_id = ?",
+                    "SELECT issued, entry FROM entries WHERE node_id = ?",
                     vec![id.clone().into()],
                 )?
                 .raw()
                 .filter_map(|row| row.ok())
-                .flat_map(|values| values.into_iter())
-                .find_map(|value| match value {
-                    worker::SqlStorageValue::Integer(issued) => u64::try_from(issued).ok(),
+                .find_map(|values| match values.as_slice() {
+                    [
+                        worker::SqlStorageValue::Integer(issued),
+                        worker::SqlStorageValue::Blob(bytes),
+                    ] => u64::try_from(*issued).ok().map(|issued| (issued, bytes.clone())),
                     _ => None,
                 });
             let stored = sql.exec("SELECT node_id FROM entries", None)?.raw().count();
-            match decide(current, entry.issued_at, stored) {
+            let current = current
+                .as_ref()
+                .map(|(issued, bytes)| (*issued, bytes.as_slice()));
+            match decide(current, entry.issued_at, &entry.bytes, stored) {
                 Decision::Store => {
                     sql.exec(
                         "INSERT INTO entries (node_id, entry, issued, expires) VALUES (?, ?, ?, ?) ON CONFLICT(node_id) DO UPDATE SET entry = excluded.entry, issued = excluded.issued, expires = excluded.expires",
@@ -213,6 +221,9 @@ pub mod runtime {
                     Ok(Response::empty()?.with_status(201))
                 }
                 Decision::Unchanged => Ok(Response::empty()?.with_status(200)),
+                Decision::Conflict => {
+                    Response::error("Ya hay otra entrada con la misma hora de emisión", 409)
+                }
                 Decision::Older => Response::error("Ya hay una entrada más reciente", 409),
                 Decision::Full => Response::error("El directorio está lleno", 507),
             }
@@ -295,12 +306,22 @@ mod tests {
 
     #[test]
     fn newer_replaces_older_never_and_size_is_capped() {
-        assert_eq!(decide(None, 5, 0), Decision::Store);
-        assert_eq!(decide(Some(5), 6, 1), Decision::Store);
-        assert_eq!(decide(Some(5), 5, 1), Decision::Unchanged);
-        assert_eq!(decide(Some(5), 4, 1), Decision::Older);
-        assert_eq!(decide(None, 5, MAX_ENTRIES), Decision::Full);
-        assert_eq!(decide(Some(5), 6, MAX_ENTRIES), Decision::Store);
+        let held: &[u8] = b"held";
+        assert_eq!(decide(None, 5, held, 0), Decision::Store);
+        assert_eq!(decide(Some((5, held)), 6, b"next", 1), Decision::Store);
+        assert_eq!(decide(Some((5, held)), 4, b"old", 1), Decision::Older);
+        assert_eq!(decide(None, 5, held, MAX_ENTRIES), Decision::Full);
+        assert_eq!(
+            decide(Some((5, held)), 6, b"next", MAX_ENTRIES),
+            Decision::Store
+        );
+    }
+
+    #[test]
+    fn same_issue_time_accepts_only_the_stored_bytes() {
+        let held: &[u8] = b"held";
+        assert_eq!(decide(Some((5, held)), 5, b"held", 1), Decision::Unchanged);
+        assert_eq!(decide(Some((5, held)), 5, b"other", 1), Decision::Conflict);
     }
 
     #[test]

@@ -101,6 +101,8 @@ try {
   const first = entry(now - 30);
   assert.equal((await send("/gateway/directory", { method: "POST", body: first })).status, 201);
   assert.equal((await send("/gateway/directory", { method: "POST", body: first })).status, 200);
+  // Same issue time, different bytes (another box key): refused, first kept.
+  assert.equal((await send("/gateway/directory", { method: "POST", body: entry(now - 30) })).status, 409);
   assert.equal((await send("/gateway/directory", { method: "POST", body: entry(now - 60) })).status, 409);
   const tampered = Buffer.from(entry(now));
   tampered[117] ^= 1; // first alias byte, after the fixed 117-byte header

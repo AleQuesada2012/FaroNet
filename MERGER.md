@@ -705,3 +705,21 @@ unsorted LINKS rejected, same-time twin entry refused, two late TX frames
 retried with both bridges alive); Python suite 158 passed; a mesh-node
 with `--faro-peer` on a taken port exited 2 with no bridge left; the
 alias error is shown in Spanish.
+
+## Student B, freeze night (2026-11-01)
+
+Owner (An-Gi) passed Student A's handoff and asked the agent to work
+through its tasks; commits are the owner's, without agent attribution.
+
+### Task 2: Edge directory refuses a same-time twin (409)
+
+`decide` now takes the stored issue time and bytes. The same bytes again
+answer 200; different bytes with the same issue time answer 409 (RFC
+7.6) and the stored entry is kept. `DirectoryReplica` reads `issued,
+entry` for the Node ID to compare. RFC 7.6 and Appendix A updated.
+
+Agent-verified on the Mac: `cargo test --locked` 31 passed (one new
+unit test), `npm run check` passed, and `npm run test:gateway` against a
+fresh `npm run dev:gateway` passed with a new case (a second
+`entry(now - 30)`, same time and different box key, answers 409). Not
+deployed: Student A has to run `npm run deploy`.
