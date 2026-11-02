@@ -809,3 +809,24 @@ gpiod exited 2 with the message. Known gaps left for the documentation
 (no time before the freeze): no private topics inside the mesh, public
 mesh text reaches the Edge only with `gateway-publish`, panic has no LED
 pattern, and the reported bit errors count only CRC-valid frames.
+
+### Public mesh text to the Edge, and private topics (layer 7)
+
+Owner moved the deadline to 23:40 to close the gaps the review found.
+`MessageKind` gains PUBLIC (2) and TOPIC (3); both carry a topic (1-32
+of `[a-z0-9-]`, the Edge room rule) inside the same length-prefixed
+body, so TEXT messages encode exactly as before. Chat commands:
+`/tema TEMA A,B` (each line is encrypted once per member; it never
+leaves the mesh), `/gateway NOMBRE` (default alias "gateway") and
+`/publico TEMA TEXTO` (sent like any envelope to the Gateway). A
+`chat`/`mesh-node --edge-publish` now also posts each PUBLIC message it
+receives to that Edge topic, off the event loop; TEXT and TOPIC never
+leave. RFC 5.5 and Appendix A updated.
+
+Agent-verified on the Mac: 2 new tests (message kinds round trip and
+validation; five LanNodes over TCP: a topic reaches the reachable member
+and reports the unreachable one, a bad `/publico` is refused, a PUBLIC
+message is posted once to a fake Edge); Python suite 165 passed. End to
+end against `npm run dev:gateway`: alice > r1 > r2 > r3 > gateway,
+`/publico avisos-e2e hola desde la mesh`, and the text appeared in
+`/rooms/avisos-e2e/feed.atom`.

@@ -2,7 +2,9 @@
 
 import asyncio
 import unittest
+from unittest.mock import patch
 
+from faronet.node import chat
 from faronet.node.chat import ChatSession, address
 from faronet.node.fragment import ENVELOPE_SIZE
 from faronet.node.identity import Identity
@@ -123,6 +125,39 @@ class LanMeshTests(unittest.IsolatedAsyncioTestCase):
         await wait_for(lambda: nodes[0].routes_to(nodes[4].node_id))
         await nodes[2].close()  # The middle relay leaves; its neighbors stop listing it.
         await wait_for(lambda: not nodes[0].routes_to(nodes[4].node_id))
+
+    async def test_private_topic_reaches_members_and_public_text_reaches_the_gateway_edge(self):
+        nodes = await self.line(5)
+        posted, printed, outputs = [], [], {0: [], 3: [], 4: []}
+        edge = type("Edge", (), {"publish": lambda self, topic, text: posted.append((topic, text))})()
+        alice = ChatSession(nodes[0], outputs[0].append)
+        ChatSession(nodes[3], outputs[3].append)
+        bob = ChatSession(nodes[4], outputs[4].append)
+        # n4 plays the Gateway; the publisher wraps its session's handler, as _serve does.
+        printer = patch.object(chat, "_print", printed.append)
+        printer.start()
+        self.addCleanup(printer.stop)
+        with patch("faronet.gateway.commands.edge_client", return_value=edge):
+            chat._publish_public(nodes[4], "https://edge.invalid")
+
+        alice.handle("/tema club n3,n4")
+        self.assertIn("tema privado #club", outputs[0][-1])
+        alice.handle("hola club")
+        self.assertIn("sin ruta hacia n3#", outputs[0][-2])  # Only two relays lie between n0 and n3.
+        self.assertIn("#club: enviado a 1 de 2", outputs[0][-1])
+        await wait_for(lambda: any("#club] hola club" in line for line in outputs[4]))
+
+        alice.handle("/publico Mal tema")
+        self.assertIn("Uso: /publico", outputs[0][-1])
+        alice.handle("/gateway n4")
+        alice.handle("/publico avisos se cayó un árbol")
+        self.assertIn("público #avisos enviado al gateway n4#", outputs[0][-1])
+        await wait_for(lambda: posted)
+        self.assertEqual(posted, [("avisos", "se cayó un árbol")])  # The topic text never was.
+        await wait_for(lambda: printed)
+        self.assertEqual(printed, ["· público #avisos publicado en el edge"])
+        self.assertTrue(any("público #avisos] se cayó un árbol" in line for line in outputs[4]))
+        self.assertEqual(bob.destination, nodes[0].node_id)  # Replies still go back privately.
 
     async def test_entry_is_re_signed_every_12_hours_and_reaches_peers(self):
         now = [1_800_000_000]

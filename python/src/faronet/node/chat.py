@@ -15,7 +15,7 @@ import subprocess
 import sys
 import threading
 
-from faronet.node.envelope import MAX_TEXT_BYTES, Delivery, EnvelopeError
+from faronet.node.envelope import MAX_TEXT_BYTES, TOPIC_PATTERN, Delivery, EnvelopeError, MessageKind
 from faronet.node.identity import ALIAS_PATTERN, DirectoryError, Identity
 from faronet.node.lan import LanError, LanNode
 from faronet.faro.address import AddressStore, link_id
@@ -32,6 +32,9 @@ HELP = f"""Comandos:
   /peers          nodos conocidos: nombre, si hay enlace directo, si hay ruta
   /to NOMBRE      elige el destino (alias, alias#prefijo o prefijo del ID)
   /ttl SEGUNDOS   vida del mensaje, 10-{MAX_TTL} (ahora {{ttl}})
+  /tema TEMA A,B  tema privado: cada línea va cifrada a cada miembro; nunca sale de la mesh
+  /gateway NOMBRE nodo gateway que publica en el edge (por defecto el alias "gateway")
+  /publico TEMA TEXTO  texto público: el gateway lo publica en la sala y el feed del tema
   /quit           salir; no se guarda nada
   /panic          borrar llaves, enlaces y mensajes, limpiar la pantalla y salir
 Cualquier otra línea se envía al destino (máximo {MAX_TEXT_BYTES} bytes UTF-8)."""
@@ -72,7 +75,8 @@ def add_commands(commands) -> None:
                             help="HOST:PUERTO de un vecino al cual enlazarse; repetir para más.")
         parser.add_argument("--edge-publish", metavar="URL", nargs="?", const="https://faronet-edge.faronet.workers.dev",
                             help="Solo en el gateway: publicar en la réplica pública del edge cada entrada "
-                                 "del directorio que este nodo conozca (usa el secreto de gateway-secret).")
+                                 "del directorio que este nodo conozca y cada mensaje /publico que reciba "
+                                 "(usa el secreto de gateway-secret).")
         parser.add_argument("--panic-gpio", metavar="CHIP",
                             help="Vigilar el botón de pánico del Faro en este chip GPIO (por ejemplo "
                                  "/dev/gpiochip0); al pulsarlo se borran llaves y mensajes y se sale.")
@@ -107,6 +111,8 @@ class ChatSession:
             raise ValueError(f"El TTL debe estar entre 10 y {MAX_TTL} segundos")
         self.lan, self.write, self.ttl = lan, write, ttl
         self.destination: bytes | None = None
+        self.topic: tuple[str, tuple[bytes, ...]] | None = None  # Private topic and its members.
+        self.gateway = "gateway"
         self.panicked = False
         self._pending_to = to
         self._status = None
@@ -143,7 +149,13 @@ class ChatSession:
         sender = name_of(self.lan, delivery.sender_id)
         # Remote text must not forge lines or drive the terminal (newlines, ANSI/OSC escapes).
         text = "".join(c if c.isprintable() else " " for c in delivery.message.text)
-        self.write(f"[{sender}] {text}")
+        kind, topic = delivery.message.kind, delivery.message.topic
+        if kind == MessageKind.TOPIC:
+            self.write(f"[{sender} #{topic}] {text}")
+        elif kind == MessageKind.PUBLIC:
+            self.write(f"[{sender} → público #{topic}] {text}")
+        else:
+            self.write(f"[{sender}] {text}")
         if self.destination is None and self._pending_to is None:
             self.destination = delivery.sender_id
             self.write(f"· las respuestas van a {sender}")
@@ -165,7 +177,26 @@ class ChatSession:
                 self.peers()
             elif command == "/to":
                 self.destination, self._pending_to = self.resolve(rest.strip()), None
+                self.topic = None
                 self.write(f"· destino: {name_of(self.lan, self.destination)}")
+            elif command == "/tema":
+                topic, _, names = rest.strip().partition(" ")
+                if not TOPIC_PATTERN.fullmatch(topic) or not names.strip():
+                    raise LanError("Uso: /tema TEMA MIEMBRO,MIEMBRO (tema de 1-32 minúsculas, dígitos o -)")
+                members = tuple(dict.fromkeys(self.resolve(n.strip()) for n in names.split(",") if n.strip()))
+                self.topic, self.destination = (topic, members), None
+                self.write(f"· tema privado #{topic}: " + ", ".join(name_of(self.lan, m) for m in members))
+            elif command == "/gateway":
+                self.gateway = rest.strip()
+                self.write(f"· gateway: {name_of(self.lan, self.resolve(self.gateway))}")
+            elif command == "/publico":
+                topic, _, text = rest.strip().partition(" ")
+                if not TOPIC_PATTERN.fullmatch(topic) or not text.strip():
+                    raise LanError("Uso: /publico TEMA TEXTO (tema de 1-32 minúsculas, dígitos o -)")
+                gateway = self.resolve(self.gateway)
+                route = self.lan.send_text(gateway, text, self.ttl, MessageKind.PUBLIC, topic)
+                self.write(f"· público #{topic} enviado al gateway {name_of(self.lan, gateway)} "
+                           f"por {len(route.relays)} relevos; será visible para cualquiera")
             elif command == "/ttl":
                 value = rest.strip()
                 # isdigit() also accepts digits such as "²" that int() rejects.
@@ -175,6 +206,16 @@ class ChatSession:
                 self.write(f"· TTL {self.ttl} s")
             elif line.startswith("/"):
                 self.write("Comando desconocido; /help los muestra")
+            elif line.strip() and self.topic is not None:
+                topic, members = self.topic
+                sent = 0
+                for member in members:
+                    try:
+                        self.lan.send_text(member, line, self.ttl, MessageKind.TOPIC, topic)
+                        sent += 1
+                    except LanError:
+                        self.write(f"! sin ruta hacia {name_of(self.lan, member)}; no recibe este mensaje")
+                self.write(f"· #{topic}: enviado a {sent} de {len(members)} miembros (caduca en {self.ttl} s)")
             elif line.strip():
                 if self.destination is None:
                     raise LanError("Primero elige un destino: /peers y luego /to NOMBRE")
@@ -276,6 +317,7 @@ async def _serve(args) -> int:
                              daemon=True).start()
         if args.edge_publish:
             _publish_directory(lan, args.edge_publish)
+            _publish_public(lan, args.edge_publish)
         port = await lan.listen(*args.listen)
         _print(f"FaroNet {args.command} {name_of(lan, lan.node_id)} en el puerto {port}; "
                + ("/help muestra los comandos" if session else "Ctrl+C lo detiene"))
@@ -382,6 +424,37 @@ def _publish_directory(lan: LanNode, url: str) -> None:
 
     lan.on_change = changed
     changed()
+
+
+def _publish_public(lan: LanNode, url: str) -> None:
+    """Gateway node: post each PUBLIC message it receives to its Edge topic, off the event loop.
+
+    Only PUBLIC messages leave the mesh; TEXT and TOPIC messages are private.
+    """
+    from faronet.gateway.client import GatewayError
+    from faronet.gateway.commands import edge_client
+
+    client = edge_client(url)
+    pushes: set[asyncio.Task] = set()
+    loop = asyncio.get_running_loop()
+    previous = lan.on_delivery
+
+    async def push(topic: str, text: str) -> None:
+        try:
+            await loop.run_in_executor(None, client.publish, topic, text)
+        except GatewayError as error:
+            _print(f"! público #{topic}: {error}")
+        else:
+            _print(f"· público #{topic} publicado en el edge")
+
+    def delivered(delivery: Delivery) -> None:
+        previous(delivery)
+        if delivery.message.kind == MessageKind.PUBLIC:
+            task = loop.create_task(push(delivery.message.topic, delivery.message.text))
+            pushes.add(task)  # The loop keeps only weak references to tasks.
+            task.add_done_callback(pushes.discard)
+
+    lan.on_delivery = delivered
 
 
 async def _panic(lan: LanNode) -> int:

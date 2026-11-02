@@ -25,7 +25,7 @@ import time
 from nacl.exceptions import BadSignatureError
 from nacl.signing import VerifyKey
 
-from faronet.node.envelope import RELAY_HOPS, Delivery, PrivateMessage, Route
+from faronet.node.envelope import RELAY_HOPS, Delivery, MessageKind, PrivateMessage, Route
 from faronet.node.fragment import ENVELOPE_SIZE
 from faronet.node.identity import (
     NODE_ID_SIZE, SIGNATURE_SIZE, Directory, DirectoryEntry, DirectoryError, Identity,
@@ -424,9 +424,10 @@ class LanNode:
         extend(())
         return routes
 
-    def send_text(self, destination: bytes, text: str, ttl: int) -> Route:
+    def send_text(self, destination: bytes, text: str, ttl: int,
+                  kind: MessageKind = MessageKind.TEXT, topic: str = "") -> Route:
         """Wrap text for destination over a randomly chosen route; raises if none exists."""
-        message = PrivateMessage(text, self.clock() + ttl)
+        message = PrivateMessage(text, self.clock() + ttl, kind, topic)
         routes = self.routes_to(destination)
         if not routes:
             raise LanError("Aún no hay una ruta con tres relevos distintos hacia ese nodo")

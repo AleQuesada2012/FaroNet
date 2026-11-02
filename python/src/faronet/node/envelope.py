@@ -18,6 +18,7 @@ plaintext has a fixed size, so lengths never reveal how much was said.
 
 from dataclasses import dataclass
 from enum import IntEnum
+import re
 import secrets
 
 from nacl.exceptions import CryptoError
@@ -52,47 +53,82 @@ class LayerKind(IntEnum):
 
 
 class MessageKind(IntEnum):
-    TEXT = 1
+    TEXT = 1  # Private text for the destination.
+    PUBLIC = 2  # Text the destination Gateway posts to a public Edge topic.
+    TOPIC = 3  # Private topic text; it never leaves the mesh.
+
+
+# Same rule as the Edge's public room names.
+TOPIC_PATTERN = re.compile(r"[a-z0-9-]{1,32}")
 
 
 @dataclass(frozen=True)
 class PrivateMessage:
-    """The only thing the destination ever decrypts: UTF-8 text plus expiry."""
+    """The only thing the destination ever decrypts: UTF-8 text plus expiry.
+
+    PUBLIC and TOPIC messages also name a topic: their body starts with a
+    one-byte topic length and the topic, inside the same length-prefixed
+    text field, so a TEXT message is encoded exactly as before.
+    """
 
     text: str
     expires_at: int
+    kind: MessageKind = MessageKind.TEXT
+    topic: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.text, str):
             raise EnvelopeError("El texto del mensaje debe ser una cadena")
-        if len(self.text.encode("utf-8")) > MAX_TEXT_BYTES:
+        try:  # Python 3.11 raises TypeError for `int in MessageKind`.
+            object.__setattr__(self, "kind", MessageKind(self.kind))
+        except ValueError:
+            raise EnvelopeError("Tipo de mensaje desconocido") from None
+        if self.kind == MessageKind.TEXT:
+            if self.topic:
+                raise EnvelopeError("Un mensaje privado no lleva tema")
+        elif not isinstance(self.topic, str) or not TOPIC_PATTERN.fullmatch(self.topic):
+            raise EnvelopeError("El tema debe tener 1-32 minúsculas, dígitos o -")
+        if len(self._body()) > MAX_TEXT_BYTES:
             raise EnvelopeError("El texto excede el tamaño fijo del mensaje")
         if type(self.expires_at) is not int or not 0 <= self.expires_at <= MAX_TIMESTAMP:
             raise EnvelopeError("La caducidad debe ser segundos Unix sin signo de 64 bits")
 
-    def encode(self) -> bytes:
+    def _body(self) -> bytes:
         text = self.text.encode("utf-8")
-        body = (
-            bytes([MESSAGE_VERSION, MessageKind.TEXT]) + self.expires_at.to_bytes(8, "big")
-            + len(text).to_bytes(2, "big") + text
-        )
-        return body.ljust(MESSAGE_SIZE, b"\0")
+        if self.kind == MessageKind.TEXT:
+            return text
+        return bytes([len(self.topic)]) + self.topic.encode("ascii") + text
+
+    def encode(self) -> bytes:
+        body = self._body()
+        header = bytes([MESSAGE_VERSION, self.kind]) + self.expires_at.to_bytes(8, "big")
+        return (header + len(body).to_bytes(2, "big") + body).ljust(MESSAGE_SIZE, b"\0")
 
     @classmethod
     def decode(cls, raw: bytes) -> "PrivateMessage":
         if not isinstance(raw, bytes) or len(raw) != MESSAGE_SIZE:
             raise EnvelopeError("Padded message must have the fixed message size")
-        if raw[0] != MESSAGE_VERSION or raw[1] != MessageKind.TEXT:
+        if raw[0] != MESSAGE_VERSION or raw[1] not in set(MessageKind):
             raise EnvelopeError("Unsupported message version or kind")
+        kind = MessageKind(raw[1])
         expires_at = int.from_bytes(raw[2:10], "big")
         length = int.from_bytes(raw[10:12], "big")
         if length > MAX_TEXT_BYTES or any(raw[MESSAGE_HEADER + length:]):
             raise EnvelopeError("Message length or padding is invalid")
+        body = raw[MESSAGE_HEADER:MESSAGE_HEADER + length]
+        topic = ""
+        if kind != MessageKind.TEXT:
+            if not body or body[0] + 1 > len(body):
+                raise EnvelopeError("Message topic length is invalid")
+            topic_bytes, body = body[1:1 + body[0]], body[1 + body[0]:]
+            if not TOPIC_PATTERN.fullmatch(topic_bytes.decode("ascii", "replace")):
+                raise EnvelopeError("Message topic is invalid")
+            topic = topic_bytes.decode("ascii")
         try:
-            text = raw[MESSAGE_HEADER:MESSAGE_HEADER + length].decode("utf-8")
+            text = body.decode("utf-8")
         except UnicodeDecodeError:
             raise EnvelopeError("Message text is not valid UTF-8") from None
-        return cls(text, expires_at)
+        return cls(text, expires_at, kind, topic)
 
 
 @dataclass(frozen=True)

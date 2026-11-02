@@ -454,14 +454,22 @@ Table of Contents
    Field         Size  Rule
    ------------  ----  ---------------------------------------------
    Version          1  1
-   Kind             1  1 = TEXT
+   Kind             1  1 = TEXT, 2 = PUBLIC, 3 = TOPIC
    Expires at       8  Unsigned Unix seconds (TTL set by the sender)
-   Text length      2  0-178
-   Text         <=178  UTF-8; longer text fails, never truncated
+   Text length      2  0-178, length of the body below
+   Body         <=178  TEXT: UTF-8 text; longer text fails, never
+                       truncated.  PUBLIC, TOPIC: topic length (1,
+                       1-32), topic ([a-z0-9-]), then UTF-8 text
    Padding       rest  Zero bytes, verified on decode
 
    The destination discards expired messages and repeated Box nonces
-   (remembering 1024).  Relays cannot see the expiry.
+   (remembering 1024).  Relays cannot see the expiry or the kind.
+
+   A TOPIC message belongs to a private topic: the sender encrypts one
+   copy to each member it chose, so the topic never leaves the mesh.
+   A PUBLIC message is addressed to a Gateway Node, which posts its
+   topic and text, and nothing else, to that Edge topic (Section 7.2).
+   The Gateway still learns which Node sent it; the Edge does not.
 
 5.6.  Routing and Links
 
@@ -948,6 +956,10 @@ Appendix A.  Implementation Status
    it, and recovery after a failed send), and as separate processes on
    a laptop with a UDP stand-in for the light; not yet run on Faros.
    Envelope fragments ahead of waiting control chunks: unit-tested.
+   PUBLIC and TOPIC messages (Section 5.5; chat /publico, /tema): tested
+   between five Nodes over localhost TCP, and a PUBLIC message reached
+   a local Worker's topic feed through a Gateway mesh node on
+   2026-11-01.
    Re-signing a Node's entry every 12 hours (Section 5.2): tested with
    an injected clock between two Nodes over localhost TCP.
 

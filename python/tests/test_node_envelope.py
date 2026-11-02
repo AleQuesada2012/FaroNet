@@ -6,7 +6,7 @@ from nacl.public import Box, PrivateKey, SealedBox
 
 from faronet.node.envelope import (
     BOX_OVERHEAD, ENVELOPE_SIZE, LENGTH_PREFIX, MAX_TEXT_BYTES, MESSAGE_SIZE, NONCE_SIZE,
-    RELAY_HOPS, SEAL_OVERHEAD, Delivery, EnvelopeError, PrivateMessage, Relay, Route,
+    RELAY_HOPS, SEAL_OVERHEAD, Delivery, EnvelopeError, MessageKind, PrivateMessage, Relay, Route,
     build_envelope, peel,
 )
 from faronet.node.identity import Directory, DirectoryError, Identity
@@ -40,6 +40,29 @@ class PrivateMessageTests(unittest.TestCase):
             padded = message.encode()
             self.assertEqual(len(padded), MESSAGE_SIZE)
             self.assertEqual(PrivateMessage.decode(padded), message)
+
+    def test_public_and_topic_messages_carry_their_topic(self):
+        self.assertEqual(PrivateMessage('hola', NOW).encode()[1], MessageKind.TEXT)
+        for kind in (MessageKind.PUBLIC, MessageKind.TOPIC):
+            message = PrivateMessage('hola', NOW, kind, 'club-1')
+            padded = message.encode()
+            self.assertEqual(len(padded), MESSAGE_SIZE)
+            self.assertEqual(PrivateMessage.decode(padded), message)
+            longest = PrivateMessage('a' * (MAX_TEXT_BYTES - 7), NOW, kind, 'club-1')
+            self.assertEqual(PrivateMessage.decode(longest.encode()), longest)
+            with self.assertRaises(EnvelopeError):
+                PrivateMessage('a' * (MAX_TEXT_BYTES - 6), NOW, kind, 'club-1')
+            for topic in ('', 'Club', 'x' * 33, 'tema público'):
+                with self.assertRaises(EnvelopeError):
+                    PrivateMessage('hola', NOW, kind, topic)
+        with self.assertRaises(EnvelopeError):
+            PrivateMessage('hola', NOW, MessageKind.TEXT, 'club')
+        with self.assertRaises(EnvelopeError):
+            PrivateMessage('hola', NOW, 9)
+        damaged = bytearray(PrivateMessage('hola', NOW, MessageKind.TOPIC, 'club').encode())
+        damaged[13] = ord('C')  # Topic no longer matches the Edge room rule.
+        with self.assertRaises(EnvelopeError):
+            PrivateMessage.decode(bytes(damaged))
 
     def test_oversized_and_invalid_messages_fail_explicitly(self):
         with self.assertRaises(EnvelopeError):
