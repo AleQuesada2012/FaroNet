@@ -1,5 +1,5 @@
-FaroNet Project                                                Student A
-Request for Comments: FN-1                                     Student B
+FaroNet Project                                        Alejandro Quesada
+Request for Comments: FN-1                                Angie Esquivel
 Category: Experimental                                  Redes, TEC, 2026
                                                            November 2026
 
