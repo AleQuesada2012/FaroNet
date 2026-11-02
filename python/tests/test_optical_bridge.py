@@ -64,20 +64,21 @@ class LightEnd:
 
 
 class WireTests(unittest.TestCase):
-    def test_control_records_travel_without_padding_and_envelopes_stay_fixed(self):
-        envelope = encode_record(RecordType.ENVELOPE, (bytes(range(256)) * 2)[:ENVELOPE_SIZE])
+    def test_control_records_travel_without_padding(self):
         entry = encode_record(RecordType.ENTRY, b"public entry")
-        self.assertEqual(len(encode_wire(envelope)), RECORD_SIZE)
+        links = encode_record(RecordType.LINKS, bytes(range(200)))
         self.assertEqual(encode_wire(entry), entry[:3 + len(b"public entry")])
+        with self.assertRaises(LanError):
+            encode_wire(encode_record(RecordType.ENVELOPE, bytes(ENVELOPE_SIZE)))
         decoder = WireDecoder()
-        stream = encode_wire(entry) + encode_wire(envelope) + encode_wire(entry)
+        stream = encode_wire(entry) + encode_wire(links) + encode_wire(entry)
         records = []
-        for start in range(0, len(stream), 86):  # As Faro payloads arrive.
-            records += decoder.feed(stream[start:start + 86])
-        self.assertEqual(records, [entry, envelope, entry])
+        for start in range(0, len(stream), 85):  # As control chunks arrive.
+            records += decoder.feed(stream[start:start + 85])
+        self.assertEqual(records, [entry, links, entry])
 
-    def test_garbage_on_the_light_stream_is_rejected(self):
-        for bad in (b"\x09", b"\x03" + (ENVELOPE_SIZE).to_bytes(2, "big")):
+    def test_garbage_and_envelopes_on_the_control_stream_are_rejected(self):
+        for bad in (b"\x09", b"\x05", b"\x03" + (ENVELOPE_SIZE).to_bytes(2, "big")):
             with self.assertRaises(LanError):
                 WireDecoder().feed(bad)
 
@@ -147,8 +148,11 @@ class OpticalHopTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.exchange("hola por la luz"), ("hola por la luz", "recibido"))
         self.assertEqual(sum(n.counters["rejected"] for n in self.nodes), 0)
         self.assertIn(self.nodes[2].node_id, self.nodes[1].neighbors())
-        sizes = [len(f.payload) for f in self.light.ends[0].transmitted if f.kind == 1]
-        self.assertTrue(sizes and max(sizes) <= 86)
+        # Envelope fragments fill the payload (Section 5.3); control chunks are shorter.
+        payloads = [f.payload for end in self.light.ends for f in end.transmitted if f.kind == 1]
+        fragments = [p for p in payloads if len(p) == 86]
+        self.assertTrue(fragments and all(p[3] == 6 and p[2] < 6 for p in fragments))
+        self.assertGreaterEqual(len(fragments), 12)  # The message and the reply, six each.
 
     async def test_failed_send_moves_both_sides_to_a_new_session(self):
         self.light.blocked = True

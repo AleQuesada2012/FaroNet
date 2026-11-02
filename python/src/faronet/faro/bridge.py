@@ -7,10 +7,12 @@ records; its optical side is a CsmaLink. The Node treats the bridge like
 any LAN neighbor, so the HELLO/PROOF handshake, gossip and routing run
 unchanged across the light.
 
-On the light the records form one byte stream cut into 86-byte payloads.
-Envelopes keep their fixed 493 bytes; control records (public directory
-entries, signed neighbor lists and the handshake) drop their zero padding,
-because at about 20 payload bytes per second padding would cost minutes.
+On the light every 86-byte payload is an envelope fragment (Section 5.3),
+so envelopes cross as six full frames. Control records (the handshake,
+public directory entries and signed neighbor lists) drop their zero
+padding, because at about 20 payload bytes per second padding would cost
+minutes, and form one byte stream cut into payloads of at most 85 bytes;
+the payload length tells the two apart.
 
 CsmaLink delivers in order and exactly once until three attempts fail.
 Then the stream is broken, so the bridge moves to the next epoch: a fresh
@@ -23,10 +25,12 @@ connection too.
 """
 
 import hashlib
+import secrets
 import time
 
 from faronet.dispositivo_luz_adaptador.frame import PAYLOAD_SIZE, FrameType
 from faronet.dispositivo_luz_adaptador.medium import CsmaLink, Delivered, SendResult, Transmit
+from faronet.node.fragment import FragmentError, Reassembler, fragment
 from faronet.node.lan import (
     CONTROL_LENGTH, RECORD_BODY, RECORD_SIZE, LanError, RecordType, decode_record, encode_record,
 )
@@ -34,6 +38,8 @@ from faronet.node.lan import (
 EPOCH_PREFIX = b"FARONET-OPTICAL-EPOCH-V1"
 EPOCH_WINDOW = 256  # How many later epochs a peer may be ahead and still be recognized.
 MAX_PENDING = 64 * RECORD_SIZE
+CONTROL_CHUNK = PAYLOAD_SIZE - 1  # Shorter than a fragment, which always fills the payload.
+CONTROL_TYPES = frozenset(kind for kind in RecordType if kind != RecordType.ENVELOPE)
 
 
 def epoch_session(base: bytes, epoch: int) -> bytes:
@@ -42,15 +48,15 @@ def epoch_session(base: bytes, epoch: int) -> bytes:
 
 
 def encode_wire(record: bytes) -> bytes:
-    """A 493-byte LAN record as it travels on the light: envelopes whole, control unpadded."""
+    """A 493-byte LAN control record as it travels on the light: without its padding."""
     kind, body = decode_record(record)
     if kind == RecordType.ENVELOPE:
-        return record
+        raise LanError("Envelopes cross the light as fragments")
     return record[:1 + CONTROL_LENGTH + len(body)]
 
 
 class WireDecoder:
-    """Rebuild 493-byte LAN records from the payloads one epoch delivers, in order."""
+    """Rebuild 493-byte LAN control records from the control chunks of one epoch, in order."""
 
     def __init__(self) -> None:
         self._buffer = bytearray()
@@ -59,19 +65,15 @@ class WireDecoder:
         self._buffer += data
         records = []
         while self._buffer:
-            try:
-                kind = RecordType(self._buffer[0])
-            except ValueError:
-                raise LanError("Unknown record type on the optical stream") from None
-            if kind == RecordType.ENVELOPE:
-                start, end = 1, RECORD_SIZE
-            else:
-                if len(self._buffer) < 1 + CONTROL_LENGTH:
-                    break
-                length = int.from_bytes(self._buffer[1:1 + CONTROL_LENGTH], "big")
-                if length > RECORD_BODY - CONTROL_LENGTH:
-                    raise LanError("Control record length is invalid on the optical stream")
-                start, end = 1 + CONTROL_LENGTH, 1 + CONTROL_LENGTH + length
+            if self._buffer[0] not in CONTROL_TYPES:
+                raise LanError("Unknown control record type on the optical stream")
+            kind = RecordType(self._buffer[0])
+            if len(self._buffer) < 1 + CONTROL_LENGTH:
+                break
+            length = int.from_bytes(self._buffer[1:1 + CONTROL_LENGTH], "big")
+            if length > RECORD_BODY - CONTROL_LENGTH:
+                raise LanError("Control record length is invalid on the optical stream")
+            start, end = 1 + CONTROL_LENGTH, 1 + CONTROL_LENGTH + length
             if len(self._buffer) < end:
                 break
             records.append(encode_record(kind, bytes(self._buffer[start:end])))
@@ -95,6 +97,8 @@ class _Bridge:
         self.later = {epoch_session(self.base, e): e
                       for e in range(epoch + 1, epoch + 1 + EPOCH_WINDOW)}
         self.decoder = WireDecoder()
+        self.reassembler = Reassembler()
+        self.tag = secrets.randbelow(1 << 16)
         self.from_client = bytearray()
         self.to_client = bytearray()
         self.emit({"epoch": epoch, "reason": reason})
@@ -139,13 +143,19 @@ class _Bridge:
             record = bytes(self.from_client[:RECORD_SIZE])
             del self.from_client[:RECORD_SIZE]
             try:
-                wire = encode_wire(record)
+                kind, body = decode_record(record)
             except LanError:
                 self.reset("node-record")
                 return
             self.stats["records_to_light"] += 1
-            for start in range(0, len(wire), PAYLOAD_SIZE):
-                self.link.offer(wire[start:start + PAYLOAD_SIZE])
+            if kind == RecordType.ENVELOPE:
+                self.tag = (self.tag + 1) & 0xFFFF
+                payloads = fragment(body, self.tag)
+            else:
+                wire = encode_wire(record)
+                payloads = [wire[i:i + CONTROL_CHUNK] for i in range(0, len(wire), CONTROL_CHUNK)]
+            for payload in payloads:
+                self.link.offer(payload)
 
     def write_client(self) -> None:
         if self.client is None or not self.to_client:
@@ -175,8 +185,12 @@ class _Bridge:
             elif isinstance(action, Delivered):
                 self.stats["payloads_received"] += 1
                 try:
-                    records = self.decoder.feed(action.payload)
-                except LanError:
+                    if len(action.payload) == PAYLOAD_SIZE:
+                        envelope = self.reassembler.accept(action.payload)
+                        records = [encode_record(RecordType.ENVELOPE, envelope)] if envelope else []
+                    else:
+                        records = self.decoder.feed(action.payload)
+                except (FragmentError, LanError):
                     self.reset("stream")
                     return
                 self.stats["records_from_light"] += len(records)
