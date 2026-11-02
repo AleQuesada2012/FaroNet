@@ -520,8 +520,7 @@ canal. Desde el 1 de noviembre, `optical-loopback` también da la BER cruda
 (`ber`), que compara bit a bit las tramas dañadas con las enviadas.
 
 **Estas mediciones no se realizaron**: los dos Faros no llegaron a
-enlazarse por luz antes de la entrega (faltaban pruebas de continuidad y
-la soldadura). La tabla queda como procedimiento para hacerlas.
+enlazarse por luz ya que el día que se iban a hacer las pruebas existieron varios contratiempos por fallos en el circuito. La tabla queda como procedimiento para hacerlas.
 
 | Distancia (cm) | *T* (ms) | Faro | Tramas enviadas / confirmadas / recibidas | Intentos / sin ACK | Errores de bit | Carga útil (B/s) |
 | ---: | ---: | --- | --- | --- | ---: | ---: |
@@ -621,7 +620,7 @@ La lista completa y actualizada se obtiene con
 | Capa 7: aplicación anónima a través de FaroNet | 5 % | 10 |
 | Capa 7: aplicación pública en el edge | 25 % | 10 |
 | RFC | 5 % | 10 |
-| Documentación | 5 % | 10 |
+| Documentación | 5 % | 9.5 |
 
 ## Autoevaluación de aprendizaje (1 a 5)
 
