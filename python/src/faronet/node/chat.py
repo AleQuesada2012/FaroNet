@@ -19,6 +19,7 @@ from faronet.node.envelope import MAX_TEXT_BYTES, Delivery, EnvelopeError
 from faronet.node.identity import ALIAS_PATTERN, DirectoryError, Identity
 from faronet.node.lan import LanError, LanNode
 from faronet.faro.address import AddressStore, link_id
+from faronet.faro.gpio import PANIC_EXIT
 from faronet.gateway.client import GatewayError
 from faronet.faro.profile import PANIC
 
@@ -26,7 +27,6 @@ DEFAULT_PORT = 7400
 DEFAULT_TTL = 300
 MAX_TTL = 24 * 3600
 OPTICAL_HANDSHAKE_SECONDS = 600
-PANIC_EXIT = 3
 
 HELP = f"""Comandos:
   /peers          nodos conocidos: nombre, si hay enlace directo, si hay ruta

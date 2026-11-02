@@ -16,7 +16,7 @@ from faronet.dispositivo_luz_adaptador.physical import PhysicalDispositivoLuzAda
 from faronet.dispositivo_luz_adaptador.medium import CsmaLink
 from faronet.faro.address import ROTATE_SECONDS, AddressStore, link_id
 from faronet.faro.calibrate import rx_telemetry
-from faronet.faro.gpio import PanicStop
+from faronet.faro.gpio import PANIC_EXIT, PanicStop
 from faronet.faro.link import run_link
 from faronet.faro.profile import PINS, inspect_chip
 from faronet.faro.timing import TxTiming, system_timing
@@ -280,7 +280,7 @@ def run(args) -> int:
         print("Pánico: salidas apagadas, GPIO liberado, sesión descartada y dirección física rotada. "
               "Intercambia la nueva dirección (optical-address) y una sesión nueva antes de reiniciar.",
               file=sys.stderr)
-        return 3
+        return PANIC_EXIT
     except (ImportError, OSError, ValueError, RuntimeError) as exc:
         print(f"Falló el comando óptico: {exc}", file=sys.stderr)
         return 2

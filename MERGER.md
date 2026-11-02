@@ -772,3 +772,6 @@ on Faros.
   now `pub(crate)`, also used by the gateway routes. `cargo test
   --locked` 31 passed, `npm run check` passed, `npm run test:gateway`
   passed against a fresh `npm run dev:gateway`.
+- `PANIC_EXIT = 3` is defined once next to `PanicStop` in `faro/gpio.py`;
+  the optical commands return it instead of a literal 3 and the chat
+  imports it from there. Python suite 160 passed.

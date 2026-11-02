@@ -41,6 +41,9 @@ def _on_air():
             os.sched_setscheduler(0, *previous)
 
 
+PANIC_EXIT = 3  # Exit status of an optical command stopped by panic; the chat erases its Node on it.
+
+
 class PanicStop(RuntimeError):
     """The physical active-low panic input was pressed; restart explicitly."""
 
