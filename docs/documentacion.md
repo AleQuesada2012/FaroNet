@@ -187,6 +187,15 @@ implementó el Estudiante A para liberar al Estudiante B con el Faro B:
   relevo espera entre 0 y 200 ms al azar antes de reenviar.
 - Chat privado de terminal (`chat`) y nodos solo de relevo (`mesh-node`);
   cada ejecución genera una identidad nueva que nunca se guarda en disco.
+- **Enlace óptico en la mesh en vivo** (RFC, sección 5.9): con
+  `--faro-peer`, el nodo arranca `optical-bridge`, un proceso aparte que
+  maneja el GPIO para que la temporización del Faro no espere al nodo. El
+  nodo se conecta al puente por TCP local como a cualquier vecino LAN, así
+  que el saludo, la propagación y el enrutamiento son los mismos. Por la
+  luz, cada sobre viaja como sus 6 fragmentos de 86 bytes y los registros
+  de control (públicos) sin su relleno, en trozos de hasta 85 bytes. Si un
+  envío falla tras tres intentos, ambos Faros pasan a una sesión derivada
+  nueva (época) y repiten el saludo sin intercambiar nada a mano.
 
 ## Privacidad y modelo de amenazas
 
@@ -271,6 +280,7 @@ Desplegado en **<https://faronet-edge.faronet.workers.dev>**:
 | `gateway.auth` | Firma y verificación HMAC con frescura y admisión de nonce. |
 | `EdgeClient` (`gateway/client.py`) | Cliente firmado del edge: `publish()`, `drop_put()`, `drop_take()`, `publish_entry()`; envía su propio User-Agent porque Cloudflare rechaza el de `urllib`. |
 | `seal_drop()`, `open_drop()`, `drop_slot_id()`, `fetch_directory()` | Buzón cifrado a 1024 bytes exactos con identificadores derivados del secreto compartido; lectura y verificación de la réplica del directorio. |
+| `serve_bridge()`, `WireDecoder`, `epoch_session()` (`faro/bridge.py`) | Puente entre un nodo (TCP local) y el `CsmaLink` del Faro: fragmentos para sobres, flujo de control sin relleno y cambio de época tras una falla. |
 | `AddressStore` (`faro/address.py`) | Dirección física aleatoria de 8 bytes en un archivo privado; rota cada 24 h y al pulsar pánico. |
 
 ## Rust: `rust/src`
@@ -357,6 +367,28 @@ mensaje enviado muestra los tres relevos usados. `/panic` (o el botón del
 Faro con `--panic-gpio /dev/gpiochip0`) borra llaves, enlaces y mensajes,
 limpia la pantalla y sale.
 
+## Mesh por luz entre dos Faros (en cada Pi, desde `python/`)
+
+Cada Faro muestra su dirección física y comparten una sesión; luego cada
+Pi corre su nodo con `--faro-peer` (con `sudo`, porque usa el GPIO). El
+enlace por luz sustituye al `--peer` entre esos dos nodos; no conviene
+enlazar el mismo par por LAN y por luz a la vez.
+
+```bash
+sudo .venv/bin/python -m faronet optical-address
+SESSION=$(.venv/bin/python -m faronet optical-session)   # en un Faro; copiarla al otro
+sudo .venv/bin/python -m faronet mesh-node --alias r1 --listen 0.0.0.0:7401 \
+  --faro-peer DIRECCION_DEL_OTRO_FARO --faro-session "$SESSION" --half-bit-ms 2
+```
+
+El otro Faro corre lo mismo con su propio alias y la dirección del
+primero; los demás nodos se enlazan por LAN como antes. A *T* = 2 ms cada
+trama tarda 4,1 s: el saludo por luz toma alrededor de un minuto,
+sincronizar el directorio de una mesh de cinco nodos unos 7 minutos y
+cada sobre cerca de 52 s por salto óptico. El botón de pánico del Faro
+detiene el puente y borra el nodo; Ctrl+C detiene ambos y apaga las
+salidas.
+
 ## Gateway y edge desde la Pi del gateway (desde `python/`, sin `sudo`)
 
 ```bash
@@ -427,6 +459,7 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | 2026-11-01 | Edge: réplica pública del directorio verificada con Ed25519 | *(completar)* |
 | 2026-11-01 | Textos para personas usuarias en español (edge, chat, comandos) | *(completar)* |
 | 2026-11-01 | Corrección de la orientación de Q1 (2N2222 E-B-C) en la guía de soldadura | *(completar)* |
+| 2026-11-01 | Enlace óptico en la mesh en vivo (`optical-bridge`, `--faro-peer`) y sincronización de la documentación | *(completar)* |
 | | **Total** | *(completar)* |
 
 ## Estudiante B (An-Gi)
@@ -444,7 +477,7 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 
 | Componente | Estado |
 | --- | --- |
-| Trama, Manchester, CRC, simuladores | Completo y probado (149 pruebas de Python y 30 de Rust en total) |
+| Trama, Manchester, CRC, simuladores | Completo y probado (157 pruebas de Python y 30 de Rust en total) |
 | Faro A en protoboard | Funciona: transmisión, recepción calibrada, pánico; *loopback* de 10/10 tramas sin errores a *T* = 5, 3 y 2 ms (2 ms: 20,7 B/s de carga útil) |
 | CSMA/CA y `optical-link` | Implementado y probado en simulación; falta la prueba entre dos Faros |
 | Faro B | En montaje; su ambiente de software no se ha verificado |
@@ -452,7 +485,7 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | Placa soldada, fotos y bitácora de multímetro | Plano de perfboard validado y guía de soldadura listos; falta soldar, fotos y bitácora (entrega de hardware) |
 | Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac y entre la Pi del Faro A y la Mac (tres relevos en la Mac); falta repartir los relevos en más máquinas |
 | Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`), en español; mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos |
-| Enlace óptico como enlace de la mesh en vivo | Pendiente: los nodos en vivo solo usan enlaces LAN |
+| Enlace óptico como enlace de la mesh en vivo | Implementado (`optical-bridge`, `--faro-peer`); probado con dos puentes sobre una luz simulada entre nodos reales (mensaje y respuesta, recuperación tras una falla) y como procesos separados en la Mac con UDP en lugar de luz; falta correrlo entre dos Faros |
 | Botón de pánico | Detiene el Faro, libera el GPIO, descarta la sesión y rota la dirección; en el chat, `/panic` o `--panic-gpio` borran llaves, enlaces, directorio y mensajes (mejor esfuerzo en Python) |
 | Rotación de direcciones físicas | Implementada (`optical-address`): aleatoria, en disco, cada 24 h y al pulsar pánico |
 | Edge: salas, feeds, límite, no registro | Desplegado y verificado con prueba de humo |
@@ -528,6 +561,9 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | 8f05156 | AleQuesada2012 | 2026-11-01 | Publish and read the directory replica from Python |
 | b188d99 | AleQuesada2012 | 2026-11-01 | Use correct Spanish singular and plural in directory messages |
 | 66e70a7 | AleQuesada2012 | 2026-11-01 | Turn Q1's flat face to the right in the perfboard guide |
+| 212795b | AleQuesada2012 | 2026-11-01 | Bring the documentation up to date with the deployed gateway and directory |
+| 3c8b474 | AleQuesada2012 | 2026-11-01 | Carry a mesh link over the Faro light with optical-bridge |
+| d1253c6 | AleQuesada2012 | 2026-11-01 | Send envelopes over the light as RFC fragments |
 
 La lista completa y actualizada se obtiene con
 `git log --format='%h %an %ad %s' --date=short`.

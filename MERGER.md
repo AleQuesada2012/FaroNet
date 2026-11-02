@@ -634,3 +634,40 @@ Hours, grades and learning scores stay "(completar)". The RFC appendix,
 the root, Python and Rust READMEs no longer call deployed work pending.
 Agent-verified: Python suite 149 and `cargo test --locked` 30 at
 `66e70a7`; RFC still ASCII within 72 columns; PDF rebuilt.
+
+## Faro links in the live mesh (2026-11-01)
+
+Owner direction for the remaining hours: keep working on pending code and
+documentation. Built the item offered in the morning handoff. New
+`faro/bridge.py` and the command `optical-bridge`: a separate process on
+each Faro's Pi (so TX timing never waits on the Node's event loop or GIL)
+accepting one local TCP connection from the Node and carrying its LAN
+records over a CsmaLink session. Envelopes cross as the six 86-byte
+fragments of RFC Section 5.3; control records cross unpadded in chunks of
+at most 85 bytes (payload length tells them apart). After three failed
+attempts, a broken stream or a Node disconnect, the bridge moves to the
+next epoch (session = SHA-256("FARONET-OPTICAL-EPOCH-V1" || base ||
+epoch)[0..7]), sends an empty DATA frame and closes its Node connection;
+a peer seeing DATA in any of its next 256 epochs adopts it. `chat` and
+`mesh-node --faro-peer ADDR --faro-session S [--half-bit-ms]` start the
+bridge, dial it with a 600 s handshake (`LanNode.dial(...,
+handshake_seconds)`), report epoch changes, turn a bridge panic exit (3)
+into the Node's panic, and stop it with SIGTERM (SIGTERM now behaves like
+Ctrl+C in chat and the optical commands; background jobs pass SIGINT as
+ignored, which first left bridges running). RFC Section 5.9 added
+(plus 5.6, 5.7, 8, 10, Appendix A); documentation, bring-up guide and
+READMEs updated.
+
+Agent-verified on the Mac: 8 new tests (control wire format, garbage
+rejected, epoch sessions; two bridges in threads on a fake light between
+five real LanNodes over TCP: message and reply across the light with
+envelopes as fragments, and recovery after a blocked light: A
+`send-failed` to epoch 1, B `peer` to epoch 1, both Nodes relinked and
+exchanged again; the chat's bridge process glue). Python suite 157
+passed. End to end as separate processes, with a scratch sitecustomize
+replacing GpioFrameIO by UDP between the two bridge processes:
+alice - r1 =light= r2 - r3 - bob, "hola por la luz" delivered via
+r1 > r2 > r3, 0 rejected, no process left after SIGTERM. Estimated at
+T = 2 ms from measured record sizes: handshake about 1 minute, five-node
+directory sync about 7 minutes, 52 s per envelope per optical hop. Not
+run on Faros: needs both Faros passing `optical-link` first.

@@ -336,6 +336,26 @@ The summary adds `ack_timeouts` (losses or collisions), `deferrals`
 `attempts_total`. Panic and Ctrl+C stop it with outputs LOW, as before.
 Use a fresh session for every run.
 
+## Mesh over the light (RFC FN-1 Section 5.9)
+
+Once `optical-link` passes both ways at a half-bit, run the mesh nodes of
+both Pis over the light at that same half-bit. Each node starts
+`optical-bridge` itself and links to the other Faro's node through it; other
+nodes join over the LAN as usual. Do not also link the same two nodes with
+`--peer`.
+
+```bash
+# A (B is the same with its own alias and A's address)
+sudo .venv/bin/python -m faronet mesh-node --alias r1 --listen 0.0.0.0:7401 \
+  --faro-peer "$FARONET_PEER" --faro-session "$FARONET_SESSION" --half-bit-ms 2
+```
+
+Expect about a minute for the handshake, several minutes for the directory
+to cross, then about 52 s per envelope at 2 ms. The node prints
+`enlace óptico reiniciado (época N)` when a send failed and both Faros moved
+to a new derived session; the handshake then repeats by itself. Panic stops
+the bridge and erases the node; Ctrl+C stops both with outputs LOW.
+
 ## Recovery and implementation boundaries
 
 - No input changes: revisit polarity, alignment, RV1 threshold, power and

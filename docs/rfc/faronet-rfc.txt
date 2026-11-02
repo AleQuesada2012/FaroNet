@@ -57,6 +57,7 @@ Table of Contents
      5.6.  Routing and Links
      5.7.  LAN Links
      5.8.  Private Terminal Chat
+     5.9.  Faro Links in the Live Mesh
    6.  Gateway to Edge Authentication
    7.  Public Edge Application
      7.1.  Routes
@@ -463,7 +464,8 @@ Table of Contents
 
    The sender chooses the route from the signed directory and known
    adjacency (source routing).  Links between Nodes are Faro links
-   (Section 4) or LAN links over Ethernet or Wi-Fi (Section 5.7).
+   (Sections 4 and 5.9) or LAN links over Ethernet or Wi-Fi (Section
+   5.7).
    Negotiated circuits with per-hop session keys are left to a future
    version (Appendix C).
 
@@ -499,7 +501,8 @@ Table of Contents
 
    A Node MUST NOT treat the peer as a neighbor, or add its entry,
    until the PROOF verifies against the entry in the peer's HELLO, and
-   SHOULD close links that do not finish within 10 seconds.  When two
+   SHOULD close links that do not finish within 10 seconds (10 minutes
+   over a Faro link, Section 5.9).  When two
    links connect the same pair, both ends keep the one dialed by the
    smaller Node ID.  A Node keeps at most 16 neighbors.
 
@@ -537,6 +540,48 @@ Table of Contents
    Received text is shown on the terminal only and never logged.  The
    alias is self-chosen and unauthenticated; users compare the short
    Node ID shown with each message out of band.
+
+5.9.  Faro Links in the Live Mesh
+
+   A Faro link joins a live Node through a bridge process on the same
+   Pi, so the transmit timing never waits on the Node.  The Node
+   connects to the bridge over local TCP and treats it as a LAN link
+   (Section 5.7): the handshake, flooding and routing are unchanged,
+   except that the handshake may take minutes.  Both Faros run the same
+   bridge; neither has a role.
+
+   The bridge carries the link's records over one session of the link
+   layer (Sections 4.5 and 4.6), which delivers payloads in order and
+   exactly once:
+
+   o  A payload of exactly 86 bytes is an envelope fragment (Section
+      5.3).  Each ENVELOPE record crosses as its 6 fragments.
+
+   o  A shorter payload is a chunk of the control stream: every other
+      record without its zero padding (type, length and content),
+      concatenated and cut into chunks of at most 85 bytes.  The
+      receiver rebuilds and re-pads each record, and MUST treat an
+      unknown type or a length over 490 as a broken stream.
+
+   Control records are public mesh state, and at about 20 payload bytes
+   per second (T = 2 ms) a padded record would cost some 25 seconds, so
+   their padding is dropped; envelopes stay fixed-size.
+
+   When a send fails after three attempts, or the stream is broken, the
+   Faro moves to the next epoch e and uses the session
+
+      SHA-256("FARONET-OPTICAL-EPOCH-V1" || base session || e)[0..7]
+
+   where the base session is the one agreed for the link and e is a
+   4-byte unsigned big-endian counter starting at 0.  It sends an empty
+   DATA frame in the new session at once and closes its Node's
+   connection, so the Node redials and repeats the handshake.  It does
+   the same when its Node disconnects.  A Faro that receives DATA from
+   its peer in any of its next 256 epochs adopts that epoch, drops its
+   partial stream, buffered records and Node connection, and continues.
+   A failed session is thus replaced (Section 4.4) without a new manual
+   exchange.  The Faro's panic button stops the bridge, and the Node
+   using it erases its state (Section 4.8).
 
 6.  Gateway to Edge Authentication
 
@@ -684,6 +729,7 @@ Table of Contents
    Directory entry           Prefix "FARONET-DIRECTORY-V1"
    Neighbor list             Prefix "FARONET-LINKS-V1"
    LAN link proof            Prefix "FARONET-LAN-PROOF-V1"
+   Faro link epoch session   Label "FARONET-OPTICAL-EPOCH-V1"
    Private message           Version byte (value 1)
    Gateway authentication    Label "FARONET-GATEWAY-HMAC-V1"
    Dead drop                 Labels "FARONET-DEAD-DROP-ID-V1", "-KEY-V1"
@@ -721,7 +767,9 @@ Table of Contents
    Neighbor lists are flooded so senders can choose routes, so every
    Node learns the mesh topology.  A LAN observer sees which Nodes link
    and when envelopes move, but not their contents; relays add a random
-   forwarding delay of up to 200 ms.
+   forwarding delay of up to 200 ms.  An observer of the light can tell
+   envelope fragments (full payloads) from control chunks (shorter) by
+   the payload length field, as a LAN observer can by the record type.
 
    Identification: optical link addresses identify a Faro to anyone who
    watches the light, so they rotate (Section 4.4).  Node IDs are
@@ -881,7 +929,12 @@ Appendix A.  Implementation Status
    node/chat.py; tested over localhost TCP with five Nodes, in one
    process and as five separate processes, and on 2026-10-31 between
    a Pi 3 and a laptop (message and reply over three relays, all on
-   the laptop).  Faro links are not yet attached to live Nodes.
+   the laptop).  Faro links in live Nodes (Section 5.9): the bridge
+   (python/src/faronet/faro/bridge.py, optical-bridge, chat and
+   mesh-node --faro-peer) is tested with two bridges on a simulated
+   light path between real Nodes over TCP (a message and reply across
+   it, and recovery after a failed send), and as separate processes on
+   a laptop with a UDP stand-in for the light; not yet run on Faros.
 
    Gateway authentication (Section 6): canonicalization, MAC and
    freshness implemented in Python and Rust with shared vectors; the

@@ -41,8 +41,10 @@ as the working directory. `faronet info` also works after installation.
 - `src/faronet/gateway/`: HMAC/replay helpers and the signed edge client
   (`gateway-publish`, `drop-*`, `directory-fetch`, `gateway-secret`).
 - `src/faronet/faro/`: libgpiod v2 GPIO backend, timestamped-edge acquisition,
-  current breadboard pin profile, indicators, latched panic stop and the
-  rotating link-address store (`address.py`).
+  current breadboard pin profile, indicators, latched panic stop, the
+  rotating link-address store (`address.py`) and `bridge.py`
+  (`optical-bridge`), which carries one mesh link over the light for
+  `chat`/`mesh-node --faro-peer` (RFC FN-1 Section 5.9).
 - `src/faronet/dispositivo_luz_adaptador/`: location for the required
   `DispositivoLuzAdaptador` library, frame/Manchester codec and simulated link.
 

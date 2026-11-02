@@ -16,8 +16,9 @@ edge's public topic rooms, Atom feeds and rate limiting. Later slices add
 LAN mesh links with the private terminal chat and relay nodes, link-address
 rotation and panic erasure, and the edge's authenticated gateway relay, dead
 drop and public directory replica (all deployed). The perfboard layout and
-soldering guide are in [hardware/perfboard/](hardware/perfboard/). Attaching
-the optical link to live mesh nodes remains pending.
+soldering guide are in [hardware/perfboard/](hardware/perfboard/).
+`optical-bridge` attaches a Faro link to live mesh nodes (`--faro-peer`);
+it is tested in simulation and has not yet run between two Faros.
 
 **Deliverables:** [project documentation](docs/documentacion.md) (Spanish;
 `python3 scripts/build_docs.py` builds the PDF with the BOM and RFC),
