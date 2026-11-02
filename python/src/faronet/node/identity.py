@@ -21,7 +21,7 @@ SIGNATURE_SIZE = 64
 MAX_ALIAS_BYTES = 16
 MAX_LIFETIME = 30 * 24 * 3600
 MAX_TIMESTAMP = (1 << 64) - 1
-_ALIAS = re.compile(r"[A-Za-z0-9_-]{0,16}", re.ASCII)
+ALIAS_PATTERN = re.compile(r"[A-Za-z0-9_-]{0,16}", re.ASCII)
 _FIXED_SIGNED = len(DIRECTORY_PREFIX) + NODE_ID_SIZE + 2 * KEY_SIZE + 16 + 1
 
 
@@ -46,7 +46,7 @@ def _signed_bytes(
     issued_at: int, expires_at: int, alias: str,
 ) -> bytes:
     """Canonical binary record covered by the Ed25519 signature."""
-    if not isinstance(alias, str) or not _ALIAS.fullmatch(alias):
+    if not isinstance(alias, str) or not ALIAS_PATTERN.fullmatch(alias):
         raise DirectoryError("Alias must be 0-16 ASCII letters, digits, hyphen or underscore")
     _time(issued_at)
     _time(expires_at)
@@ -84,7 +84,7 @@ class DirectoryEntry:
         _time(self.expires_at)
         if not self.issued_at < self.expires_at <= self.issued_at + MAX_LIFETIME:
             raise DirectoryError("Entry lifetime must be positive and at most 30 days")
-        if not isinstance(self.alias, str) or not _ALIAS.fullmatch(self.alias):
+        if not isinstance(self.alias, str) or not ALIAS_PATTERN.fullmatch(self.alias):
             raise DirectoryError("Alias must be 0-16 ASCII letters, digits, hyphen or underscore")
         if not isinstance(self.signature, bytes) or len(self.signature) != SIGNATURE_SIZE:
             raise DirectoryError("Signature must be 64 bytes")
@@ -210,6 +210,9 @@ class Directory:
         current = self._entries.get(entry.node_id)
         if current is not None and entry.issued_at < current.issued_at:
             raise DirectoryError("An older directory entry cannot replace a newer one")
+        if current is not None and entry.issued_at == current.issued_at and entry != current:
+            # The first one held wins; otherwise two such entries would flood back and forth.
+            raise DirectoryError("A different entry with the same issue time is already held")
         self._entries[entry.node_id] = entry
 
     def clear(self) -> None:

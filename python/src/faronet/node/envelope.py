@@ -68,7 +68,7 @@ class PrivateMessage:
         if len(self.text.encode("utf-8")) > MAX_TEXT_BYTES:
             raise EnvelopeError("El texto excede el tamaño fijo del mensaje")
         if type(self.expires_at) is not int or not 0 <= self.expires_at <= MAX_TIMESTAMP:
-            raise EnvelopeError("Expiry must be unsigned 64-bit Unix seconds")
+            raise EnvelopeError("La caducidad debe ser segundos Unix sin signo de 64 bits")
 
     def encode(self) -> bytes:
         text = self.text.encode("utf-8")

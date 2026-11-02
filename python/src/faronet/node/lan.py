@@ -90,7 +90,7 @@ def _links_signed(node_id: bytes, issued_at: int, neighbors: tuple[bytes, ...]) 
     if len(node_id) != NODE_ID_SIZE or not 0 <= issued_at < 1 << 64:
         raise LanError("Links record header is invalid")
     if (len(neighbors) > MAX_NEIGHBORS or len(set(neighbors)) != len(neighbors)
-            or node_id in neighbors or any(len(n) != NODE_ID_SIZE for n in neighbors)):
+            or list(neighbors) != sorted(neighbors) or node_id in neighbors or any(len(n) != NODE_ID_SIZE for n in neighbors)):
         raise LanError("Links record neighbors are invalid")
     return (LINKS_PREFIX + node_id + issued_at.to_bytes(8, "big") + bytes([len(neighbors)])
             + b"".join(neighbors))

@@ -275,15 +275,18 @@ def run(args) -> int:
             finally:
                 adapter.clear()
     except KeyboardInterrupt:
-        print("Stopped; GPIO outputs released.", file=sys.stderr)
+        print("Detenido; salidas del GPIO liberadas.", file=sys.stderr)
         return 130
     except PanicStop:
         # RFC FN-1 4.8: outputs are off and the lines released; also forget this address.
-        AddressStore().rotate()
+        try:
+            AddressStore().rotate()
+        except OSError:
+            pass  # Exit 3 must still reach chat --faro-peer so the Node erases its state.
         print("Pánico: salidas apagadas, GPIO liberado, sesión descartada y dirección física rotada. "
               "Intercambia la nueva dirección (optical-address) y una sesión nueva antes de reiniciar.",
               file=sys.stderr)
         return 3
     except (ImportError, OSError, ValueError, RuntimeError) as exc:
-        print(f"Optical command failed: {exc}", file=sys.stderr)
+        print(f"Falló el comando óptico: {exc}", file=sys.stderr)
         return 2

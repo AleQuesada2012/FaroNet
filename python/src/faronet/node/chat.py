@@ -6,6 +6,7 @@ terminal; nothing is logged. An alias is self-chosen and proves nothing,
 so compare the short ID out of band before trusting who is behind it.
 """
 
+import argparse
 import asyncio
 import gc
 import json
@@ -15,9 +16,10 @@ import sys
 import threading
 
 from faronet.node.envelope import MAX_TEXT_BYTES, Delivery, EnvelopeError
-from faronet.node.identity import DirectoryError, Identity
+from faronet.node.identity import ALIAS_PATTERN, DirectoryError, Identity
 from faronet.node.lan import LanError, LanNode
 from faronet.faro.address import AddressStore
+from faronet.gateway.client import GatewayError
 from faronet.faro.profile import PANIC
 
 DEFAULT_PORT = 7400
@@ -35,6 +37,16 @@ HELP = f"""Comandos:
 Cualquier otra línea se envía al destino (máximo {MAX_TEXT_BYTES} bytes UTF-8)."""
 
 
+class OptionError(argparse.ArgumentTypeError, ValueError):
+    """argparse shows this text as is; plain ValueError text would be replaced in English."""
+
+
+def alias(value: str) -> str:
+    if not ALIAS_PATTERN.fullmatch(value):
+        raise OptionError("El alias debe tener 0-16 letras, dígitos, - o _ (sin acentos)")
+    return value
+
+
 def address(value: str) -> tuple[str, int]:
     """HOST:PORT, with IPv6 hosts in brackets; a bare HOST uses the default port."""
     if value.startswith("["):
@@ -44,7 +56,7 @@ def address(value: str) -> tuple[str, int]:
         host, _, port = value.rpartition(":") if ":" in value else (value, "", "")
     port = port or str(DEFAULT_PORT)
     if not host or not port.isdigit() or not 0 <= int(port) <= 65535:
-        raise ValueError("Las direcciones deben ser HOST:PUERTO")
+        raise OptionError("Las direcciones deben ser HOST:PUERTO")
     return host, int(port)
 
 
@@ -52,7 +64,7 @@ def add_commands(commands) -> None:
     for name, text in (("chat", "Chat privado de terminal sobre la mesh anónima en la LAN."),
                        ("mesh-node", "Nodo de la mesh en la LAN que solo retransmite.")):
         parser = commands.add_parser(name, help=text)
-        parser.add_argument("--alias", default="",
+        parser.add_argument("--alias", type=alias, default="",
                             help="Alias público opcional: 0-16 letras, dígitos, - o _.")
         parser.add_argument("--listen", type=address, default=("0.0.0.0", DEFAULT_PORT),
                             help=f"HOST:PUERTO donde aceptar enlaces (por defecto 0.0.0.0:{DEFAULT_PORT}).")
@@ -81,7 +93,7 @@ def add_commands(commands) -> None:
 
 def link_id(value: str) -> bytes:
     if len(value) != 16 or any(c not in "0123456789abcdef" for c in value):
-        raise ValueError("Las direcciones y sesiones ópticas son 16 caracteres hex en minúscula")
+        raise OptionError("Las direcciones y sesiones ópticas son 16 caracteres hex en minúscula")
     return bytes.fromhex(value)
 
 
@@ -135,7 +147,9 @@ class ChatSession:
 
     def delivered(self, delivery: Delivery) -> None:
         sender = name_of(self.lan, delivery.sender_id)
-        self.write(f"[{sender}] {delivery.message.text}")
+        # Remote text must not forge lines or drive the terminal (newlines, ANSI/OSC escapes).
+        text = "".join(c if c.isprintable() else " " for c in delivery.message.text)
+        self.write(f"[{sender}] {text}")
         if self.destination is None and self._pending_to is None:
             self.destination = delivery.sender_id
             self.write(f"· las respuestas van a {sender}")
@@ -242,19 +256,19 @@ async def _serve(args) -> int:
         bridge, bridge_port = _start_bridge(args)
         threading.Thread(target=_watch_bridge, args=(bridge, lambda: loop.call_soon_threadsafe(press)),
                          daemon=True).start()
-    if args.panic_gpio:
-        threading.Thread(target=watch_panic, args=(args.panic_gpio, lambda: loop.call_soon_threadsafe(press)),
-                         daemon=True).start()
-    if args.edge_publish:
-        _publish_directory(lan, args.edge_publish)
-    port = await lan.listen(*args.listen)
-    _print(f"FaroNet {args.command} {name_of(lan, lan.node_id)} en el puerto {port}; "
-           + ("/help muestra los comandos" if session else "Ctrl+C lo detiene"))
-    for host, peer_port in args.peer:
-        lan.dial(host, peer_port)
-    if bridge is not None:
-        lan.dial("127.0.0.1", bridge_port, handshake_seconds=OPTICAL_HANDSHAKE_SECONDS)
     try:
+        if args.panic_gpio:
+            threading.Thread(target=watch_panic, args=(args.panic_gpio, lambda: loop.call_soon_threadsafe(press)),
+                             daemon=True).start()
+        if args.edge_publish:
+            _publish_directory(lan, args.edge_publish)
+        port = await lan.listen(*args.listen)
+        _print(f"FaroNet {args.command} {name_of(lan, lan.node_id)} en el puerto {port}; "
+               + ("/help muestra los comandos" if session else "Ctrl+C lo detiene"))
+        for host, peer_port in args.peer:
+            lan.dial(host, peer_port)
+        if bridge is not None:
+            lan.dial("127.0.0.1", bridge_port, handshake_seconds=OPTICAL_HANDSHAKE_SECONDS)
         if session is None:
             await panicked.wait()
         else:
@@ -319,11 +333,12 @@ def _watch_bridge(bridge: subprocess.Popen, on_panic) -> None:
 
 def _publish_directory(lan: LanNode, url: str) -> None:
     """Gateway node: send each new verified entry to the Edge replica, off the event loop."""
-    from faronet.gateway.client import EdgeClient, GatewayError
-    from faronet.gateway.commands import load_secret
+    from faronet.gateway.client import GatewayError
+    from faronet.gateway.commands import edge_client
 
-    client = EdgeClient(url, load_secret())
+    client = edge_client(url)
     published: dict[bytes, int] = {}
+    pushes: set[asyncio.Task] = set()
     loop = asyncio.get_running_loop()
     previous = lan.on_change
 
@@ -331,8 +346,8 @@ def _publish_directory(lan: LanNode, url: str) -> None:
         sent = 0
         for entry in entries:
             try:
-                await loop.run_in_executor(None, client.publish_entry, entry)
-                sent += 1
+                # False: the Edge already holds a newer entry for this Node.
+                sent += await loop.run_in_executor(None, client.publish_entry, entry)
             except GatewayError as error:
                 published.pop(entry.node_id, None)
                 _print(f"! directorio: {error}")
@@ -347,7 +362,9 @@ def _publish_directory(lan: LanNode, url: str) -> None:
         for entry in fresh:
             published[entry.node_id] = entry.issued_at
         if fresh:
-            loop.create_task(push(fresh))
+            task = loop.create_task(push(fresh))
+            pushes.add(task)  # The loop keeps only weak references to tasks.
+            task.add_done_callback(pushes.discard)
 
     lan.on_change = changed
     changed()
@@ -364,7 +381,7 @@ async def _panic(lan: LanNode) -> int:
     # Clear the visible screen and, where the terminal supports it, its scrollback.
     print("\033[3J\033[2J\033[H", end="", flush=True)
     print("Pánico: llaves, enlaces y mensajes borrados; dirección física rotada.", file=sys.stderr)
-    return 3
+    return PANIC_EXIT
 
 
 def run(args) -> int:
@@ -374,6 +391,6 @@ def run(args) -> int:
         return asyncio.run(_serve(args))
     except KeyboardInterrupt:
         return 130
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, GatewayError) as error:
         print(f"Falló el comando de la mesh: {error}", file=sys.stderr)
         return 2

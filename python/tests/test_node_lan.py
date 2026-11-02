@@ -48,6 +48,11 @@ class RecordTests(unittest.TestCase):
         for neighbors in (others, [others[0]] * 2, [lan.node_id]):
             with self.assertRaises(LanError):
                 LinksRecord.sign(lan.identity, 5, neighbors)
+        unsorted = bytearray(record.encode())
+        first = len(b"FARONET-LINKS-V1") + 16 + 8 + 1
+        unsorted[first:first + 32] = unsorted[first + 16:first + 32] + unsorted[first:first + 16]
+        with self.assertRaises(LanError):  # The RFC requires ascending order.
+            LinksRecord.decode(bytes(unsorted))
 
     def test_addresses_parse_with_default_port(self):
         self.assertEqual(address("10.0.0.5"), ("10.0.0.5", 7400))
@@ -167,6 +172,11 @@ class LanMeshTests(unittest.IsolatedAsyncioTestCase):
         await wait_for(lambda: nodes[4].routes_to(nodes[0].node_id))
         bob.handle("hola alice")
         await wait_for(lambda: any(line.endswith("] hola alice") for line in outputs[0]))
+        # Remote text cannot forge a line or send terminal escapes.
+        bob.handle("hola\n[n9#00000000] falso \x1b[2J")
+        await wait_for(lambda: any("falso" in line for line in outputs[0]))
+        shown = next(line for line in outputs[0] if "falso" in line)
+        self.assertTrue(shown.isprintable() and shown.startswith("[n4#"))
         self.assertFalse(alice.handle("/quit"))
 
 

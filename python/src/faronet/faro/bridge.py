@@ -30,6 +30,7 @@ import time
 
 from faronet.dispositivo_luz_adaptador.frame import PAYLOAD_SIZE, FrameType
 from faronet.dispositivo_luz_adaptador.medium import CsmaLink, Delivered, SendResult, Transmit
+from faronet.faro.gpio import TimingError
 from faronet.node.fragment import FragmentError, Reassembler, fragment
 from faronet.node.lan import (
     CONTROL_LENGTH, RECORD_BODY, RECORD_SIZE, LanError, RecordType, decode_record, encode_record,
@@ -87,7 +88,7 @@ class _Bridge:
         self.emit, self.rng = emit, rng
         self.client = None
         self.stats = {"frames_sent": 0, "payloads_received": 0, "records_to_light": 0,
-                      "records_from_light": 0, "resets": 0}
+                      "records_from_light": 0, "resets": 0, "tx_timing_errors": 0}
         self._start(0, "start")
 
     def _start(self, epoch: int, reason: str) -> None:
@@ -180,7 +181,13 @@ class _Bridge:
         for action in actions:
             if isinstance(action, Transmit):
                 self.io.guard()
-                self.io.transmit(action.frame)
+                try:
+                    self.io.transmit(action.frame)
+                except TimingError:
+                    # The frame left late and is lost; the link layer retries it like any loss.
+                    self.stats["tx_timing_errors"] += 1
+                    self.emit({"tx_timing_error": action.frame.sequence, "epoch": self.epoch})
+                    continue
                 self.stats["frames_sent"] += 1
             elif isinstance(action, Delivered):
                 self.stats["payloads_received"] += 1

@@ -12,6 +12,7 @@ import unittest
 from unittest import mock
 
 from faronet.node import chat
+from faronet.faro.gpio import TimingError
 from faronet.faro.bridge import WireDecoder, encode_wire, epoch_session, serve_bridge
 from faronet.node.fragment import ENVELOPE_SIZE
 from faronet.node.identity import Identity
@@ -27,6 +28,7 @@ class Light:
 
     def __init__(self):
         self.blocked = False
+        self.late_frames = 0
         self.ends = (LightEnd(self, 0), LightEnd(self, 1))
 
 
@@ -44,6 +46,9 @@ class LightEnd:
         pass
 
     def transmit(self, frame):
+        if self.light.late_frames:
+            self.light.late_frames -= 1
+            raise TimingError("TX missed its timing budget")
         self.transmitted.append(frame)
         peer = self.light.ends[1 - self.index]
         peer.peer_light_end = time.monotonic()
@@ -153,6 +158,13 @@ class OpticalHopTests(unittest.IsolatedAsyncioTestCase):
         fragments = [p for p in payloads if len(p) == 86]
         self.assertTrue(fragments and all(p[3] == 6 and p[2] < 6 for p in fragments))
         self.assertGreaterEqual(len(fragments), 12)  # The message and the reply, six each.
+
+    async def test_a_late_tx_frame_is_retried_not_fatal(self):
+        self.light.late_frames = 2
+        self.assertEqual(await self.exchange("tarde"), ("tarde", "recibido"))
+        late = [e for b in self.bridges for e in b.events if "tx_timing_error" in e]
+        self.assertEqual(len(late), 2)
+        self.assertTrue(all(b.thread.is_alive() for b in self.bridges))
 
     async def test_failed_send_moves_both_sides_to_a_new_session(self):
         self.light.blocked = True

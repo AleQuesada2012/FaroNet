@@ -385,7 +385,10 @@ El otro Faro corre lo mismo con su propio alias y la dirección del
 primero; los demás nodos se enlazan por LAN como antes. A *T* = 2 ms cada
 trama tarda 4,1 s: el saludo por luz toma alrededor de un minuto,
 sincronizar el directorio de una mesh de cinco nodos unos 7 minutos y
-cada sobre cerca de 52 s por salto óptico. El botón de pánico del Faro
+cada sobre cerca de 52 s por salto óptico. Los sobres esperan detrás de
+la sincronización, así que conviene enviar cuando `/peers` ya muestre ruta
+y subir la vida del mensaje (`--ttl 3600` o `/ttl 3600`; por defecto
+300 s). El botón de pánico del Faro
 detiene el puente y borra el nodo; Ctrl+C detiene ambos y apaga las
 salidas.
 
@@ -477,7 +480,7 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 
 | Componente | Estado |
 | --- | --- |
-| Trama, Manchester, CRC, simuladores | Completo y probado (157 pruebas de Python y 30 de Rust en total) |
+| Trama, Manchester, CRC, simuladores | Completo y probado (158 pruebas de Python y 30 de Rust en total) |
 | Faro A en protoboard | Funciona: transmisión, recepción calibrada, pánico; *loopback* de 10/10 tramas sin errores a *T* = 5, 3 y 2 ms (2 ms: 20,7 B/s de carga útil) |
 | CSMA/CA y `optical-link` | Implementado y probado en simulación; falta la prueba entre dos Faros |
 | Faro B | En montaje; su ambiente de software no se ha verificado |
@@ -487,7 +490,7 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`), en español; mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos |
 | Enlace óptico como enlace de la mesh en vivo | Implementado (`optical-bridge`, `--faro-peer`); probado con dos puentes sobre una luz simulada entre nodos reales (mensaje y respuesta, recuperación tras una falla) y como procesos separados en la Mac con UDP en lugar de luz; falta correrlo entre dos Faros |
 | Botón de pánico | Detiene el Faro, libera el GPIO, descarta la sesión y rota la dirección; en el chat, `/panic` o `--panic-gpio` borran llaves, enlaces, directorio y mensajes (mejor esfuerzo en Python) |
-| Rotación de direcciones físicas | Implementada (`optical-address`): aleatoria, en disco, cada 24 h y al pulsar pánico |
+| Rotación de direcciones físicas | Implementada (`optical-address`): aleatoria, en disco, cada 24 h y al pulsar pánico; la rotación por tiempo ocurre al iniciar un comando óptico, no durante una ejecución, y la entrada de directorio de un nodo dura 24 h, así que un nodo debe reiniciarse al menos una vez al día |
 | Edge: salas, feeds, límite, no registro | Desplegado y verificado con prueba de humo |
 | Edge: relevo del gateway y buzón muerto | Desplegado con el secreto del gateway; publicación, depósito y lectura del buzón probados desde la Pi del gateway contra el edge en vivo |
 | Edge: réplica pública del directorio | Desplegada: el edge verifica cada entrada firmada (Ed25519) y la sirve en `/directory`; la entrada publicada por el nodo gateway desde la Pi se leyó y verificó desde la Mac |

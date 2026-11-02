@@ -105,6 +105,11 @@ class DirectoryTests(unittest.TestCase):
         self.assertEqual(self.directory.get(self.identity.node_id).alias, 'new')
         self.assertEqual(len(self.directory), 1)
         self.assertEqual(self.directory.node_ids(), (self.identity.node_id,))
+        twin = self.identity.directory_entry(self.now + 10, self.now + 100, 'twin')
+        self.directory.add(newer, self.now + 10)  # The same entry again is fine.
+        with self.assertRaises(DirectoryError):  # Same time, different entry: the first wins.
+            self.directory.add(twin, self.now + 10)
+        self.assertEqual(self.directory.get(self.identity.node_id).alias, 'new')
 
 
 if __name__ == '__main__':

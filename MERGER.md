@@ -671,3 +671,37 @@ r1 > r2 > r3, 0 rejected, no process left after SIGTERM. Estimated at
 T = 2 ms from measured record sizes: handshake about 1 minute, five-node
 directory sync about 7 minutes, 52 s per envelope per optical hop. Not
 run on Faros: needs both Faros passing `optical-link` first.
+
+## Pre-freeze review (2026-11-01)
+
+Owner asked for a final review of everything since `95b4338`. Two review
+agents (standards and RFC/spec) reported; the agent checked each finding
+in the code before acting. Fixed:
+- the chat printed remote text unsanitized; control characters
+  (newlines, ANSI/OSC escapes) are now shown as spaces, so a sender cannot
+  forge a line or drive the terminal;
+- a node that failed to start (port in use, no gateway secret) left its
+  optical bridge holding the GPIO;
+- `--edge-publish` ignored `FARONET_GATEWAY_KEY`/`FARONET_EDGE_AUDIENCE`
+  (now shares `edge_client`), lost track of its tasks and counted a 409 as
+  published; a missing secret crashed with a traceback;
+- one late TX symbol (TimingError) ended the bridge; the frame now counts
+  as lost and CsmaLink retries it;
+- the panic handler of the optical commands could exit 1 instead of 3 if
+  rotating the address failed, so the chat would not erase its Node;
+- `LinksRecord` did not check the ascending order the RFC requires; two
+  different directory entries with the same issue time could replace each
+  other and flood forever (the first held now wins);
+- Spanish: argparse option errors (alias, addresses), signing errors, and
+  the bridge's stop/failure lines shown in the chat.
+Documented rather than changed: the 24-hour address rotation and the
+24-hour directory entry apply per run (restart daily); envelopes queue
+behind the directory sync over light, so raise the TTL. Not changed
+(would need a redeploy): the Edge answers 200 for a different entry with
+the same issue time without storing it.
+
+Agent-verified on the Mac: 4 new or extended tests (sanitized chat line,
+unsorted LINKS rejected, same-time twin entry refused, two late TX frames
+retried with both bridges alive); Python suite 158 passed; a mesh-node
+with `--faro-peer` on a taken port exited 2 with no bridge left; the
+alias error is shown in Spanish.

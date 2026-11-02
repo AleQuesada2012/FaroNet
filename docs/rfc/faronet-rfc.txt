@@ -915,7 +915,9 @@ Appendix A.  Implementation Status
    Link address rotation and non-volatile storage (Section 4.4):
    implemented in python/src/faronet/faro/address.py; the address is
    kept in an owner-only file, replaced every 24 hours and on panic,
-   and used unless --local overrides it.  Sessions are random per run.
+   and used unless --local overrides it.  The 24-hour check runs when
+   an optical command starts, so a run longer than a day keeps its
+   address until restarted.  Sessions are random per run.
 
    Panic (Section 4.8): output stop, GPIO release and session clearing
    implemented and tested on hardware; address rotation on panic and

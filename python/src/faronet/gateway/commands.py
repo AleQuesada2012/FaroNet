@@ -66,8 +66,9 @@ def add_commands(commands) -> None:
     put.add_argument("--text", required=True)
 
 
-def _client(args) -> EdgeClient:
-    return EdgeClient(args.url, load_secret(),
+def edge_client(url: str) -> EdgeClient:
+    """The signed client every gateway command and mesh-node --edge-publish use."""
+    return EdgeClient(url, load_secret(),
                       os.environ.get("FARONET_GATEWAY_KEY", DEFAULT_KEY_ID),
                       os.environ.get("FARONET_EDGE_AUDIENCE", DEFAULT_AUDIENCE))
 
@@ -89,7 +90,7 @@ def run(args) -> int:
             store_secret(getpass.getpass("Secreto del gateway (hex, no se muestra): ").strip())
             print(f"Secreto guardado en {secret_path()}.")
             return 0
-        client = _client(args)
+        client = edge_client(args.url)
         if args.command == "gateway-publish":
             client.publish(args.topic, args.text)
             print(f"Publicado en el tema {args.topic}.")

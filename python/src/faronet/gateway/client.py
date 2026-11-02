@@ -133,8 +133,8 @@ class EdgeClient:
                                  str(int(self.clock())), new_nonce(), body)
         try:
             signature = sign_request(request, self.secret)
-        except AuthError as error:
-            raise GatewayError(str(error)) from None
+        except AuthError:
+            raise GatewayError("No se pudo firmar la petición: revisa el secreto y el reloj de la Pi") from None
         http = urllib.request.Request(
             self.base_url.rstrip("/") + path, data=body if method == "POST" else None, method=method,
             headers={"X-FaroNet-Key": self.key_id, "X-FaroNet-Timestamp": request.timestamp,
