@@ -775,3 +775,12 @@ on Faros.
 - `PANIC_EXIT = 3` is defined once next to `PanicStop` in `faro/gpio.py`;
   the optical commands return it instead of a literal 3 and the chat
   imports it from there. Python suite 160 passed.
+
+### Task 1: Python suite on Faro B (Pi 2) and its environment
+
+Owner-reported from Faro B over SSH after pulling `8696272`: Raspberry Pi
+2 Model B Rev 1.1, Ubuntu 22.04.5 LTS, kernel `5.15.0-1061-raspi`,
+`armv7l` with 32-bit user space; system Python 3.10.12, venv Python
+3.11.18 (GCC 11.4.0), PyNaCl 1.6.2, gpiod 2.5.0. `unittest discover`
+ran 160 tests, OK, in 32.7 s. Recorded in `hardware/pi-environment.md`
+and `python/README.md`; Python 3.11 is the floor for new syntax.

@@ -2,9 +2,33 @@
 
 Recorded from the owner's command output on 2026-10-09. This describes the
 inspected Raspberry Pi 3 Model B rev 1.2. Since 2026-10-22 the second board
-is a Raspberry Pi 2 Model B, not another Pi 3. The owner confirmed PiOS on
-October 25; its exact versions have not been checked. The latest evidence
-below supersedes the historical permission/install status in this profile.
+is a Raspberry Pi 2 Model B, not another Pi 3. It was planned with PiOS
+(October 25) but runs Ubuntu 22.04.5; its versions were checked on
+November 1 (next section). The latest evidence below supersedes the
+historical permission/install status in this profile.
+
+## November 1 update: Faro B (Raspberry Pi 2) environment
+
+Owner-reported command output from Faro B over SSH, at `529b01c` plus
+tonight's commits (`git pull --ff-only` to `8696272`):
+
+| Detail | Reported value | Evidence |
+| --- | --- | --- |
+| Model | Raspberry Pi 2 Model B Rev 1.1 | `/proc/device-tree/model` |
+| Distribution | Ubuntu 22.04.5 LTS (Jammy Jellyfish) | `/etc/os-release` |
+| Kernel, architecture | `5.15.0-1061-raspi`, `armv7l` | `uname -mr` |
+| User-space long integer width | 32 bits | `getconf LONG_BIT` |
+| System Python | 3.10.12 (below the project's >= 3.11) | `python3 --version` |
+| Venv Python | 3.11.18, built Oct 26 2026 with GCC 11.4.0 | `.venv/bin/python` |
+| PyNaCl, gpiod | 1.6.2, 2.5.0 | imported from the venv |
+
+`.venv/bin/python -m unittest discover -s tests -q`: 160 tests, OK, in
+32.7 s. The venv uses its own Python 3.11.18, not the system 3.10; how that
+interpreter and the two packages were installed (wheel or source build) was
+not recorded. Python 3.11 is therefore the oldest Python the project runs
+on: keep the code free of 3.12+-only syntax. Faro B's GPIO lines, the
+receiver and the optical loopback were brought up on the breadboard; see
+[the bring-up guide](../docs/optical-bringup.md).
 
 ## October 25 update and live checks
 
@@ -29,7 +53,8 @@ below supersedes the historical permission/install status in this profile.
   RGB wiring is superseded.
 - The Python suite and mesh simulation pass on A's Pi; final counts and
   commands are recorded in [MERGER.md](../MERGER.md). Physical I/O, timing,
-  optical exchange, panic wiring and B's environment remain unverified.
+  optical exchange and panic wiring remain unverified (B's environment:
+  see the November 1 update above).
 
 Use [the meeting runbook](../docs/optical-bringup.md). Historical notes below
 retain the original observations and must not override this dated update.
@@ -140,7 +165,7 @@ PyPI. These packaging checks do not exercise the Pi's hardware or Python binding
   GPIO-compatible levels.
 - Real optical timing, clock recovery, throughput/BER and behavior under the
   Node/Gateway workload; simulator durations are not hardware timing.
-- Confirm the second Pi's environment during bring-up.
+- Second Pi's environment: confirmed on 2026-11-01 (see above).
 
 See [project decisions](../docs/decisions.md) and the
 [hardware workspace](README.md). The first-milestone simulator requires no
@@ -151,14 +176,12 @@ GPIO package.
 Hardware facts for this model: BCM2836 with four Cortex-A7 cores (ARMv7,
 32-bit only), 1 GB RAM, no onboard Wi-Fi or Bluetooth, the same 40-pin
 header and BCM GPIO numbering as the Pi 3 B. Consequences to settle during
-bring-up, none of which has been verified on the board:
+bring-up (the November 1 update above records what was checked):
 
-- The owner has chosen PiOS for this board. Record its actual architecture,
-  OS release, kernel and Python version during bring-up; the
-  project declares Python >= 3.11.
-- PyNaCl 1.6.2 and gpiod 2.5.0 may have no prebuilt ARMv7 wheels; expect a
-  distribution package or a source build (compiler, libsodium/libgpiod
-  development headers). Record which path worked.
+- Done: Ubuntu 22.04.5, `armv7l`, kernel `5.15.0-1061-raspi`; the venv
+  runs Python 3.11.18 because the system Python is 3.10.12.
+- Done: PyNaCl 1.6.2 and gpiod 2.5.0 import and the suite passes; the
+  install path (wheel or source build) was not recorded.
 - Re-identify the GPIO character device and controller label with
   `gpiodetect`; do not assume `gpiochip0`.
 - Provide Ethernet or a USB Wi-Fi adapter for SSH, the LAN mesh links and

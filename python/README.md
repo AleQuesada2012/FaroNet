@@ -71,11 +71,13 @@ group so laptop development stays usable.
 
 The inspected hardware target is Raspberry Pi 3 Model B rev 1.2 with Ubuntu
 Server 26.04.1 LTS, ARM64, kernel `7.0.0-1020-raspi`, system Python 3.14.4.
-The second board is now a Raspberry Pi 2 Model B running PiOS; its exact
-Python and the PyNaCl/gpiod installation path there are unconfirmed, so keep
+The second board (Faro B) is a Raspberry Pi 2 Model B v1.1 with Ubuntu
+22.04.5 LTS, 32-bit `armv7l`, kernel `5.15.0-1061-raspi`, and a venv on
+Python 3.11.18 (the system Python 3.10.12 is too old), PyNaCl 1.6.2 and
+gpiod 2.5.0. Python 3.11 is the oldest Python the project runs on, so keep
 the code free of 3.12+-only syntax. See
-[the Pi environment](../hardware/pi-environment.md); the suite passes on A,
-while B's software tests are still pending. Create a fresh virtual environment on the Pi, rather than
+[the Pi environment](../hardware/pi-environment.md); the suite passes on
+both Pis (160 tests on B on 2026-11-01). Create a fresh virtual environment on the Pi, rather than
 copying the Mac environment. SSH metadata queries identify `/dev/gpiochip0`
 as `pinctrl-bcm2835`, with 54 lines. The team accepted the official libgpiod v2
 Python backend and BCM numbering; physical header positions must accompany
