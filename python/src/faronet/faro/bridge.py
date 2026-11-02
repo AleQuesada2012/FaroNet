@@ -12,7 +12,10 @@ so envelopes cross as six full frames. Control records (the handshake,
 public directory entries and signed neighbor lists) drop their zero
 padding, because at about 20 payload bytes per second padding would cost
 minutes, and form one byte stream cut into payloads of at most 85 bytes;
-the payload length tells the two apart.
+the payload length tells the two apart. Envelope fragments are offered at
+once and control chunks only when the link queue is empty, so a message
+never waits behind the directory sync and the control stream keeps its
+order.
 
 CsmaLink delivers in order and exactly once until three attempts fail.
 Then the stream is broken, so the bridge moves to the next epoch: a fresh
@@ -27,6 +30,7 @@ connection too.
 import hashlib
 import secrets
 import time
+from collections import deque
 
 from faronet.dispositivo_luz_adaptador.frame import PAYLOAD_SIZE, FrameType
 from faronet.dispositivo_luz_adaptador.medium import CsmaLink, Delivered, SendResult, Transmit
@@ -102,6 +106,7 @@ class _Bridge:
         self.tag = secrets.randbelow(1 << 16)
         self.from_client = bytearray()
         self.to_client = bytearray()
+        self.control = deque()
         self.emit({"epoch": epoch, "reason": reason})
 
     def reset(self, reason: str) -> None:
@@ -150,13 +155,18 @@ class _Bridge:
                 return
             self.stats["records_to_light"] += 1
             if kind == RecordType.ENVELOPE:
+                # A message goes ahead of the directory sync still waiting to be offered.
                 self.tag = (self.tag + 1) & 0xFFFF
-                payloads = fragment(body, self.tag)
+                for payload in fragment(body, self.tag):
+                    self.link.offer(payload)
             else:
                 wire = encode_wire(record)
-                payloads = [wire[i:i + CONTROL_CHUNK] for i in range(0, len(wire), CONTROL_CHUNK)]
-            for payload in payloads:
-                self.link.offer(payload)
+                self.control.extend(wire[i:i + CONTROL_CHUNK] for i in range(0, len(wire), CONTROL_CHUNK))
+
+    def feed_link(self) -> None:
+        """Offer the next control chunk only when the link queue is empty, keeping their order."""
+        if self.control and not self.link.queue:
+            self.link.offer(self.control.popleft())
 
     def write_client(self) -> None:
         if self.client is None or not self.to_client:
@@ -224,6 +234,7 @@ def serve_bridge(io, local: bytes, peer: bytes, base_session: bytes, listener, e
         while not stop.is_set():
             bridge.accept(listener)
             bridge.read_client()
+            bridge.feed_link()
             now = clock()
             # Collect decoded frames first so an owed ACK is decided before we transmit.
             frame = io.receive(min(max(bridge.link.wake_at - now, 0.0005), 0.05))

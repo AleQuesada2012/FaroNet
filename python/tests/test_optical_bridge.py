@@ -13,7 +13,7 @@ from unittest import mock
 
 from faronet.node import chat
 from faronet.faro.gpio import TimingError
-from faronet.faro.bridge import WireDecoder, encode_wire, epoch_session, serve_bridge
+from faronet.faro.bridge import WireDecoder, _Bridge, encode_wire, epoch_session, serve_bridge
 from faronet.node.fragment import ENVELOPE_SIZE
 from faronet.node.identity import Identity
 from faronet.node.lan import RECORD_SIZE, LanError, LanNode, RecordType, encode_record
@@ -92,6 +92,34 @@ class WireTests(unittest.TestCase):
         self.assertEqual(len(sessions), 100)
         self.assertTrue(all(len(s) == 8 for s in sessions))
         self.assertNotEqual(epoch_session(SESSION, 0), epoch_session(b"T" * 8, 0))
+
+
+class QueueOrderTests(unittest.TestCase):
+    def test_envelope_fragments_go_ahead_of_waiting_control_chunks(self):
+        io = mock.Mock(half_ns=int(HALF * 1e9))
+        bridge = _Bridge(io, A, B, SESSION, lambda event: None, None)
+        node, bridge.client = socket.socketpair()
+        self.addCleanup(node.close)
+        self.addCleanup(bridge.drop_client)
+        bridge.client.setblocking(False)
+        entry = encode_record(RecordType.ENTRY, bytes(range(200)))
+        links = encode_record(RecordType.LINKS, bytes(range(100)))
+        envelope = encode_record(RecordType.ENVELOPE, bytes(ENVELOPE_SIZE))
+        node.sendall(entry + links + envelope)
+        bridge.read_client()
+        queued = bridge.link.queue
+        self.assertEqual([len(p) for p in queued], [86] * 6)  # Only the envelope is offered.
+        sent = []
+        while bridge.control or queued:
+            waiting = len(queued)
+            bridge.feed_link()
+            if waiting:  # Control chunks wait for an empty link queue.
+                self.assertEqual(len(queued), waiting)
+            sent.append(queued.popleft())  # As the link sends and dequeues it.
+        control = sent[6:]
+        self.assertTrue(all(len(p) < 86 for p in control))
+        decoder = WireDecoder()
+        self.assertEqual([r for p in control for r in decoder.feed(p)], [entry, links])
 
 
 class Bridge:

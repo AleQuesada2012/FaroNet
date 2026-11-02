@@ -740,3 +740,19 @@ Agent-verified on the Mac: one new test with an injected clock (two
 Nodes over localhost TCP; no re-sign one second early, then the peer
 holds the new entry, still usable after the first one expired); Python
 suite 159 passed.
+
+### Task 4: envelope fragments ahead of control chunks on the light
+
+`read_client` still offers an envelope's six fragments to the CsmaLink
+at once, but control chunks now wait in the bridge's own queue;
+`feed_link` (called every loop turn) offers the next one only when the
+link queue is empty, so their order is kept and a message no longer
+waits minutes behind the directory sync. The queue resets with each
+epoch. RFC 5.9 and Appendix A updated.
+
+Agent-verified on the Mac: one new unit test (an ENTRY, a LINKS and an
+ENVELOPE from the Node: only the six fragments are queued first, no
+control chunk is offered while the queue is busy, and the chunks decode
+back to the ENTRY and LINKS in order); all bridge tests pass, including
+the two bridges on a simulated light; Python suite 160 passed. Not run
+on Faros.
