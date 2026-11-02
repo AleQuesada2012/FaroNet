@@ -3,6 +3,7 @@
 import hashlib
 import json
 import math
+import os
 import secrets
 import signal
 import socket
@@ -180,7 +181,8 @@ def _link(io, args) -> int:
     _print({"ready": "optical-link", "frame_seconds": io.frame_seconds,
             "test_frames": args.count, "synthetic_only": True})
     try:
-        stats = run_link(io, link, test_payload, args.count, args.timeout, _print)
+        stats = run_link(io, link, test_payload, args.count, args.timeout, _print,
+                         trace=_print if os.environ.get("FARONET_RX_DEBUG") else None)
     finally:
         io.clear()
     moved = stats["sent_acknowledged"] + stats["received_unique"]

@@ -7,7 +7,8 @@ from faronet.dispositivo_luz_adaptador.medium import Delivered, SendResult, Tran
 LINGER_FRAMES = 7  # Stay to re-ACK a retried final frame, as the listener does.
 
 
-def run_link(io, link, expected, count: int, timeout: float, emit, clock=time.monotonic) -> dict:
+def run_link(io, link, expected, count: int, timeout: float, emit, clock=time.monotonic,
+             trace=None) -> dict:
     """Serve the link until our queue settles and `count` peer payloads arrive.
 
     `expected(index)` gives the peer's synthetic payload for bit-error counting.
@@ -25,10 +26,15 @@ def run_link(io, link, expected, count: int, timeout: float, emit, clock=time.mo
             break
         # Collect decoded frames first so an owed ACK is decided before we transmit.
         frame = io.receive(min(max(link.wake_at - now, 0.0005), 0.05))
+        if frame is not None and trace is not None:
+            trace({"t": round(clock() - start, 2), "rx": frame.kind.name, "seq": frame.sequence})
         actions = link.on_frame(frame, clock()) if frame is not None else []
         actions += link.poll(clock(), *io.channel())
         for action in actions:
             if isinstance(action, Transmit):
+                if trace is not None:
+                    trace({"t": round(clock() - start, 2), "tx": action.frame.kind.name,
+                           "seq": action.frame.sequence})
                 io.guard()
                 io.transmit(action.frame)
             elif isinstance(action, SendResult):

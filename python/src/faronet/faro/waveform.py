@@ -53,8 +53,9 @@ class EdgeDecoder:
             "raw": raw_bits(self._levels(count)).hex() if count else "",
         })
 
-    def lose_sync(self, error="edge overflow", count: int = 0) -> None:
-        self._report("preamble" if count else "overflow", error, count)
+    def lose_sync(self, reason: str = "stopped", error="", count: int = 0) -> None:
+        if reason != "stopped":
+            self._report(reason, error, count)
         self.start = None
         self.edges.clear()
         self._header_checked = False
@@ -81,7 +82,7 @@ class EdgeDecoder:
                 if decode(self._levels(96)) != PREAMBLE + SYNC:
                     raise FrameError("Preamble/sync mismatch")
             except (FrameError, ManchesterError) as error:
-                self.lose_sync(error, 96)
+                self.lose_sync("preamble", error, 96)
                 return None
             self._header_checked = True
         if elapsed < FRAME_SYMBOLS * self.half_ns:
@@ -109,7 +110,7 @@ class EdgeDecoder:
             self.edges.append((timestamp_ns, level))
             # Bound memory; leave room for comparator glitches at transitions.
             if len(self.edges) > 4 * FRAME_SYMBOLS:
-                self.lose_sync()
+                self.lose_sync("overflow", "more edges than a frame can have")
         if level == 0:
             self.low_since = timestamp_ns
         self.level = level
