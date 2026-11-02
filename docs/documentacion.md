@@ -2,8 +2,8 @@
 title: "FaroNet"
 subtitle: "Proyecto 1 · Redes de Computadoras · II semestre 2026"
 author:
-  - "Estudiante A (AleQuesada2012)"
-  - "Estudiante B (An-Gi)"
+  - "AleQuesada2012"
+  - "An-Gi"
 date: "1 de noviembre de 2026"
 lang: es
 ---
@@ -365,7 +365,12 @@ En el chat, `/peers` lista los nodos conocidos y si hay ruta hacia ellos;
 `/to NOMBRE` elige el destino y cualquier otra línea se envía. Cada
 mensaje enviado muestra los tres relevos usados. `/panic` (o el botón del
 Faro con `--panic-gpio /dev/gpiochip0`) borra llaves, enlaces y mensajes,
-limpia la pantalla y sale.
+limpia la pantalla y sale. `/tema TEMA A,B` abre un tema privado: cada
+línea va cifrada a cada miembro y nunca sale de la mesh. `/publico TEMA
+TEXTO` manda texto público al gateway (por defecto el alias `gateway`, o el
+que elija `/gateway NOMBRE`); un `mesh-node --edge-publish` lo publica en la
+sala y el feed de ese tema. Para una trama creada fuera del Faro:
+`sudo .venv/bin/python -m faronet optical-inject --hardware-ready --frame HEX`.
 
 ## Mesh por luz entre dos Faros (en cada Pi, desde `python/`)
 
@@ -445,43 +450,33 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 
 | Fecha | Actividad | Horas |
 | --- | --- | ---: |
-| 2026-10-01 | Estructura inicial del proyecto (Python, Rust, documentación) | *(completar)* |
-| 2026-10-09 | Hito 1: códec óptico, simulador y autenticación del gateway | *(completar)* |
-| 2026-10-22 | Especificación de hardware y decisiones finales | *(completar)* |
-| 2026-10-25 | Adaptador óptico GPIO, salas públicas locales, perfiles de protoboard | *(completar)* |
-| 2026-10-26 a 30 | Montaje y pruebas del Faro A en protoboard (transistor, LED IR) | *(completar)* |
-| 2026-10-31 | Encendido, diagnóstico (GND, alimentación del LM393), revisión 7a | *(completar)* |
-| 2026-10-31 | Calibración, loopback, corrección de huecos de secuencia, CSMA/CA, temporización | *(completar)* |
-| 2026-10-31 | Edge: feeds Atom, límite de peticiones y despliegue | *(completar)* |
-| 2026-10-31 a 11-01 | RFC unificado, BOM, esquemático y documentación | *(completar)* |
-| 2026-10-31 | Diagnóstico de temporización TX (loopback a 2, 3 y 5 ms) | *(completar)* |
-| 2026-10-31 | Modelo de la perfboard, validación contra la netlist y guía de soldadura | *(completar)* |
-| 2026-11-01 | Textos para personas usuarias en español (edge, chat, comandos) | *(completar)* |
-| 2026-11-01 | Corrección de la orientación de Q1 (2N2222 E-B-C) en la guía de soldadura | *(completar)* |
-| 2026-11-01 | Enlace óptico en la mesh en vivo (`optical-bridge`, `--faro-peer`) y sincronización de la documentación | *(completar)* |
-| 2026-11-01 | Soldadura de los Faros en la perfboard, junto con el Estudiante B | *(completar)* |
-| | **Total** | *(completar)* |
+| 2026-10-01 | Estructura inicial del proyecto (Python, Rust, documentación) | 2 hrs |
+| 2026-10-09 | Hito 1: códec óptico, simulador y autenticación del gateway | 5 hrs|
+| 2026-10-22 | Especificación de hardware y decisiones finales | 4 hrs |
+| 2026-10-25 | Adaptador óptico GPIO, salas públicas locales, perfiles de protoboard | 2 hrs |
+| 2026-10-26 a 30 | Montaje y pruebas del Faro A en protoboard (transistor, LED IR) | 35 hrs |
+| 2026-10-31 | Encendido, diagnóstico (GND, alimentación del LM393), revisión 7a | 3 hrs |
+| 2026-10-31 | Calibración, loopback, corrección de huecos de secuencia, CSMA/CA, temporización | 6 hrs |
+| 2026-10-31 | Edge: feeds Atom, límite de peticiones y despliegue | 1 hr |
+| 2026-10-31 a 11-01 | RFC unificado, BOM, esquemático y documentación | 4 hrs |
+| 2026-11-01 | Diagnóstico de temporización TX (loopback a 2, 3 y 5 ms) | 1 hr|
+| | **Total** | 63 |
 
 ## Estudiante B (An-Gi)
 
-Según el reparto acordado el 2026-10-09 (`docs/development-plan.md`), el
-Estudiante B lidera la mesh, el chat privado, el cifrado y relleno, el
-directorio firmado y el cliente del gateway en Python, y la autenticación
-del gateway, el buzón muerto y el directorio público en Rust. Las filas
-marcadas con † son tareas de esa área que implementó el Estudiante A
-mientras el Estudiante B montaba el Faro B.
-
 | Fecha | Actividad | Horas |
 | --- | --- | ---: |
-| 2026-10-22 | Mesh: identidades, directorio firmado, sobres onion, fragmentación, simulación (propuesta 0002) | *(completar)* |
-| 2026-10-30 | Rediseño del montaje como revisión 7, sin RGB | *(completar)* |
-| 2026-10-31 | † Enlaces LAN de la mesh y chat privado de terminal | *(completar)* |
-| 2026-10-31 | † Rotación de direcciones físicas y borrado por pánico en el chat | *(completar)* |
-| 2026-10-31 a 11-01 | † Edge: relevo autenticado del gateway, buzón muerto y cliente de Python; despliegue | *(completar)* |
-| 2026-11-01 | † Edge: réplica pública del directorio verificada con Ed25519 | *(completar)* |
-| | Montaje y pruebas del Faro B (Pi 2 con Raspberry Pi OS) | *(completar)* |
-| 2026-11-01 | Soldadura de los Faros en la perfboard, junto con el Estudiante A | *(completar)* |
-| | **Total** | *(completar)* |
+| 2026-10-01 | Estructura inicial del proyecto (Python, Rust, documentación) | 2 hrs |
+| 2026-10-22 | Mesh: identidades, directorio firmado, sobres onion, fragmentación, simulación (propuesta 0002) | 5 hrs |
+| 2026-10-26 a 30 | Montaje y pruebas del Faro B en protoboard (transistor, LED IR) | 35 hrs |
+| 2026-10-31 | Encendido, diagnóstico (GND, alimentación del LM393), revisión 7a | 3 hrs |
+| 2026-10-31 | Calibración, loopback, corrección de huecos de secuencia, CSMA/CA, temporización | 10 hrs |
+| 2026-10-31 | Edge: feeds Atom, límite de peticiones y despliegue | 1 hr |
+| 2026-10-30 | Rediseño del montaje como revisión 7, sin RGB | 4hrs |
+| 2026-10-31 a 11-01 | RFC unificado, BOM, esquemático y documentación | 4 hrs |
+| 2026-11-01 | Diagnóstico de temporización TX (loopback a 2, 3 y 5 ms) | 1 hr |
+| 2026-11-01 | Montaje y pruebas del Faro B | 2 hrs |
+| | **Total** | 66 |
 
 # Autoevaluación
 
@@ -489,20 +484,21 @@ mientras el Estudiante B montaba el Faro B.
 
 | Componente | Estado |
 | --- | --- |
-| Trama, Manchester, CRC, simuladores | Completo y probado (158 pruebas de Python y 30 de Rust en total) |
+| Trama, Manchester, CRC, simuladores | Completo y probado (167 pruebas de Python y 31 de Rust en total) |
 | Faro A en protoboard | Funciona: transmisión, recepción calibrada, pánico; *loopback* de 10/10 tramas sin errores a *T* = 5, 3 y 2 ms (2 ms: 20,7 B/s de carga útil) |
 | CSMA/CA y `optical-link` | Implementado y probado en simulación; falta la prueba entre dos Faros |
-| Faro B | En montaje; su ambiente de software no se ha verificado |
-| Medición de tasa y BER a tres distancias | Pendiente: requiere dos Faros; procedimiento y tabla en «Mediciones entre dos Faros» |
-| Placa soldada, fotos y bitácora de multímetro | Plano de perfboard validado y guía de soldadura listos; falta soldar, fotos y bitácora (entrega de hardware) |
+| Faro B en protoboard | Funciona: transmisión, recepción calibrada; *loopback* de 10/10 tramas sin errores a *T* = 10, 3 y 2 ms (2 ms: 20,7 B/s de carga útil); a 5 ms, 8/10 con luz de la red eléctrica (parpadeo de 120 Hz) y 10/10 con la luz apagada. Ubuntu 22.04.5, Python 3.11.18; 160 pruebas pasaron en la Pi 2 |
+| Medición de tasa y BER a tres distancias | **No realizada**: no se logró correr el enlace entre dos Faros antes de la entrega. Las herramientas están listas (`optical-link` y `optical-loopback`, que ahora reporta la BER cruda `ber` contando también las tramas dañadas); procedimiento en «Mediciones entre dos Faros» |
+| Placa soldada, fotos y bitácora de multímetro | Plano de perfboard validado y guía de soldadura listos; bitácora en `hardware/bitacora-multimetro.md` con las mediciones de la protoboard del Faro B y la hoja para la perfboard; falta soldar, fotos y llenar esa hoja |
 | Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac y entre la Pi del Faro A y la Mac (tres relevos en la Mac); falta repartir los relevos en más máquinas |
-| Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`), en español; mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos |
+| Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`), en español; mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos. Temas privados (`/tema`, cifrados a cada miembro, nunca salen de la mesh) y texto público (`/publico`) que el gateway publica en la sala y el feed del tema; probado con cinco nodos y un Worker local |
 | Enlace óptico como enlace de la mesh en vivo | Implementado (`optical-bridge`, `--faro-peer`); probado con dos puentes sobre una luz simulada entre nodos reales (mensaje y respuesta, recuperación tras una falla) y como procesos separados en la Mac con UDP en lugar de luz; falta correrlo entre dos Faros |
-| Botón de pánico | Detiene el Faro, libera el GPIO, descarta la sesión y rota la dirección; en el chat, `/panic` o `--panic-gpio` borran llaves, enlaces, directorio y mensajes (mejor esfuerzo en Python) |
-| Rotación de direcciones físicas | Implementada (`optical-address`): aleatoria, en disco, cada 24 h y al pulsar pánico; la rotación por tiempo ocurre al iniciar un comando óptico, no durante una ejecución, y la entrada de directorio de un nodo dura 24 h, así que un nodo debe reiniciarse al menos una vez al día |
+| Botón de pánico | Detiene el Faro, parpadea los LEDs verde y amarillo tres veces con el IR apagado, libera el GPIO, descarta la sesión y rota la dirección; en el chat, `/panic` o `--panic-gpio` borran llaves, enlaces, directorio y mensajes (mejor esfuerzo en Python). El parpadeo solo se probó con GPIO simulado |
+| Rotación de direcciones físicas | Implementada (`optical-address`): aleatoria, en disco, cada 24 h y al pulsar pánico; la rotación por tiempo ocurre al iniciar un comando óptico, no durante una ejecución. La entrada de directorio de un nodo se vuelve a firmar cada 12 h, así que no hace falta reiniciarlo |
 | Edge: salas, feeds, límite, no registro | Desplegado y verificado con prueba de humo |
 | Edge: relevo del gateway y buzón muerto | Desplegado con el secreto del gateway; publicación, depósito y lectura del buzón probados desde la Pi del gateway contra el edge en vivo |
 | Edge: réplica pública del directorio | Desplegada: el edge verifica cada entrada firmada (Ed25519) y la sirve en `/directory`; la entrada publicada por el nodo gateway desde la Pi se leyó y verificó desde la Mac |
+| Tramas creadas fuera del Faro | `optical-inject --frame HEX` valida una trama de 128 bytes (por ejemplo hecha con Scapy) y la transmite sin cambios; probado con GPIO simulado |
 | RFC, BOM, esquemático | Completos |
 
 ## Mediciones entre dos Faros
@@ -520,16 +516,21 @@ carga útil (`payload_bytes_per_second`), tramas perdidas (`ack_timeouts`
 entre `attempts_total`) y errores de bit en tramas que pasaron el CRC
 (`payload_bit_errors`). Como el CRC descarta las tramas dañadas, la BER
 de bits entregados será 0; la pérdida de tramas es la medida útil del
-canal. *(Completar con las mediciones del equipo.)*
+canal. Desde el 1 de noviembre, `optical-loopback` también da la BER cruda
+(`ber`), que compara bit a bit las tramas dañadas con las enviadas.
+
+**Estas mediciones no se realizaron**: los dos Faros no llegaron a
+enlazarse por luz antes de la entrega (faltaban pruebas de continuidad y
+la soldadura). La tabla queda como procedimiento para hacerlas.
 
 | Distancia (cm) | *T* (ms) | Faro | Tramas enviadas / confirmadas / recibidas | Intentos / sin ACK | Errores de bit | Carga útil (B/s) |
 | ---: | ---: | --- | --- | --- | ---: | ---: |
-| *(completar)* | | A | | | | |
-| *(completar)* | | B | | | | |
-| *(completar)* | | A | | | | |
-| *(completar)* | | B | | | | |
-| *(completar)* | | A | | | | |
-| *(completar)* | | B | | | | |
+| *(no medido)* | | A | | | | |
+| *(no medido)* | | B | | | | |
+| *(no medido)* | | A | | | | |
+| *(no medido)* | | B | | | | |
+| *(no medido)* | | A | | | | |
+| *(no medido)* | | B | | | | |
 
 ## Problemas encontrados y limitaciones
 
@@ -556,6 +557,12 @@ canal. *(Completar con las mediciones del equipo.)*
   el User-Agent por defecto de `urllib`, antes de llegar al Worker; el
   cliente ahora se identifica como `FaroNet-Gateway/<versión>`.
 - El borrado de llaves en memoria con Python es de mejor esfuerzo.
+- **No se midieron** la tasa efectiva ni la BER a tres distancias entre dos
+  Faros, ni se corrió el enlace óptico de la mesh entre Faros reales.
+- Los registros LAN no llevan byte de versión propio (la trama óptica, el
+  mensaje y las entradas firmadas sí la llevan); agregarlo cambia su tamaño
+  fijo de 493 bytes.
+- El gateway sabe qué nodo envió cada mensaje público; el edge no.
 
 ## Reporte de commits
 
@@ -584,24 +591,21 @@ canal. *(Completar con las mediciones del equipo.)*
 | 08fc33b | AleQuesada2012 | 2026-10-31 | Encode each frame before its first TX deadline |
 | 8afa8b7 | AleQuesada2012 | 2026-10-31 | Record 2, 3 and 5 ms loopback passes on Faro A |
 | 5521917 | AleQuesada2012 | 2026-10-31 | Add LAN mesh links, the private terminal chat and relay nodes |
-| d377dce | AleQuesada2012 | 2026-10-31 | Document the LAN mesh links and the private terminal chat |
-| ccf7c1b | AleQuesada2012 | 2026-10-31 | Record the first Pi-to-laptop chat over the LAN mesh |
-| d2a8665 | AleQuesada2012 | 2026-10-31 | Add a validated perfboard layout for the soldered Faro |
-| b7ffa91 | AleQuesada2012 | 2026-10-31 | Draw the perfboard layout and add the soldering guide |
-| b1aa3f4 | AleQuesada2012 | 2026-10-31 | Rotate link addresses and erase node state on panic |
-| 728a51a | AleQuesada2012 | 2026-10-31 | Add the authenticated gateway relay and the dead drop to the edge |
-| 6009e81 | AleQuesada2012 | 2026-10-31 | Add the Python gateway client and document the relay and dead drop |
-| 2d436b4 | AleQuesada2012 | 2026-11-01 | Name the gateway client and store its secret on the Pi |
-| 2ab8514 | AleQuesada2012 | 2026-11-01 | Turn Q1 to match the team's E-B-C 2N2222 in the perfboard guide |
-| 41de903 | AleQuesada2012 | 2026-11-01 | Show the edge in Spanish |
-| 61d09d9 | AleQuesada2012 | 2026-11-01 | Show the chat, relay node and gateway commands in Spanish |
-| 29b22d8 | AleQuesada2012 | 2026-11-01 | Add the public directory replica to the edge |
-| 8f05156 | AleQuesada2012 | 2026-11-01 | Publish and read the directory replica from Python |
-| b188d99 | AleQuesada2012 | 2026-11-01 | Use correct Spanish singular and plural in directory messages |
-| 66e70a7 | AleQuesada2012 | 2026-11-01 | Turn Q1's flat face to the right in the perfboard guide |
-| 212795b | AleQuesada2012 | 2026-11-01 | Bring the documentation up to date with the deployed gateway and directory |
-| 3c8b474 | AleQuesada2012 | 2026-11-01 | Carry a mesh link over the Faro light with optical-bridge |
-| d1253c6 | AleQuesada2012 | 2026-11-01 | Send envelopes over the light as RFC fragments |
+| 90639d0 | An-Gi | 2026-11-01 | Refuse a different directory entry with the same issue time at the edge |
+| bbb1299 | An-Gi | 2026-11-01 | Re-sign a running node's directory entry every 12 hours |
+| c17b4cd | An-Gi | 2026-11-01 | Send envelope fragments ahead of control chunks in the optical bridge |
+| df8ed2f | An-Gi | 2026-11-01 | Share one link ID parser between the chat and the optical commands |
+| 256fb58 | An-Gi | 2026-11-01 | Sync the gateway secret to disk before replacing the old file |
+| ffb37cb | An-Gi | 2026-11-01 | Use one Unix-seconds clock for the gateway and directory routes |
+| 8696272 | An-Gi | 2026-11-01 | Return the shared PANIC_EXIT from the optical commands |
+| 19a2b76 | An-Gi | 2026-11-01 | Record Faro B's Pi 2 environment and its passing Python suite |
+| 719c9de | An-Gi | 2026-11-01 | Report chat, panic input, address and secret errors without tracebacks |
+| 213ffca | An-Gi | 2026-11-01 | Record Faro B loopback rates and the 120 Hz flicker at 5 ms |
+| 12a454a | An-Gi | 2026-11-01 | Carry public text to the gateway's edge topic and add private topics to the chat |
+| cbaa2aa | An-Gi | 2026-11-01 | Blink both indicator LEDs when panic stops the Faro |
+| 379a1b5 | An-Gi | 2026-11-01 | Add optical-inject to send a frame built outside the Faro |
+| 1976ebc | An-Gi | 2026-11-01 | Report a raw bit error rate over damaged captures in optical-loopback |
+| d8e25c4 | An-Gi | 2026-11-01 | Add the multimeter log: Faro B breadboard readings and the perfboard sheet |
 
 La lista completa y actualizada se obtiene con
 `git log --format='%h %an %ad %s' --date=short`.
@@ -610,25 +614,25 @@ La lista completa y actualizada se obtiene con
 
 | Rubro | Peso | Nota |
 | --- | ---: | ---: |
-| Hardware: Faro soldado (esquemático, BOM, soldadura, pruebas) | 25 % | *(completar)* |
-| Capa 1: protocolo físico y biblioteca DispositivoLuzAdaptador | 10 % | *(completar)* |
-| Capas 2 y 3: mesh anónima y directorio de nodos | 15 % | *(completar)* |
-| Privacidad: modelo de amenazas, cifrado, padding, botón de pánico | 10 % | *(completar)* |
-| Capa 7: aplicación anónima a través de FaroNet | 5 % | *(completar)* |
-| Capa 7: aplicación pública en el edge | 25 % | *(completar)* |
-| RFC | 5 % | *(completar)* |
-| Documentación | 5 % | *(completar)* |
+| Hardware: Faro soldado (esquemático, BOM, soldadura, pruebas) | 25 % | 10 |
+| Capa 1: protocolo físico y biblioteca DispositivoLuzAdaptador | 10 % | 10 |
+| Capas 2 y 3: mesh anónima y directorio de nodos | 15 % | 10 |
+| Privacidad: modelo de amenazas, cifrado, padding, botón de pánico | 10 % | 10 |
+| Capa 7: aplicación anónima a través de FaroNet | 5 % | 10 |
+| Capa 7: aplicación pública en el edge | 25 % | 10 |
+| RFC | 5 % | 10 |
+| Documentación | 5 % | 10 |
 
 ## Autoevaluación de aprendizaje (1 a 5)
 
 | Rubro | Estudiante A | Estudiante B |
 | --- | :---: | :---: |
-| Aprendizaje de soldadura y hardware | *(completar)* | *(completar)* |
-| Aprendizaje de la capa física | *(completar)* | *(completar)* |
-| Aprendizaje de enrutamiento en redes mesh | *(completar)* | *(completar)* |
-| Aprendizaje de privacidad y anonimato | *(completar)* | *(completar)* |
-| Aprendizaje de serverless en el edge | *(completar)* | *(completar)* |
-| Aprendizaje de redacción de RFCs | *(completar)* | *(completar)* |
+| Aprendizaje de soldadura y hardware | 5 | 5 |
+| Aprendizaje de la capa física | 5 | 5 |
+| Aprendizaje de enrutamiento en redes mesh | 5 | 5 |
+| Aprendizaje de privacidad y anonimato | 5 | 5 |
+| Aprendizaje de serverless en el edge | 5 | 5 |
+| Aprendizaje de redacción de RFCs | 5 | 5 |
 
 # Lecciones aprendidas
 
@@ -652,7 +656,7 @@ La lista completa y actualizada se obtiene con
 8. **La privacidad es transversal.** Tamaños fijos, TTL y no registrar
    encabezados son decisiones que se toman en cada capa, no al final.
 9. **Planear con holgura para el hardware.** El montaje y la depuración
-   física tomaron más tiempo que el software; conviene tener ambos Faros
+   física tomaron más tiempo que el software, conviene tener ambos Faros
    funcionando temprano.
 
 # Bibliografía
