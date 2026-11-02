@@ -123,14 +123,11 @@ pub fn claim_expiry(timestamp: u64) -> u64 {
 #[cfg(target_arch = "wasm32")]
 pub mod runtime {
     use super::*;
+    use crate::directory::runtime::now_seconds;
     use crate::gateway_auth::{check_freshness, GatewayRequest, Verifier};
     use worker::js_sys::Uint8Array;
     use worker::wasm_bindgen::JsValue;
     use worker::*;
-
-    fn now_seconds() -> u64 {
-        Date::now().as_millis() / 1000
-    }
 
     fn reject(status: u16) -> Result<Response> {
         let message = match status {

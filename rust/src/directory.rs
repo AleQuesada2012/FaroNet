@@ -124,7 +124,8 @@ pub mod runtime {
     use super::*;
     use worker::*;
 
-    fn now_seconds() -> u64 {
+    /// Unix seconds from the Worker clock; the gateway routes use it too.
+    pub(crate) fn now_seconds() -> u64 {
         Date::now().as_millis() / 1000
     }
 

@@ -768,3 +768,7 @@ on Faros.
 - `store_secret` flushes and fsyncs the temporary file before the
   atomic replace, as `AddressStore.rotate` does, so a power cut cannot
   leave an empty Gateway secret. Python suite 160 passed.
+- One `now_seconds` for the Edge: `directory::runtime::now_seconds`,
+  now `pub(crate)`, also used by the gateway routes. `cargo test
+  --locked` 31 passed, `npm run check` passed, `npm run test:gateway`
+  passed against a fresh `npm run dev:gateway`.
