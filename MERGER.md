@@ -756,3 +756,12 @@ control chunk is offered while the queue is busy, and the chunks decode
 back to the ENTRY and LINKS in order); all bridge tests pass, including
 the two bridges on a simulated light; Python suite 160 passed. Not run
 on Faros.
+
+### Task 5: small cleanups
+
+- One `link_id` parser, in `faro/address.py`, for the chat/mesh-node
+  `--faro-peer`/`--faro-session` options and the optical commands'
+  `--local`/`--peer`/`--session`. Same validation; the optical commands
+  now show the chat's Spanish message instead of argparse's English
+  "invalid link_id value" (it is still a ValueError). Python suite 160
+  passed; `optical-link --peer XX` shows the Spanish error.

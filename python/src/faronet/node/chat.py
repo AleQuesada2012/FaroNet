@@ -18,7 +18,7 @@ import threading
 from faronet.node.envelope import MAX_TEXT_BYTES, Delivery, EnvelopeError
 from faronet.node.identity import ALIAS_PATTERN, DirectoryError, Identity
 from faronet.node.lan import LanError, LanNode
-from faronet.faro.address import AddressStore
+from faronet.faro.address import AddressStore, link_id
 from faronet.gateway.client import GatewayError
 from faronet.faro.profile import PANIC
 
@@ -89,12 +89,6 @@ def add_commands(commands) -> None:
             parser.add_argument("--to", help="Destino inicial (alias o prefijo del ID).")
             parser.add_argument("--ttl", type=int, default=DEFAULT_TTL,
                                 help=f"Vida del mensaje en segundos (por defecto {DEFAULT_TTL}).")
-
-
-def link_id(value: str) -> bytes:
-    if len(value) != 16 or any(c not in "0123456789abcdef" for c in value):
-        raise OptionError("Las direcciones y sesiones ópticas son 16 caracteres hex en minúscula")
-    return bytes.fromhex(value)
 
 
 def name_of(lan: LanNode, node_id: bytes) -> str:

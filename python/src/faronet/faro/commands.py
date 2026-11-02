@@ -14,7 +14,7 @@ from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
 from faronet.dispositivo_luz_adaptador.manchester import encode
 from faronet.dispositivo_luz_adaptador.physical import PhysicalDispositivoLuzAdaptador
 from faronet.dispositivo_luz_adaptador.medium import CsmaLink
-from faronet.faro.address import ROTATE_SECONDS, AddressStore
+from faronet.faro.address import ROTATE_SECONDS, AddressStore, link_id
 from faronet.faro.calibrate import rx_telemetry
 from faronet.faro.gpio import PanicStop
 from faronet.faro.link import run_link
@@ -24,12 +24,6 @@ from faronet.faro.timing import TxTiming, system_timing
 
 def test_payload(index: int) -> bytes:
     return hashlib.shake_256(b"FaroNet optical test v1" + index.to_bytes(4, "big")).digest(86)
-
-
-def link_id(value: str) -> bytes:
-    if len(value) != 16 or any(c not in "0123456789abcdef" for c in value):
-        raise ValueError("IDs must be 16 lowercase hex characters (eight bytes)")
-    return bytes.fromhex(value)
 
 
 def add_commands(commands):

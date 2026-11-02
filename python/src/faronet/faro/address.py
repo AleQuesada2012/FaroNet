@@ -8,6 +8,7 @@ so by default the file lives in root's home; set FARONET_STATE_DIR to share
 one store between users.
 """
 
+import argparse
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,17 @@ import time
 
 ADDRESS_SIZE = 8
 ROTATE_SECONDS = 24 * 3600
+
+
+class LinkIdError(argparse.ArgumentTypeError, ValueError):
+    """argparse shows this text as is; plain ValueError text would be replaced in English."""
+
+
+def link_id(value: str) -> bytes:
+    """A link address or session as given on the command line: 16 lowercase hex characters."""
+    if len(value) != 2 * ADDRESS_SIZE or any(c not in "0123456789abcdef" for c in value):
+        raise LinkIdError("Las direcciones y sesiones ópticas son 16 caracteres hex en minúscula")
+    return bytes.fromhex(value)
 
 
 def state_dir() -> Path:
