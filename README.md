@@ -12,8 +12,12 @@ reuses the optical link, following a contract that is still a proposal.
 The Student A slices add the GPIO optical adapter (ACK/retry, indicators,
 panic stop, single-board loopback) with CSMA/CA medium access
 ([proposal 0003](docs/rfc/0003-optical-medium-access-proposal.md)), and the
-edge's public topic rooms, Atom feeds and rate limiting. LAN transport,
-private terminal chat and the gateway relay remain pending.
+edge's public topic rooms, Atom feeds and rate limiting. Later slices add
+LAN mesh links with the private terminal chat and relay nodes, link-address
+rotation and panic erasure, and the edge's authenticated gateway relay, dead
+drop and public directory replica (all deployed). The perfboard layout and
+soldering guide are in [hardware/perfboard/](hardware/perfboard/). Attaching
+the optical link to live mesh nodes remains pending.
 
 **Deliverables:** [project documentation](docs/documentacion.md) (Spanish;
 `python3 scripts/build_docs.py` builds the PDF with the BOM and RFC),

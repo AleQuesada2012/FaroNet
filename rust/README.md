@@ -83,9 +83,10 @@ toolchains, compilation and tests stay on the Mac, separate from the Pis.
 
 `src/gateway_auth.rs` now implements the accepted offline authentication
 contract, including canonicalization, HMAC verification, freshness and a
-nonce-store interface. It is not connected to an HTTP route yet. Synthetic
-fixtures and the fake store establish policy/interoperability, not deployed
-replay protection. Future admission uses a Durable Object coordinator.
+nonce-store interface. `src/gateway.rs` connects it to the gateway routes
+(relay into a topic, dead drop) with nonce admission in the `GatewayReplay`
+Durable Object, and `src/directory.rs` adds the public directory replica.
+Both are deployed; the routes answer 404 when `GATEWAY_SECRET` is unset.
 
 ## Check and build
 

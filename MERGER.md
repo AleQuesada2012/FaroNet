@@ -618,3 +618,19 @@ The guide and drawing now place the flat face toward the right (toward R3
 and the board edge), with a check: from the right side of the board, the
 flat face reads E-B-C left to right. Holes and `check.py` are unchanged
 (13 mistakes still caught).
+
+## Documentation sync before the freeze (2026-11-01)
+
+`docs/documentacion.md` brought up to date with everything after
+`5521917`: edge section (gateway relay, dead drop, directory replica,
+Spanish text), data-structure tables (Python gateway client, address
+store, Rust `gateway.rs` and `directory.rs`), run instructions (chat
+`/panic`, gateway commands with `FARONET_DROP_SECRET`, `dev:gateway` /
+`test:gateway`, `wrangler secret put`), Student A activities for the
+work taken over from Student B, "Estado final" (deployed gateway and
+directory, 149 Python and 30 Rust tests), two new problems (Q1
+orientation, Cloudflare 1010) and the commit report up to `66e70a7`.
+Hours, grades and learning scores stay "(completar)". The RFC appendix,
+the root, Python and Rust READMEs no longer call deployed work pending.
+Agent-verified: Python suite 149 and `cargo test --locked` 30 at
+`66e70a7`; RFC still ASCII within 72 columns; PDF rebuilt.

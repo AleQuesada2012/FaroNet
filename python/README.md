@@ -35,11 +35,14 @@ as the working directory. `faronet info` also works after installation.
 
 - `src/faronet/cli.py`: terminal status and local simulation/authentication demos.
 - `src/faronet/node/`: identities/signed directory, fragmentation, onion
-  envelopes and a mesh simulation following proposal 0002; LAN transport
-  and the interactive private chat remain pending.
-- `src/faronet/gateway/`: offline HMAC/replay helpers; live bridge remains pending.
+  envelopes and a mesh simulation following proposal 0002; `lan.py` (LAN
+  links over TCP) and `chat.py` (the private terminal `chat` and relay-only
+  `mesh-node`).
+- `src/faronet/gateway/`: HMAC/replay helpers and the signed edge client
+  (`gateway-publish`, `drop-*`, `directory-fetch`, `gateway-secret`).
 - `src/faronet/faro/`: libgpiod v2 GPIO backend, timestamped-edge acquisition,
-  current breadboard pin profile, indicators and latched panic stop.
+  current breadboard pin profile, indicators, latched panic stop and the
+  rotating link-address store (`address.py`).
 - `src/faronet/dispositivo_luz_adaptador/`: location for the required
   `DispositivoLuzAdaptador` library, frame/Manchester codec and simulated link.
 

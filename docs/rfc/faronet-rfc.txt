@@ -895,8 +895,9 @@ Appendix A.  Implementation Status
    and tested locally, then deployed and checked from the Gateway Pi on
    2026-11-01.  Public directory replica: implemented (Edge
    verification with ed25519-dalek against the Python-signed fixture;
-   publishing from a Gateway mesh node with --edge-publish) and tested
-   locally, not yet deployed.
+   publishing from a Gateway mesh node with --edge-publish), tested
+   locally, deployed on 2026-11-01, and an entry published by the
+   Gateway Pi was fetched and verified from a laptop.
 
 Appendix B.  Test Vectors
 

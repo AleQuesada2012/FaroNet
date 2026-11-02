@@ -218,8 +218,21 @@ Desplegado en **<https://faronet-edge.faronet.workers.dev>**:
   con contador solo en memoria.
 - **No registro**: logs, trazas y observabilidad desactivados; no se
   guardan encabezados como `CF-Connecting-IP`.
-- **Autenticación del gateway** (HMAC-SHA-256 con marca de tiempo y nonce):
-  implementada y probada en Python y Rust, todavía sin ruta en vivo.
+- **Relevo del gateway** (`POST /gateway/rooms/{tema}`): solo el gateway
+  publica en las salas desde la mesh, con HMAC-SHA-256, marca de tiempo y
+  nonce de un solo uso (Durable Object `GatewayReplay`, guarda solo nonce y
+  caducidad). Sin `GATEWAY_SECRET` las rutas responden 404.
+- **Buzón muerto** (`/gateway/drop/{id}`): una casilla de 1024 bytes
+  opacos por identificador de 64 hex, se escribe una vez y se borra al
+  leerla, con caducidad de 24 h. Los identificadores y el cifrado
+  (SecretBox) salen de un secreto de 32 bytes que las dos personas
+  comparten fuera de banda; el edge nunca ve el texto.
+- **Réplica pública del directorio** (`POST /gateway/directory`,
+  `GET /directory`): el edge verifica cada entrada firmada igual que un
+  nodo (formato, ID derivado de la clave, caducidad de 30 días, Ed25519) y
+  guarda hasta 256; quien la lee vuelve a verificar cada entrada.
+- Todo texto que ve una persona usuaria (páginas, feeds, errores, chat y
+  comandos) está en español; el código y sus comentarios, en inglés.
 
 # Estructuras de datos y funciones principales
 
@@ -256,6 +269,9 @@ Desplegado en **<https://faronet-edge.faronet.workers.dev>**:
 | `LinksRecord`, `encode_record()`, `decode_record()` | Lista firmada de vecinos y registros LAN de tamaño fijo. |
 | `ChatSession` (`chat.py`) | Comandos del chat de terminal: `/peers`, `/to`, `/ttl`, `/quit`; muestra los mensajes recibidos. |
 | `gateway.auth` | Firma y verificación HMAC con frescura y admisión de nonce. |
+| `EdgeClient` (`gateway/client.py`) | Cliente firmado del edge: `publish()`, `drop_put()`, `drop_take()`, `publish_entry()`; envía su propio User-Agent porque Cloudflare rechaza el de `urllib`. |
+| `seal_drop()`, `open_drop()`, `drop_slot_id()`, `fetch_directory()` | Buzón cifrado a 1024 bytes exactos con identificadores derivados del secreto compartido; lectura y verificación de la réplica del directorio. |
+| `AddressStore` (`faro/address.py`) | Dirección física aleatoria de 8 bytes en un archivo privado; rota cada 24 h y al pulsar pánico. |
 
 ## Rust: `rust/src`
 
@@ -265,6 +281,8 @@ Desplegado en **<https://faronet-edge.faronet.workers.dev>**:
 | `atom_feed()`, `prune_feed()`, `append_feed()`, `rfc3339()`, `xml_text()` | Feed Atom puro y probado: TTL, límite de 20 entradas, fechas y escape XML. |
 | `EdgeLimiter`, `admit_in_window()`, `limiter_key()` | Límite de peticiones por cliente, en memoria. |
 | `gateway_auth` | Contrato HMAC compartido con Python mediante vectores en `fixtures/`. |
+| `gateway.rs`: `route()`, `valid_body()`, `GatewayReplay`, `DeadDrop` | Rutas del gateway, validación del cuerpo antes de reclamar el nonce, anti-reenvío y buzón muerto en Durable Objects SQLite. |
+| `directory.rs`: `verify_entry()`, `decide()`, `DirectoryReplica` | Verificación Ed25519 de entradas del directorio, regla más nueva gana y réplica con alarma que borra lo vencido. |
 
 El código fuente está documentado con docstrings y comentarios en cada
 módulo; cada carpeta tiene su `README.md`.
@@ -335,7 +353,29 @@ declararlo en uno de los dos extremos.
 
 En el chat, `/peers` lista los nodos conocidos y si hay ruta hacia ellos;
 `/to NOMBRE` elige el destino y cualquier otra línea se envía. Cada
-mensaje enviado muestra los tres relevos usados.
+mensaje enviado muestra los tres relevos usados. `/panic` (o el botón del
+Faro con `--panic-gpio /dev/gpiochip0`) borra llaves, enlaces y mensajes,
+limpia la pantalla y sale.
+
+## Gateway y edge desde la Pi del gateway (desde `python/`, sin `sudo`)
+
+```bash
+.venv/bin/python -m faronet gateway-secret          # se escribe oculto, una vez
+.venv/bin/python -m faronet gateway-publish --topic demo --text "hola desde FaroNet"
+.venv/bin/python -m faronet mesh-node --alias gw --listen 0.0.0.0:7404 --edge-publish
+.venv/bin/python -m faronet directory-fetch        # desde cualquier máquina
+```
+
+Buzón muerto: una persona corre `drop-secret` y comparte ese secreto de
+32 bytes fuera de banda; cada una lo carga en la variable
+`FARONET_DROP_SECRET` sin que quede en el historial (`read -s`) y acuerdan
+un número de casilla:
+
+```bash
+read -s FARONET_DROP_SECRET && export FARONET_DROP_SECRET
+.venv/bin/python -m faronet drop-put --slot 1 --text "nos vemos a las 3"
+.venv/bin/python -m faronet drop-take --slot 1
+```
 
 ## Edge (en la Mac, desde `rust/`)
 
@@ -344,7 +384,10 @@ npm ci && npm run setup
 cargo test --locked && npm run check && npm run build
 npm run dev:rooms        # local, en http://127.0.0.1:8787
 npm run test:rooms       # en otra terminal
+npm run dev:gateway      # local con un secreto de prueba, reiniciado
+npm run test:gateway     # en otra terminal
 npx wrangler login
+npx wrangler secret put GATEWAY_SECRET   # una vez, se escribe oculto
 npm run deploy
 npm run smoke -- https://faronet-edge.faronet.workers.dev
 ```
@@ -378,6 +421,12 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | 2026-10-31 a 11-01 | RFC unificado, BOM, esquemático y documentación | *(completar)* |
 | 2026-10-31 | Diagnóstico de temporización TX (loopback a 2, 3 y 5 ms) | *(completar)* |
 | 2026-10-31 | Enlaces LAN de la mesh y chat privado de terminal (trabajo del Estudiante B asumido por A) | *(completar)* |
+| 2026-10-31 | Modelo de la perfboard, validación contra la netlist y guía de soldadura | *(completar)* |
+| 2026-10-31 | Rotación de direcciones físicas y borrado por pánico en el chat (trabajo del Estudiante B asumido por A) | *(completar)* |
+| 2026-10-31 a 11-01 | Edge: relevo autenticado del gateway, buzón muerto y cliente de Python; despliegue (trabajo del Estudiante B asumido por A) | *(completar)* |
+| 2026-11-01 | Edge: réplica pública del directorio verificada con Ed25519 | *(completar)* |
+| 2026-11-01 | Textos para personas usuarias en español (edge, chat, comandos) | *(completar)* |
+| 2026-11-01 | Corrección de la orientación de Q1 (2N2222 E-B-C) en la guía de soldadura | *(completar)* |
 | | **Total** | *(completar)* |
 
 ## Estudiante B (An-Gi)
@@ -395,20 +444,20 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 
 | Componente | Estado |
 | --- | --- |
-| Trama, Manchester, CRC, simuladores | Completo y probado (132 pruebas de Python) |
+| Trama, Manchester, CRC, simuladores | Completo y probado (149 pruebas de Python y 30 de Rust en total) |
 | Faro A en protoboard | Funciona: transmisión, recepción calibrada, pánico; *loopback* de 10/10 tramas sin errores a *T* = 5, 3 y 2 ms (2 ms: 20,7 B/s de carga útil) |
 | CSMA/CA y `optical-link` | Implementado y probado en simulación; falta la prueba entre dos Faros |
 | Faro B | En montaje; su ambiente de software no se ha verificado |
 | Medición de tasa y BER a tres distancias | Pendiente: requiere dos Faros |
 | Placa soldada, fotos y bitácora de multímetro | Plano de perfboard validado y guía de soldadura listos; falta soldar, fotos y bitácora (entrega de hardware) |
 | Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac y entre la Pi del Faro A y la Mac (tres relevos en la Mac); falta repartir los relevos en más máquinas |
-| Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`); mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos |
+| Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`), en español; mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos |
 | Enlace óptico como enlace de la mesh en vivo | Pendiente: los nodos en vivo solo usan enlaces LAN |
 | Botón de pánico | Detiene el Faro, libera el GPIO, descarta la sesión y rota la dirección; en el chat, `/panic` o `--panic-gpio` borran llaves, enlaces, directorio y mensajes (mejor esfuerzo en Python) |
 | Rotación de direcciones físicas | Implementada (`optical-address`): aleatoria, en disco, cada 24 h y al pulsar pánico |
 | Edge: salas, feeds, límite, no registro | Desplegado y verificado con prueba de humo |
-| Edge: relevo del gateway y buzón muerto | Implementado y probado en local (Worker en Rust y cliente en Python con HMAC y anti-reenvío); falta desplegar con el secreto del gateway |
-| Edge: réplica pública del directorio | Implementada y probada en local: el edge verifica cada entrada firmada (Ed25519) y la sirve en `/directory`; el nodo gateway publica con `--edge-publish`; falta desplegar |
+| Edge: relevo del gateway y buzón muerto | Desplegado con el secreto del gateway; publicación, depósito y lectura del buzón probados desde la Pi del gateway contra el edge en vivo |
+| Edge: réplica pública del directorio | Desplegada: el edge verifica cada entrada firmada (Ed25519) y la sirve en `/directory`; la entrada publicada por el nodo gateway desde la Pi se leyó y verificó desde la Mac |
 | RFC, BOM, esquemático | Completos |
 
 ## Problemas encontrados y limitaciones
@@ -428,6 +477,13 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
   Pi 3 tardaba unos 2,5 ms en codificar la trama después de fijar el primer
   plazo. Codificar antes de ese plazo bajó el retraso máximo de 2,4 ms a
   unos 0,2 ms.
+- **Orientación del 2N2222**: el probador de transistores mostró que el
+  del equipo es E-B-C visto desde la cara plana, al revés del supuesto;
+  la guía de soldadura se corrigió dos veces hasta comprobar en la pieza
+  que la cara plana va hacia la derecha.
+- **Cloudflare rechazaba al cliente de Python** con 403 (error 1010) por
+  el User-Agent por defecto de `urllib`, antes de llegar al Worker; el
+  cliente ahora se identifica como `FaroNet-Gateway/<versión>`.
 - El borrado de llaves en memoria con Python es de mejor esfuerzo.
 
 ## Reporte de commits
@@ -457,6 +513,21 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | 08fc33b | AleQuesada2012 | 2026-10-31 | Encode each frame before its first TX deadline |
 | 8afa8b7 | AleQuesada2012 | 2026-10-31 | Record 2, 3 and 5 ms loopback passes on Faro A |
 | 5521917 | AleQuesada2012 | 2026-10-31 | Add LAN mesh links, the private terminal chat and relay nodes |
+| d377dce | AleQuesada2012 | 2026-10-31 | Document the LAN mesh links and the private terminal chat |
+| ccf7c1b | AleQuesada2012 | 2026-10-31 | Record the first Pi-to-laptop chat over the LAN mesh |
+| d2a8665 | AleQuesada2012 | 2026-10-31 | Add a validated perfboard layout for the soldered Faro |
+| b7ffa91 | AleQuesada2012 | 2026-10-31 | Draw the perfboard layout and add the soldering guide |
+| b1aa3f4 | AleQuesada2012 | 2026-10-31 | Rotate link addresses and erase node state on panic |
+| 728a51a | AleQuesada2012 | 2026-10-31 | Add the authenticated gateway relay and the dead drop to the edge |
+| 6009e81 | AleQuesada2012 | 2026-10-31 | Add the Python gateway client and document the relay and dead drop |
+| 2d436b4 | AleQuesada2012 | 2026-11-01 | Name the gateway client and store its secret on the Pi |
+| 2ab8514 | AleQuesada2012 | 2026-11-01 | Turn Q1 to match the team's E-B-C 2N2222 in the perfboard guide |
+| 41de903 | AleQuesada2012 | 2026-11-01 | Show the edge in Spanish |
+| 61d09d9 | AleQuesada2012 | 2026-11-01 | Show the chat, relay node and gateway commands in Spanish |
+| 29b22d8 | AleQuesada2012 | 2026-11-01 | Add the public directory replica to the edge |
+| 8f05156 | AleQuesada2012 | 2026-11-01 | Publish and read the directory replica from Python |
+| b188d99 | AleQuesada2012 | 2026-11-01 | Use correct Spanish singular and plural in directory messages |
+| 66e70a7 | AleQuesada2012 | 2026-11-01 | Turn Q1's flat face to the right in the perfboard guide |
 
 La lista completa y actualizada se obtiene con
 `git log --format='%h %an %ad %s' --date=short`.
