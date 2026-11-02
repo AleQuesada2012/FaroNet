@@ -907,3 +907,25 @@ errors, 0 rejected waveforms, 0 ignored frames and 0 event overruns. One
 DATA per side needed a second attempt after a contention with the peer's
 frame (4 attempts each, 1 ACK timeout, 1 and 2 deferrals). Payload 5.52
 and 5.53 B/s, run 93 s, TX max lateness 0.20 and 0.23 ms.
+
+### Measurements on `main` (`b121ccf`), 10 frames per direction
+
+Owner-reported. Both Pis switched to `main` for the measurements, so they
+measure the code shown at the demo. "Faro 1" is the owner's Pi
+(`zekken-pi`, Pi 3), "Faro 2" the teammate's (`Faro`, Pi 2).
+
+| Distance | Half-bit | Direction | Sent / ACKed / received by peer | Attempts / no ACK | Bit errors | Rejected | Payload B/s |
+| ---: | ---: | --- | --- | --- | ---: | ---: | ---: |
+| 5 cm | 2 ms | 1 → 2 | 10 / 10 / 10 | 12 / 2 | 0 | not reported | - |
+| 5 cm | 2 ms | 2 → 1 | 8 / 7 / 8 (frame 7 failed after 3 attempts; 8-9 never sent) | 12 / 5 | 0 | not reported | - |
+| 5 cm | 3 ms | 1 → 2 | 10 / 10 / 10 | 11 / 1 | 0 | 0 | 5.39 |
+| 5 cm | 3 ms | 2 → 1 | 10 / 10 / 10 | 11 / 1 | 0 | 0 | 5.39 |
+
+At 2 ms, Faro 2 failed to decode Faro 1's ACKs three times in a row while
+Faro 1 was idle, so collisions were not the cause. This matches the
+10 ms edge capture, where Faro 2 receiving Faro 1 was the weaker direction:
+light pulses 0.47 ms longer than dark ones are about a quarter of a 2 ms
+half-bit before jitter and clock drift. With 3 ms, the 5 cm run was clean
+(319 s, TX max lateness 0.22 and 0.59 ms); 3 ms is used from here on.
+Faro 1 kept waiting for the two frames Faro 2 had given up on until it was
+stopped; `optical-link` ends only on its count or its timeout.
