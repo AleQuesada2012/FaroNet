@@ -56,6 +56,11 @@ Prueba funcional del mismo día: el loopback óptico pasó 10/10 tramas a 2,
 
 ## Parte 2 · Perfboard soldada (llenar al soldar cada Faro)
 
+**Estado al 1 de noviembre:** la perfboard se soldó (fotos en
+`hardware/IMG_3085.HEIC` y `hardware/IMG_3086.HEIC`), pero esta hoja no se
+llenó por falta de tiempo antes de la entrega. Las casillas vacías no son
+mediciones.
+
 Una columna por Faro. Medir **con la Pi desconectada** hasta la sección C.
 
 ### A · Continuidad sin energía (cada red, de punta a punta)

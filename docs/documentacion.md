@@ -139,6 +139,10 @@ receptor, dos indicadores y el botón de pánico. Decisiones principales:
 
 ![Esquemático del Faro, revisión 7 (placa soldada).](../hardware/schematic/faro-rev7.svg)
 
+![Placa soldada, lado de componentes (`hardware/IMG_3086.HEIC`).](../hardware/fotos/perfboard-componentes.jpg){width=60%}
+
+![Placa soldada, lado de cobre (`hardware/IMG_3085.HEIC`).](../hardware/fotos/perfboard-cobre.jpg){width=60%}
+
 El esquemático fuente está en `hardware/schematic/faro-rev7.tex`; la lista
 de materiales con costos en colones está en `hardware/bom.md` (anexo A).
 
@@ -489,7 +493,7 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | CSMA/CA y `optical-link` | Implementado y probado en simulación; falta la prueba entre dos Faros |
 | Faro B en protoboard | Funciona: transmisión, recepción calibrada; *loopback* de 10/10 tramas sin errores a *T* = 10, 3 y 2 ms (2 ms: 20,7 B/s de carga útil); a 5 ms, 8/10 con luz de la red eléctrica (parpadeo de 120 Hz) y 10/10 con la luz apagada. Ubuntu 22.04.5, Python 3.11.18; 160 pruebas pasaron en la Pi 2 |
 | Medición de tasa y BER a tres distancias | **No realizada**: no se logró correr el enlace entre dos Faros antes de la entrega. Las herramientas están listas (`optical-link` y `optical-loopback`, que ahora reporta la BER cruda `ber` contando también las tramas dañadas); procedimiento en «Mediciones entre dos Faros» |
-| Placa soldada, fotos y bitácora de multímetro | Plano de perfboard validado y guía de soldadura listos; bitácora en `hardware/bitacora-multimetro.md` con las mediciones de la protoboard del Faro B y la hoja para la perfboard; falta soldar, fotos y llenar esa hoja |
+| Placa soldada, fotos y bitácora de multímetro | Perfboard soldada según la guía, con fotos de ambas caras (`hardware/IMG_3085.HEIC`, `hardware/IMG_3086.HEIC` y en la sección de diseño). Bitácora en `hardware/bitacora-multimetro.md` con las mediciones de la protoboard del Faro B; **por falta de tiempo no se llenó la hoja de la perfboard** (continuidad, aislamiento y voltajes) **ni se probó la placa soldada encendida**: el funcionamiento verificado es el de la protoboard |
 | Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac y entre la Pi del Faro A y la Mac (tres relevos en la Mac); falta repartir los relevos en más máquinas |
 | Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`), en español; mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos. Temas privados (`/tema`, cifrados a cada miembro, nunca salen de la mesh) y texto público (`/publico`) que el gateway publica en la sala y el feed del tema; probado con cinco nodos y un Worker local |
 | Enlace óptico como enlace de la mesh en vivo | Implementado (`optical-bridge`, `--faro-peer`); probado con dos puentes sobre una luz simulada entre nodos reales (mensaje y respuesta, recuperación tras una falla) y como procesos separados en la Mac con UDP en lugar de luz; falta correrlo entre dos Faros |
@@ -558,6 +562,10 @@ enlazarse por luz ya que el día que se iban a hacer las pruebas existieron vari
 - El borrado de llaves en memoria con Python es de mejor esfuerzo.
 - **No se midieron** la tasa efectiva ni la BER a tres distancias entre dos
   Faros, ni se corrió el enlace óptico de la mesh entre Faros reales.
+- **La placa soldada no se midió ni se probó encendida** antes de la
+  entrega; tampoco se probaron en los Faros reales las funciones agregadas
+  el 1 de noviembre (parpadeo de pánico, `optical-inject`, BER cruda,
+  `/tema` y `/publico` por luz), solo con GPIO simulado o en la LAN.
 - Los registros LAN no llevan byte de versión propio (la trama óptica, el
   mensaje y las entradas firmadas sí la llevan); agregarlo cambia su tamaño
   fijo de 493 bytes.
