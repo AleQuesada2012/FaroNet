@@ -3,7 +3,9 @@
 from collections import deque
 from contextlib import contextmanager
 import gc
+import json
 import os
+import sys
 import time
 
 from faronet.dispositivo_luz_adaptador.frame import Frame
@@ -107,10 +109,13 @@ class GpioFrameIO:
             raise
 
     def _new_decoder(self):
-        return EdgeDecoder(
+        decoder = EdgeDecoder(
             self.half_ns, time.monotonic_ns(),
             int(self.request.get_value(RX) == self._value.ACTIVE),
         )
+        if os.environ.get("FARONET_RX_DEBUG"):
+            decoder.on_reject = lambda info: print(json.dumps(info, sort_keys=True), file=sys.stderr, flush=True)
+        return decoder
 
     def set_output(self, pin: int, value: bool):
         self.request.set_value(pin, self._value.ACTIVE if value else self._value.INACTIVE)

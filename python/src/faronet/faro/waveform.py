@@ -39,8 +39,22 @@ class EdgeDecoder:
         self._header_checked = False
         # Bytes read from the last complete capture that failed to decode, for raw BER.
         self.last_raw: bytes | None = None
+        # Optional diagnostics: called with a dict describing each rejected capture.
+        self.on_reject = None
 
-    def lose_sync(self) -> None:
+    def _report(self, reason: str, error, count: int) -> None:
+        if self.on_reject is None or self.start is None:
+            return
+        offsets = [(t - self.start) / self.half_ns for t, _ in self.edges]
+        self.on_reject({
+            "rx_reject": reason, "error": str(error), "edges": len(self.edges),
+            "first_edges_half_bits": [round(o, 3) for o in offsets[:8]],
+            "worst_edge_offset_half_bits": round(max((abs(o - round(o)) for o in offsets), default=0), 3),
+            "raw": raw_bits(self._levels(count)).hex() if count else "",
+        })
+
+    def lose_sync(self, error="edge overflow", count: int = 0) -> None:
+        self._report("preamble" if count else "overflow", error, count)
         self.start = None
         self.edges.clear()
         self._header_checked = False
@@ -66,8 +80,8 @@ class EdgeDecoder:
             try:
                 if decode(self._levels(96)) != PREAMBLE + SYNC:
                     raise FrameError("Preamble/sync mismatch")
-            except (FrameError, ManchesterError):
-                self.lose_sync()
+            except (FrameError, ManchesterError) as error:
+                self.lose_sync(error, 96)
                 return None
             self._header_checked = True
         if elapsed < FRAME_SYMBOLS * self.half_ns:
@@ -75,7 +89,8 @@ class EdgeDecoder:
         levels = self._levels(FRAME_SYMBOLS)
         try:
             result = Frame.decode(decode(levels))
-        except (FrameError, ManchesterError):
+        except (FrameError, ManchesterError) as error:
+            self._report("frame", error, FRAME_SYMBOLS)
             self.rejected += 1
             self.last_raw = raw_bits(levels)
             result = None

@@ -186,7 +186,7 @@ def _link(io, args) -> int:
     moved = stats["sent_acknowledged"] + stats["received_unique"]
     _print(stats | {
         "attempts_total": link.attempts_total, "ack_timeouts": link.ack_timeouts,
-        "deferrals": link.deferrals, "duplicates_reacked": link.duplicates,
+        "deferrals": link.deferrals, "duplicates_reacked": link.duplicates, "ignored": link.ignored,
         "payload_bytes_per_second": round(moved * 86 / stats["elapsed_seconds"], 3),
         "rejected_waveforms": io.rejected, "event_overruns": io.overruns,
         "tx_max_lateness_ms": round(io.max_lateness_ns / 1e6, 3),
