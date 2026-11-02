@@ -35,9 +35,10 @@ def add_commands(commands):
     preflight.add_argument("--chip", default="/dev/gpiochip0")
     preflight.add_argument("--profile-only", action="store_true", help="Show pins without importing gpiod.")
     for name in ("gpio-monitor", "gpio-calibrate", "optical-loopback", "optical-link",
-                 "optical-send", "optical-listen", "optical-bridge"):
-        text = ("Carry one mesh LAN link over the peer Faro (chat --faro-peer starts it)."
-                if name == "optical-bridge" else "Physical optical bring-up (requires prepared circuit).")
+                 "optical-send", "optical-listen", "optical-bridge", "optical-inject"):
+        text = {"optical-bridge": "Carry one mesh LAN link over the peer Faro (chat --faro-peer starts it).",
+                "optical-inject": "Transmit a 128-byte frame built outside the Faro (for example with Scapy)."
+                }.get(name, "Physical optical bring-up (requires prepared circuit).")
         parser = commands.add_parser(name, help=text)
         parser.add_argument("--chip", default="/dev/gpiochip0")
         parser.add_argument("--hardware-ready", action="store_true", required=True,
@@ -52,6 +53,10 @@ def add_commands(commands):
                                 help="Toggle IR; hold a reflector over D1 and Q2.")
             parser.add_argument("--blink-ms", type=float, default=1000,
                                 help="IR on/off period half (ms) with --blink; 10 matches a 10 ms half-bit.")
+        elif name == "optical-inject":
+            parser.add_argument("--frame", required=True, metavar="HEX",
+                                help="The serialized frame as 256 hex characters, or - to read them from stdin.")
+            parser.add_argument("--count", type=int, default=1, help="Times to transmit it (1-1000).")
         elif name == "optical-loopback":
             parser.add_argument("--count", type=int, default=3)
             parser.add_argument("--timing-report", action="store_true",
@@ -73,6 +78,16 @@ def add_commands(commands):
             elif name == "optical-link":
                 parser.add_argument("--timeout", type=float, default=900,
                                     help="Total run time limit, including the final re-ACK linger.")
+
+
+def _external_frame(text: str) -> Frame:
+    """RFC FN-1 4.1: a frame built elsewhere is checked like a received one before it is sent."""
+    text = (sys.stdin.read() if text == "-" else text).strip()
+    try:
+        raw = bytes.fromhex(text)
+    except ValueError:
+        raise ValueError("--frame must be hexadecimal") from None
+    return Frame.decode(raw)
 
 
 def _listen_address(value: str) -> tuple[str, int]:
@@ -209,7 +224,15 @@ def run(args) -> int:
             args.local = AddressStore().current()
         if getattr(args, "peer", None) is not None and args.local == args.peer:
             raise ValueError("Local and peer addresses must differ")
+        injected = _external_frame(args.frame) if args.command == "optical-inject" else None
         with GpioFrameIO(args.chip, args.half_bit_ms, args.rx_inverted) as io:
+            if injected is not None:
+                for index in range(args.count):
+                    io.guard()
+                    io.transmit(injected)
+                    _print({"injected": index, "type": injected.kind.name, "sequence": injected.sequence,
+                            "payload_bytes": len(injected.payload)})
+                return 0
             if args.command == "gpio-monitor":
                 end, previous = time.monotonic() + args.seconds, None
                 while time.monotonic() < end:

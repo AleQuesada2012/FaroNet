@@ -2,14 +2,18 @@
 
 from collections import deque
 import json
+import io
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
 from faronet.dispositivo_luz_adaptador.manchester import encode
 from faronet.dispositivo_luz_adaptador.physical import (
     PhysicalDispositivoLuzAdaptador, PhysicalLinkError,
 )
+from faronet.faro import commands
 from faronet.faro.commands import link_id, test_payload as payload_for
 from faronet.faro.profile import PINS
 from faronet.faro.waveform import EdgeDecoder
@@ -246,6 +250,50 @@ class PhysicalAdapterTests(unittest.TestCase):
         wired = {wire["net"]: int(wire["a"][3:]) for wire in layout["wires"]
                  if wire["a"].startswith("PI:") and wire["net"] in assigned}
         self.assertEqual({p.role: p.physical for p in PINS}, wired)
+
+
+class InjectCommandTests(unittest.TestCase):
+    """optical-inject: a frame built outside the Faro is validated, then sent unchanged."""
+
+    def run_inject(self, frame_hex, count=1):
+        sent = []
+
+        class FakeIO:
+            def __init__(self, *args):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                pass
+
+            def guard(self):
+                pass
+
+            def transmit(self, frame):
+                sent.append(frame)
+
+        args = SimpleNamespace(command="optical-inject", frame=frame_hex, count=count, chip="/dev/fake",
+                               half_bit_ms=2, rx_inverted=False)
+        with patch("faronet.faro.gpio.GpioFrameIO", FakeIO), patch("sys.stdout", io.StringIO()) as out, \
+                patch("sys.stderr", io.StringIO()) as err:
+            code = commands.run(args)
+        return code, sent, out.getvalue(), err.getvalue()
+
+    def test_external_frame_is_sent_and_bad_ones_are_refused_before_gpio(self):
+        frame = Frame(FrameType.DATA, b"a" * 8, b"b" * 8, b"s" * 8, 7, b"desde scapy")
+        code, sent, out, _ = self.run_inject(frame.encode().hex(), count=2)
+        self.assertEqual((code, sent), (0, [frame, frame]))
+        self.assertEqual(json.loads(out.splitlines()[-1])["sequence"], 7)
+        with patch("sys.stdin", io.StringIO(frame.encode().hex() + "\n")):
+            self.assertEqual(self.run_inject("-")[1], [frame])
+        damaged = bytearray(frame.encode())
+        damaged[40] ^= 1  # CRC no longer matches.
+        for bad in (bytes(damaged).hex(), "zz", frame.encode()[:-1].hex()):
+            code, sent, _, err = self.run_inject(bad)
+            self.assertEqual((code, sent), (2, []))
+            self.assertIn("Falló el comando óptico", err)
 
 
 if __name__ == "__main__":

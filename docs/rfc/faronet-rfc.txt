@@ -354,7 +354,9 @@ Table of Contents
    o  send_frame(frame): accept a complete 128-byte frame built outside
       the Faro (for example with Scapy or by another program), validate
       it per Section 4.1, require that its addresses, session and
-      sequence match the link, and send it as DATA.
+      sequence match the link, and send it as DATA.  From the terminal,
+      "optical-inject --frame HEX" (or "-" for stdin) validates such a
+      frame the same way and transmits it unchanged, without a link.
 
    o  receive(timeout): return the next delivered payload, or nothing.
 

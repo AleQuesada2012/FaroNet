@@ -844,3 +844,17 @@ Agent-verified on the Mac with the fake GPIO request: one new test
 (three ACTIVE writes on each LED, TX never ACTIVE, all outputs off,
 lines released); Python suite 166 passed. Not run on a Faro: check the
 blink by pressing panic during `gpio-calibrate` or `optical-link`.
+
+### `optical-inject`: a frame built outside the Faro, from the terminal
+
+`optical-inject --hardware-ready --frame HEX [--count N]` (`-` reads the
+hex from stdin, for example from a Scapy script) checks the 128 bytes
+with `Frame.decode` before any GPIO line is requested, then guards and
+transmits the frame unchanged N times, printing one JSON line per send.
+A bad hex string, length, CRC or field exits 2 with the usual "Falló el
+comando óptico" message. RFC 4 (`send_frame`) mentions it.
+
+Agent-verified on the Mac with a fake GpioFrameIO: one new test (a
+DATA frame sent twice unchanged, from the argument and from stdin; a
+damaged CRC, non-hex and a short frame refused without transmitting);
+Python suite 167 passed. Not run on a Faro.
