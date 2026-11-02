@@ -405,7 +405,10 @@ Table of Contents
    alias, Node ID that does not match the verify key, lifetime outside
    the rule or bad signature.  An entry is usable from issued minus 60
    seconds through expires.  A newer entry for a Node ID replaces an
-   older one, never the reverse.
+   older one, never the reverse.  A running Node SHOULD sign a new entry
+   (a later issued time) once half of its current entry's lifetime has
+   passed; this implementation issues 24-hour entries and re-signs them
+   every 12 hours.
 
 5.3.  Envelope and Fragmentation
 
@@ -519,10 +522,12 @@ Table of Contents
 
    After the handshake each end sends every directory entry and
    neighbor list it holds.  A Node publishes a new neighbor list
-   whenever a neighbor joins or leaves.  A received entry or list that
-   is new (a different entry, or a later issued time) is verified,
-   stored and forwarded to every other neighbor; anything else is
-   dropped, so flooding ends.  A Node holds at most 256 entries.
+   whenever a neighbor joins or leaves, and floods its own re-signed
+   directory entry (Section 5.2) like a received one.  A received
+   entry or list that is new (a different entry, or a later issued
+   time) is verified, stored and forwarded to every other neighbor;
+   anything else is dropped, so flooding ends.  A Node holds at most
+   256 entries.
 
    A relay SHOULD wait a random 0 to 200 ms before forwarding each
    envelope, which weakens timing correlation on a quiet mesh but does
@@ -938,6 +943,8 @@ Appendix A.  Implementation Status
    light path between real Nodes over TCP (a message and reply across
    it, and recovery after a failed send), and as separate processes on
    a laptop with a UDP stand-in for the light; not yet run on Faros.
+   Re-signing a Node's entry every 12 hours (Section 5.2): tested with
+   an injected clock between two Nodes over localhost TCP.
 
    Gateway authentication (Section 6): canonicalization, MAC and
    freshness implemented in Python and Rust with shared vectors; the

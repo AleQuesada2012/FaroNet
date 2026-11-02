@@ -7,7 +7,8 @@ from faronet.node.chat import ChatSession, address
 from faronet.node.fragment import ENVELOPE_SIZE
 from faronet.node.identity import Identity
 from faronet.node.lan import (
-    RECORD_SIZE, LanError, LanNode, LinksRecord, RecordType, decode_record, encode_record,
+    ENTRY_LIFETIME, ENTRY_REISSUE, RECORD_SIZE, LanError, LanNode, LinksRecord, RecordType,
+    decode_record, encode_record,
 )
 
 
@@ -122,6 +123,32 @@ class LanMeshTests(unittest.IsolatedAsyncioTestCase):
         await wait_for(lambda: nodes[0].routes_to(nodes[4].node_id))
         await nodes[2].close()  # The middle relay leaves; its neighbors stop listing it.
         await wait_for(lambda: not nodes[0].routes_to(nodes[4].node_id))
+
+    async def test_entry_is_re_signed_every_12_hours_and_reaches_peers(self):
+        now = [1_800_000_000]
+        clock = lambda: now[0]
+        a, b = (LanNode(Identity.generate(), alias, clock=clock, forward_delay_ms=0)
+                for alias in ("a", "b"))
+        for node in (a, b):
+            self.addAsyncCleanup(node.close)
+        port = await b.listen("127.0.0.1", 0)
+        a.dial("127.0.0.1", port)
+        await wait_for(lambda: a.node_id in b.directory)
+        first = a.entry
+
+        now[0] += ENTRY_REISSUE - 1
+        self.assertFalse(a.reissue_entry())
+        now[0] += 1
+        self.assertTrue(a.reissue_entry())
+        self.assertEqual(a.entry.issued_at, now[0])
+        self.assertEqual(a.entry.expires_at, now[0] + ENTRY_LIFETIME)
+        self.assertEqual(a.entry.alias, first.alias)
+        self.assertIs(a.directory.get(a.node_id), a.entry)
+        await wait_for(lambda: b.directory.get(a.node_id) == a.entry)
+
+        # Past the first entry's expiry the peer still holds a usable entry.
+        now[0] = first.expires_at + 1
+        b.directory.get(a.node_id).check_valid_at(now[0])
 
     async def test_impostor_replaying_an_entry_is_never_linked(self):
         nodes, ports = await self.start(1)

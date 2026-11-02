@@ -723,3 +723,20 @@ unit test), `npm run check` passed, and `npm run test:gateway` against a
 fresh `npm run dev:gateway` passed with a new case (a second
 `entry(now - 30)`, same time and different box key, answers 409). Not
 deployed: Student A has to run `npm run deploy`.
+
+### Task 3: a running node re-signs its directory entry every 12 h
+
+`LanNode.reissue_entry()` signs a new 24-hour entry (same alias, issued
+time strictly later) once 12 hours have passed since the current one,
+stores it and floods it through `_learn_entry`, so peers and the
+Gateway's `--edge-publish` (it publishes on `on_change`) get it before
+the old entry expires. A task started by the first `listen` or `dial`
+checks once a minute and stops with `close`/`wipe`. A node no longer has
+to be restarted daily for its entry; the 24-hour Faro address rotation
+still happens only when an optical command starts. RFC 5.2, 5.7 and
+Appendix A updated.
+
+Agent-verified on the Mac: one new test with an injected clock (two
+Nodes over localhost TCP; no re-sign one second early, then the peer
+holds the new entry, still usable after the first one expired); Python
+suite 159 passed.

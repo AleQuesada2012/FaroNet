@@ -41,6 +41,8 @@ CHALLENGE_SIZE = 32
 MAX_NEIGHBORS = 16
 MAX_NODES = 256
 ENTRY_LIFETIME = 24 * 3600
+ENTRY_REISSUE = 12 * 3600
+REISSUE_CHECK_SECONDS = 60
 HANDSHAKE_SECONDS = 10
 RECONNECT_SECONDS = 2
 MAX_FORWARD_DELAY_MS = 200
@@ -185,6 +187,7 @@ class LanNode:
         self._neighbors: dict[bytes, _Link] = {}
         self._tasks: set[asyncio.Task] = set()
         self._server: asyncio.Server | None = None
+        self._reissuing = False
         self.on_delivery: Callable[[Delivery], None] = lambda delivery: None
         self.on_change: Callable[[], None] = lambda: None
         self._publish_links()
@@ -198,6 +201,7 @@ class LanNode:
 
     async def listen(self, host: str, port: int) -> int:
         """Accept links; returns the bound port (useful with port 0)."""
+        self._keep_entry_fresh()
         self._server = await asyncio.start_server(
             lambda reader, writer: self._connection(reader, writer, outgoing=False), host, port,
         )
@@ -209,9 +213,37 @@ class LanNode:
         An optical bridge needs a much longer handshake_seconds: at about 20
         payload bytes per second the handshake alone takes a minute or more.
         """
-        task = asyncio.get_running_loop().create_task(self._dial(host, port, handshake_seconds))
+        self._keep_entry_fresh()
+        self._start(self._dial(host, port, handshake_seconds))
+
+    def reissue_entry(self) -> bool:
+        """Re-sign this node's directory entry once half its lifetime has passed.
+
+        The new entry is stored and flooded like a learned one, so peers
+        replace the old entry before it expires (RFC Section 5.2).
+        """
+        now = self.clock()
+        if now < self.entry.issued_at + ENTRY_REISSUE:
+            return False
+        issued = max(now, self.entry.issued_at + 1)
+        self.entry = self.identity.directory_entry(issued, issued + ENTRY_LIFETIME, self.entry.alias)
+        self._learn_entry(self.entry, source=None)
+        return True
+
+    def _start(self, coroutine) -> None:
+        task = asyncio.get_running_loop().create_task(coroutine)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
+
+    def _keep_entry_fresh(self) -> None:
+        if not self._reissuing:
+            self._reissuing = True
+            self._start(self._reissue_loop())
+
+    async def _reissue_loop(self) -> None:
+        while True:
+            await asyncio.sleep(REISSUE_CHECK_SECONDS)
+            self.reissue_entry()
 
     async def close(self) -> None:
         for task in list(self._tasks):
