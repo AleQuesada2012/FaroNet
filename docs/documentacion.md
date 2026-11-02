@@ -455,23 +455,32 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | 2026-10-31 | Edge: feeds Atom, límite de peticiones y despliegue | *(completar)* |
 | 2026-10-31 a 11-01 | RFC unificado, BOM, esquemático y documentación | *(completar)* |
 | 2026-10-31 | Diagnóstico de temporización TX (loopback a 2, 3 y 5 ms) | *(completar)* |
-| 2026-10-31 | Enlaces LAN de la mesh y chat privado de terminal (trabajo del Estudiante B asumido por A) | *(completar)* |
 | 2026-10-31 | Modelo de la perfboard, validación contra la netlist y guía de soldadura | *(completar)* |
-| 2026-10-31 | Rotación de direcciones físicas y borrado por pánico en el chat (trabajo del Estudiante B asumido por A) | *(completar)* |
-| 2026-10-31 a 11-01 | Edge: relevo autenticado del gateway, buzón muerto y cliente de Python; despliegue (trabajo del Estudiante B asumido por A) | *(completar)* |
-| 2026-11-01 | Edge: réplica pública del directorio verificada con Ed25519 | *(completar)* |
 | 2026-11-01 | Textos para personas usuarias en español (edge, chat, comandos) | *(completar)* |
 | 2026-11-01 | Corrección de la orientación de Q1 (2N2222 E-B-C) en la guía de soldadura | *(completar)* |
 | 2026-11-01 | Enlace óptico en la mesh en vivo (`optical-bridge`, `--faro-peer`) y sincronización de la documentación | *(completar)* |
+| 2026-11-01 | Soldadura de los Faros en la perfboard, junto con el Estudiante B | *(completar)* |
 | | **Total** | *(completar)* |
 
 ## Estudiante B (An-Gi)
+
+Según el reparto acordado el 2026-10-09 (`docs/development-plan.md`), el
+Estudiante B lidera la mesh, el chat privado, el cifrado y relleno, el
+directorio firmado y el cliente del gateway en Python, y la autenticación
+del gateway, el buzón muerto y el directorio público en Rust. Las filas
+marcadas con † son tareas de esa área que implementó el Estudiante A
+mientras el Estudiante B montaba el Faro B.
 
 | Fecha | Actividad | Horas |
 | --- | --- | ---: |
 | 2026-10-22 | Mesh: identidades, directorio firmado, sobres onion, fragmentación, simulación (propuesta 0002) | *(completar)* |
 | 2026-10-30 | Rediseño del montaje como revisión 7, sin RGB | *(completar)* |
-| | Montaje y pruebas del Faro B | *(completar)* |
+| 2026-10-31 | † Enlaces LAN de la mesh y chat privado de terminal | *(completar)* |
+| 2026-10-31 | † Rotación de direcciones físicas y borrado por pánico en el chat | *(completar)* |
+| 2026-10-31 a 11-01 | † Edge: relevo autenticado del gateway, buzón muerto y cliente de Python; despliegue | *(completar)* |
+| 2026-11-01 | † Edge: réplica pública del directorio verificada con Ed25519 | *(completar)* |
+| | Montaje y pruebas del Faro B (Pi 2 con Raspberry Pi OS) | *(completar)* |
+| 2026-11-01 | Soldadura de los Faros en la perfboard, junto con el Estudiante A | *(completar)* |
 | | **Total** | *(completar)* |
 
 # Autoevaluación
