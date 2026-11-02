@@ -203,9 +203,13 @@ class LanNode:
         )
         return self._server.sockets[0].getsockname()[1]
 
-    def dial(self, host: str, port: int) -> None:
-        """Keep one outgoing link to host:port, reconnecting while the node runs."""
-        task = asyncio.get_running_loop().create_task(self._dial(host, port))
+    def dial(self, host: str, port: int, handshake_seconds: float = HANDSHAKE_SECONDS) -> None:
+        """Keep one outgoing link to host:port, reconnecting while the node runs.
+
+        An optical bridge needs a much longer handshake_seconds: at about 20
+        payload bytes per second the handshake alone takes a minute or more.
+        """
+        task = asyncio.get_running_loop().create_task(self._dial(host, port, handshake_seconds))
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
 
@@ -228,7 +232,7 @@ class LanNode:
         self.node.forget()
         self._neighbors.clear()
 
-    async def _dial(self, host: str, port: int) -> None:
+    async def _dial(self, host: str, port: int, handshake_seconds: float) -> None:
         peer = None
         while True:
             if peer is None or peer not in self._neighbors:
@@ -237,14 +241,15 @@ class LanNode:
                 except OSError:
                     self.counters["dial_failures"] += 1
                 else:
-                    peer = await self._connection(reader, writer, outgoing=True) or peer
+                    peer = await self._connection(reader, writer, True, handshake_seconds) or peer
             await asyncio.sleep(RECONNECT_SECONDS)
 
-    async def _connection(self, reader, writer, outgoing: bool) -> bytes | None:
+    async def _connection(self, reader, writer, outgoing: bool,
+                          handshake_seconds: float = HANDSHAKE_SECONDS) -> bytes | None:
         """Run one TCP link to completion; returns the peer's Node ID once it proved it."""
         peer = None
         try:
-            entry = await asyncio.wait_for(self._handshake(reader, writer), HANDSHAKE_SECONDS)
+            entry = await asyncio.wait_for(self._handshake(reader, writer), handshake_seconds)
             peer = entry.node_id
             link = _Link(self, writer, self.node_id if outgoing else peer)
             if not self._admit(peer, link):

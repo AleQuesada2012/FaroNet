@@ -4,7 +4,10 @@ import hashlib
 import json
 import math
 import secrets
+import signal
+import socket
 import sys
+import threading
 import time
 
 from faronet.dispositivo_luz_adaptador.frame import Frame, FrameType
@@ -38,8 +41,10 @@ def add_commands(commands):
     preflight.add_argument("--chip", default="/dev/gpiochip0")
     preflight.add_argument("--profile-only", action="store_true", help="Show pins without importing gpiod.")
     for name in ("gpio-monitor", "gpio-calibrate", "optical-loopback", "optical-link",
-                 "optical-send", "optical-listen"):
-        parser = commands.add_parser(name, help="Physical optical bring-up (requires prepared circuit).")
+                 "optical-send", "optical-listen", "optical-bridge"):
+        text = ("Carry one mesh LAN link over the peer Faro (chat --faro-peer starts it)."
+                if name == "optical-bridge" else "Physical optical bring-up (requires prepared circuit).")
+        parser = commands.add_parser(name, help=text)
         parser.add_argument("--chip", default="/dev/gpiochip0")
         parser.add_argument("--hardware-ready", action="store_true", required=True,
                             help="Confirm circuit continuity and 0–3.3 V receiver levels first.")
@@ -63,6 +68,10 @@ def add_commands(commands):
                                 help="Override this Faro's stored link address (see optical-address).")
             parser.add_argument("--peer", type=link_id, required=True)
             parser.add_argument("--session", type=link_id, required=True)
+            if name == "optical-bridge":
+                parser.add_argument("--listen", type=_listen_address, default=("127.0.0.1", 7500),
+                                    help="HOST:PORT for the local Node's connection (default 127.0.0.1:7500).")
+                continue
             parser.add_argument("--count", type=int, default=3)
             if name == "optical-listen":
                 parser.add_argument("--timeout", type=float, default=300,
@@ -70,6 +79,27 @@ def add_commands(commands):
             elif name == "optical-link":
                 parser.add_argument("--timeout", type=float, default=900,
                                     help="Total run time limit, including the final re-ACK linger.")
+
+
+def _listen_address(value: str) -> tuple[str, int]:
+    host, _, port = value.rpartition(":")
+    if not host or not port.isdigit() or not 0 <= int(port) <= 65535:
+        raise ValueError("Addresses must be HOST:PORT")
+    return host, int(port)
+
+
+def _bridge(io, args) -> int:
+    """Serve one mesh link over the light until Ctrl+C or panic (RFC FN-1 5.9)."""
+    from faronet.faro.bridge import serve_bridge
+
+    with socket.create_server(args.listen) as listener:
+        _print({"ready": "optical-bridge", "port": listener.getsockname()[1],
+                "frame_seconds": io.frame_seconds})
+        try:
+            serve_bridge(io, args.local, args.peer, args.session, listener, _print, threading.Event())
+        finally:
+            io.clear()
+    return 0
 
 
 # Synthetic labels: a loopback frame never leaves this board.
@@ -157,6 +187,8 @@ def run(args) -> int:
         _print({"local": local.hex(), "age_hours": round(age / 3600, 2),
                 "rotates_in_hours": round((ROTATE_SECONDS - age) / 3600, 2)})
         return 0
+    # SIGTERM (as chat --faro-peer stops its bridge) releases GPIO like Ctrl+C.
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
     if args.command == "gpio-preflight" and args.profile_only:
         _print({"pins": [vars(pin) for pin in PINS]})
         return 0
@@ -171,12 +203,12 @@ def run(args) -> int:
             value = getattr(args, field, 1)
             if not math.isfinite(value) or value <= 0:
                 raise ValueError(f"{field} must be finite and positive")
-        if not args.command.startswith("gpio-") and not 1 <= args.count <= 1000:
+        if not args.command.startswith("gpio-") and not 1 <= getattr(args, "count", 1) <= 1000:
             raise ValueError("Count must be 1–1000")
         # Validate IDs before requesting lines.
         if getattr(args, "local", "") is None:
             args.local = AddressStore().current()
-        if args.command in ("optical-send", "optical-listen", "optical-link") and args.local == args.peer:
+        if getattr(args, "peer", None) is not None and args.local == args.peer:
             raise ValueError("Local and peer addresses must differ")
         with GpioFrameIO(args.chip, args.half_bit_ms, args.rx_inverted) as io:
             if args.command == "gpio-monitor":
@@ -199,6 +231,8 @@ def run(args) -> int:
                 return _loopback(io, args.count, args.timing_report)
             if args.command == "optical-link":
                 return _link(io, args)
+            if args.command == "optical-bridge":
+                return _bridge(io, args)
             adapter = PhysicalDispositivoLuzAdaptador(io, args.local, args.peer, args.session)
             try:
                 _print({"ready": args.command, "frame_seconds": io.frame_seconds,

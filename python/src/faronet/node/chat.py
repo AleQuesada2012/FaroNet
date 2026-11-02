@@ -8,6 +8,9 @@ so compare the short ID out of band before trusting who is behind it.
 
 import asyncio
 import gc
+import json
+import signal
+import subprocess
 import sys
 import threading
 
@@ -20,6 +23,8 @@ from faronet.faro.profile import PANIC
 DEFAULT_PORT = 7400
 DEFAULT_TTL = 300
 MAX_TTL = 24 * 3600
+OPTICAL_HANDSHAKE_SECONDS = 600
+PANIC_EXIT = 3
 
 HELP = f"""Comandos:
   /peers          nodos conocidos: nombre, si hay enlace directo, si hay ruta
@@ -59,10 +64,25 @@ def add_commands(commands) -> None:
         parser.add_argument("--panic-gpio", metavar="CHIP",
                             help="Vigilar el botón de pánico del Faro en este chip GPIO (por ejemplo "
                                  "/dev/gpiochip0); al pulsarlo se borran llaves y mensajes y se sale.")
+        parser.add_argument("--faro-peer", type=link_id, metavar="DIRECCION",
+                            help="Enlazarse por luz con el nodo del otro Faro (su optical-address); "
+                                 "requiere sudo y la misma --faro-session en ambos.")
+        parser.add_argument("--faro-session", type=link_id, metavar="SESION",
+                            help="Sesión acordada para el enlace óptico (optical-session).")
+        parser.add_argument("--half-bit-ms", type=float, default=5,
+                            help="Medio bit del enlace óptico en ms, igual en ambos Faros (por defecto 5).")
+        parser.add_argument("--chip", default="/dev/gpiochip0", help="Chip GPIO del Faro.")
+        parser.add_argument("--rx-inverted", action="store_true", help="Invertir la polaridad medida de RX.")
         if name == "chat":
             parser.add_argument("--to", help="Destino inicial (alias o prefijo del ID).")
             parser.add_argument("--ttl", type=int, default=DEFAULT_TTL,
                                 help=f"Vida del mensaje en segundos (por defecto {DEFAULT_TTL}).")
+
+
+def link_id(value: str) -> bytes:
+    if len(value) != 16 or any(c not in "0123456789abcdef" for c in value):
+        raise ValueError("Las direcciones y sesiones ópticas son 16 caracteres hex en minúscula")
+    return bytes.fromhex(value)
 
 
 def name_of(lan: LanNode, node_id: bytes) -> str:
@@ -216,6 +236,12 @@ async def _serve(args) -> int:
         panicked.set()
         queue.put_nowait("/panic\n")
 
+    bridge = None
+    if args.faro_peer:
+        # The bridge owns the Faro's GPIO, panic input included; its panic exit is ours.
+        bridge, bridge_port = _start_bridge(args)
+        threading.Thread(target=_watch_bridge, args=(bridge, lambda: loop.call_soon_threadsafe(press)),
+                         daemon=True).start()
     if args.panic_gpio:
         threading.Thread(target=watch_panic, args=(args.panic_gpio, lambda: loop.call_soon_threadsafe(press)),
                          daemon=True).start()
@@ -226,6 +252,8 @@ async def _serve(args) -> int:
            + ("/help muestra los comandos" if session else "Ctrl+C lo detiene"))
     for host, peer_port in args.peer:
         lan.dial(host, peer_port)
+    if bridge is not None:
+        lan.dial("127.0.0.1", bridge_port, handshake_seconds=OPTICAL_HANDSHAKE_SECONDS)
     try:
         if session is None:
             await panicked.wait()
@@ -238,9 +266,55 @@ async def _serve(args) -> int:
     finally:
         counters = {key: lan.counters[key] for key in ("sent", "relayed", "delivered", "rejected")}
         await lan.close()
+        if bridge is not None and bridge.poll() is None:
+            # SIGTERM, not SIGINT: a background shell job passes SIGINT to children as ignored.
+            bridge.send_signal(signal.SIGTERM)
+            try:
+                bridge.wait(10)
+            except subprocess.TimeoutExpired:
+                bridge.kill()
     labels = {"sent": "enviados", "relayed": "retransmitidos", "delivered": "recibidos", "rejected": "rechazados"}
     _print("· detenido; no se guardó nada. " + ", ".join(f"{labels[k]} {v}" for k, v in counters.items()))
     return 0
+
+
+def _start_bridge(args) -> tuple[subprocess.Popen, int]:
+    """Start optical-bridge on a free localhost port and return it with that port."""
+    if args.faro_session is None:
+        raise ValueError("--faro-peer necesita --faro-session")
+    if args.panic_gpio:
+        raise ValueError("Con --faro-peer el puente óptico ya vigila el botón de pánico; quita --panic-gpio")
+    command = [sys.executable, "-m", "faronet", "optical-bridge", "--hardware-ready",
+               "--chip", args.chip, "--half-bit-ms", str(args.half_bit_ms), "--listen", "127.0.0.1:0",
+               "--peer", args.faro_peer.hex(), "--session", args.faro_session.hex()]
+    if args.rx_inverted:
+        command.append("--rx-inverted")
+    # Its own process group: Ctrl+C in the chat must not interrupt the bridge mid-frame.
+    bridge = subprocess.Popen(command, stdout=subprocess.PIPE, text=True, start_new_session=True)
+    try:
+        ready = json.loads(bridge.stdout.readline() or "{}")
+    except json.JSONDecodeError:
+        ready = {}
+    if ready.get("ready") != "optical-bridge":
+        bridge.kill()
+        raise OSError(f"No se pudo iniciar el puente óptico (código {bridge.wait()})")
+    _print(f"· enlace óptico listo: trama de {ready['frame_seconds']:.1f} s; el saludo por luz tarda minutos")
+    return bridge, ready["port"]
+
+
+def _watch_bridge(bridge: subprocess.Popen, on_panic) -> None:
+    """Thread body: report optical resets, then the bridge's exit; panic exits trigger ours."""
+    for line in bridge.stdout:
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("reason") not in (None, "start"):
+            _print(f"· enlace óptico reiniciado (época {event['epoch']}); el saludo se repite")
+    if bridge.wait() == PANIC_EXIT:
+        on_panic()
+    elif bridge.returncode not in (0, 130):
+        _print(f"! el puente óptico terminó (código {bridge.returncode}); el enlace por luz se perdió")
 
 
 def _publish_directory(lan: LanNode, url: str) -> None:
@@ -294,6 +368,8 @@ async def _panic(lan: LanNode) -> int:
 
 
 def run(args) -> int:
+    # SIGTERM stops like Ctrl+C, so an optical bridge is always told to turn the Faro off.
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
     try:
         return asyncio.run(_serve(args))
     except KeyboardInterrupt:
