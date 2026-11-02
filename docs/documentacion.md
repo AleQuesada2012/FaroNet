@@ -481,7 +481,7 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | Faro A en protoboard | Funciona: transmisión, recepción calibrada, pánico; *loopback* de 10/10 tramas sin errores a *T* = 5, 3 y 2 ms (2 ms: 20,7 B/s de carga útil) |
 | CSMA/CA y `optical-link` | Implementado y probado en simulación; falta la prueba entre dos Faros |
 | Faro B | En montaje; su ambiente de software no se ha verificado |
-| Medición de tasa y BER a tres distancias | Pendiente: requiere dos Faros |
+| Medición de tasa y BER a tres distancias | Pendiente: requiere dos Faros; procedimiento y tabla en «Mediciones entre dos Faros» |
 | Placa soldada, fotos y bitácora de multímetro | Plano de perfboard validado y guía de soldadura listos; falta soldar, fotos y bitácora (entrega de hardware) |
 | Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac y entre la Pi del Faro A y la Mac (tres relevos en la Mac); falta repartir los relevos en más máquinas |
 | Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`), en español; mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos |
@@ -492,6 +492,32 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | Edge: relevo del gateway y buzón muerto | Desplegado con el secreto del gateway; publicación, depósito y lectura del buzón probados desde la Pi del gateway contra el edge en vivo |
 | Edge: réplica pública del directorio | Desplegada: el edge verifica cada entrada firmada (Ed25519) y la sirve en `/directory`; la entrada publicada por el nodo gateway desde la Pi se leyó y verificó desde la Mac |
 | RFC, BOM, esquemático | Completos |
+
+## Mediciones entre dos Faros
+
+Por cada distancia, ambos Faros corren a la vez el mismo comando (cada uno
+con la dirección del otro y una sesión nueva compartida):
+
+```bash
+sudo .venv/bin/python -m faronet optical-link --hardware-ready \
+  --peer DIRECCION_DEL_OTRO_FARO --session "$SESSION" --count 10 --half-bit-ms 2
+```
+
+El resumen JSON final de cada Faro da los valores de la tabla: tasa de
+carga útil (`payload_bytes_per_second`), tramas perdidas (`ack_timeouts`
+entre `attempts_total`) y errores de bit en tramas que pasaron el CRC
+(`payload_bit_errors`). Como el CRC descarta las tramas dañadas, la BER
+de bits entregados será 0; la pérdida de tramas es la medida útil del
+canal. *(Completar con las mediciones del equipo.)*
+
+| Distancia (cm) | *T* (ms) | Faro | Tramas enviadas / confirmadas / recibidas | Intentos / sin ACK | Errores de bit | Carga útil (B/s) |
+| ---: | ---: | --- | --- | --- | ---: | ---: |
+| *(completar)* | | A | | | | |
+| *(completar)* | | B | | | | |
+| *(completar)* | | A | | | | |
+| *(completar)* | | B | | | | |
+| *(completar)* | | A | | | | |
+| *(completar)* | | B | | | | |
 
 ## Problemas encontrados y limitaciones
 
