@@ -765,3 +765,6 @@ on Faros.
   now show the chat's Spanish message instead of argparse's English
   "invalid link_id value" (it is still a ValueError). Python suite 160
   passed; `optical-link --peer XX` shows the Spanish error.
+- `store_secret` flushes and fsyncs the temporary file before the
+  atomic replace, as `AddressStore.rotate` does, so a power cut cannot
+  leave an empty Gateway secret. Python suite 160 passed.
