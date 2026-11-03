@@ -922,6 +922,10 @@ measure the code shown at the demo. "Faro 1" is the owner's Pi
 | 5 cm | 3 ms | 2 → 1 | 10 / 10 / 10 | 11 / 1 | 0 | 0 | 5.39 |
 | 25 cm | 3 ms | 1 → 2 | 10 / 10 / 10 | 14 / 4 | 0 | 0 | 4.74 |
 | 25 cm | 3 ms | 2 → 1 | 10 / 10 / 10 | 13 / 3 | 0 | 0 | 4.74 |
+| 50 cm, misaligned | 3 ms | 1 → 2 | 1 delivered, 0 ACKed | 3 / 3 | 0 | 0 | - |
+| 50 cm, misaligned | 3 ms | 2 → 1 | 0 delivered | 3 / 3 | - | 1 | - |
+| 50 cm | 3 ms | 1 → 2 | 10 / 10 / 10 | 11 / 1 | 0 | 0 | 5.40 |
+| 50 cm | 3 ms | 2 → 1 | 10 / 10 / 10 | 11 / 1 | 0 | 0 | 5.41 |
 
 At 2 ms, Faro 2 failed to decode Faro 1's ACKs three times in a row while
 Faro 1 was idle, so collisions were not the cause. This matches the
@@ -933,3 +937,6 @@ Faro 1 kept waiting for the two frames Faro 2 had given up on until it was
 stopped; `optical-link` ends only on its count or its timeout.
 At 25 cm (363 s, TX max lateness 0.26 and 0.31 ms) every capture decoded
 (0 rejected), so the extra ACK timeouts were collisions, not signal loss.
+At 50 cm the first run failed both ways (also with the room's LED lights
+off). Realigning the boards, with RV1 untouched, fixed it: 318 s, TX max
+lateness 0.22 and 0.80 ms (Faro 2, Pi 2; budget 1.2 ms at 3 ms).
