@@ -4,7 +4,7 @@ subtitle: "Proyecto 1 · Redes de Computadoras · II semestre 2026"
 author:
   - "AleQuesada2012"
   - "An-Gi"
-date: "1 de noviembre de 2026"
+date: "1 de noviembre de 2026 (pruebas entre dos Faros agregadas el 2 de noviembre)"
 lang: es
 ---
 
@@ -387,14 +387,15 @@ enlazar el mismo par por LAN y por luz a la vez.
 sudo .venv/bin/python -m faronet optical-address
 SESSION=$(.venv/bin/python -m faronet optical-session)   # en un Faro; copiarla al otro
 sudo .venv/bin/python -m faronet mesh-node --alias r1 --listen 0.0.0.0:7401 \
-  --faro-peer DIRECCION_DEL_OTRO_FARO --faro-session "$SESSION" --half-bit-ms 2
+  --faro-peer DIRECCION_DEL_OTRO_FARO --faro-session "$SESSION" --half-bit-ms 3
 ```
 
 El otro Faro corre lo mismo con su propio alias y la dirección del
-primero; los demás nodos se enlazan por LAN como antes. A *T* = 2 ms cada
-trama tarda 4,1 s: el saludo por luz toma alrededor de un minuto,
-sincronizar el directorio de una mesh de cinco nodos unos 7 minutos y
-cada sobre cerca de 52 s por salto óptico. Los sobres esperan detrás de
+primero; los demás nodos se enlazan por LAN como antes. Se usa *T* = 3 ms
+porque a 2 ms un sentido perdió confirmaciones (ver «Mediciones entre dos
+Faros»). A 3 ms cada trama tarda 6,1 s: el saludo por luz toma alrededor
+de un minuto y medio, sincronizar el directorio de una mesh de cinco o
+seis nodos unos 10 minutos y cada sobre más de un minuto por salto óptico. Los sobres esperan detrás de
 la sincronización, así que conviene enviar cuando `/peers` ya muestre ruta
 y subir la vida del mensaje (`--ttl 3600` o `/ttl 3600`; por defecto
 300 s). El botón de pánico del Faro
@@ -490,18 +491,18 @@ actividades se tomaron del historial de Git y de `MERGER.md`.
 | --- | --- |
 | Trama, Manchester, CRC, simuladores | Completo y probado (167 pruebas de Python y 31 de Rust en total) |
 | Faro A en protoboard | Funciona: transmisión, recepción calibrada, pánico; *loopback* de 10/10 tramas sin errores a *T* = 5, 3 y 2 ms (2 ms: 20,7 B/s de carga útil) |
-| CSMA/CA y `optical-link` | Implementado y probado en simulación; falta la prueba entre dos Faros |
+| CSMA/CA y `optical-link` | Implementado y probado entre dos Faros el 2 de noviembre: 10/10 tramas por sentido a *T* = 3 ms a 5, 25 y 50 cm, sin errores de bit; las colisiones se recuperan con reintentos |
 | Faro B en protoboard | Funciona: transmisión, recepción calibrada; *loopback* de 10/10 tramas sin errores a *T* = 10, 3 y 2 ms (2 ms: 20,7 B/s de carga útil); a 5 ms, 8/10 con luz de la red eléctrica (parpadeo de 120 Hz) y 10/10 con la luz apagada. Ubuntu 22.04.5, Python 3.11.18; 160 pruebas pasaron en la Pi 2 |
-| Medición de tasa y BER a tres distancias | **No realizada**: no se logró correr el enlace entre dos Faros antes de la entrega. Las herramientas están listas (`optical-link` y `optical-loopback`, que ahora reporta la BER cruda `ber` contando también las tramas dañadas); procedimiento en «Mediciones entre dos Faros» |
-| Placa soldada, fotos y bitácora de multímetro | Perfboard soldada según la guía, con fotos de ambas caras (`hardware/IMG_3085.HEIC`, `hardware/IMG_3086.HEIC` y en la sección de diseño). Bitácora en `hardware/bitacora-multimetro.md` con las mediciones de la protoboard del Faro B; **por falta de tiempo no se llenó la hoja de la perfboard** (continuidad, aislamiento y voltajes) **ni se probó la placa soldada encendida**: el funcionamiento verificado es el de la protoboard |
-| Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac y entre la Pi del Faro A y la Mac (tres relevos en la Mac); falta repartir los relevos en más máquinas |
+| Medición de tasa y BER a tres distancias | Realizada el 2 de noviembre, después del congelamiento del código y con el código de `main`: 5, 25 y 50 cm a 3 ms (y 5 cm a 2 ms); ver «Mediciones entre dos Faros». La BER cruda entre dos Faros no se midió: sin errores en las tramas entregadas, la pérdida de tramas es la medida del canal |
+| Placa soldada, fotos y bitácora de multímetro | Perfboard soldada según la guía, con fotos de ambas caras (`hardware/IMG_3085.HEIC`, `hardware/IMG_3086.HEIC` y en la sección de diseño). Bitácora en `hardware/bitacora-multimetro.md` con las mediciones de la protoboard del Faro B. El 2 de noviembre la placa soldada del Faro A se revisó con el multímetro antes de encenderla (la mayoría de las pruebas de la guía; **la hoja de la perfboard no se llenó**), se calibró tras soldar un puente que faltaba (extremo de RV1 a GND) y funcionó en todas las pruebas entre dos Faros |
+| Mesh, directorio, sobres onion | Implementado; enlaces LAN sobre TCP probados con cinco nodos en la Mac y entre la Pi del Faro A y la Mac; el 2 de noviembre, seis nodos en tres máquinas con un enlace por luz entre las dos Pis |
 | Capa 7 anónima: chat de terminal | Implementado (`chat`, `mesh-node`), en español; mensaje y respuesta por tres relevos entre la Pi del Faro A y la Mac, sin rechazos. Temas privados (`/tema`, cifrados a cada miembro, nunca salen de la mesh) y texto público (`/publico`) que el gateway publica en la sala y el feed del tema; probado con cinco nodos y un Worker local |
-| Enlace óptico como enlace de la mesh en vivo | Implementado (`optical-bridge`, `--faro-peer`); probado con dos puentes sobre una luz simulada entre nodos reales (mensaje y respuesta, recuperación tras una falla) y como procesos separados en la Mac con UDP en lugar de luz; falta correrlo entre dos Faros |
-| Botón de pánico | Detiene el Faro, parpadea los LEDs verde y amarillo tres veces con el IR apagado, libera el GPIO, descarta la sesión y rota la dirección; en el chat, `/panic` o `--panic-gpio` borran llaves, enlaces, directorio y mensajes (mejor esfuerzo en Python). El parpadeo solo se probó con GPIO simulado |
+| Enlace óptico como enlace de la mesh en vivo | Probado entre dos Faros a 3 ms: un mensaje de bob a alice y su respuesta, cada uno por tres relevos y cruzando la luz (r3 > r2 ≈ r1), y texto `/publico` de alice por la luz hasta el gateway y el edge desplegado |
+| Botón de pánico | Detiene el Faro, parpadea los LEDs verde y amarillo tres veces con el IR apagado, libera el GPIO, descarta la sesión y rota la dirección; en el chat, `/panic` o `--panic-gpio` borran llaves, enlaces, directorio y mensajes (mejor esfuerzo en Python). Probado en ambos Faros con el puente óptico activo: LEDs parpadeando, nodo borrado y dirección rotada |
 | Rotación de direcciones físicas | Implementada (`optical-address`): aleatoria, en disco, cada 24 h y al pulsar pánico; la rotación por tiempo ocurre al iniciar un comando óptico, no durante una ejecución. La entrada de directorio de un nodo se vuelve a firmar cada 12 h, así que no hace falta reiniciarlo |
 | Edge: salas, feeds, límite, no registro | Desplegado y verificado con prueba de humo |
-| Edge: relevo del gateway y buzón muerto | Desplegado con el secreto del gateway; publicación, depósito y lectura del buzón probados desde la Pi del gateway contra el edge en vivo |
-| Edge: réplica pública del directorio | Desplegada: el edge verifica cada entrada firmada (Ed25519) y la sirve en `/directory`; la entrada publicada por el nodo gateway desde la Pi se leyó y verificó desde la Mac |
+| Edge: relevo del gateway y buzón muerto | Desplegado con el secreto del gateway; publicación, depósito y lectura del buzón probados desde la Pi del gateway contra el edge en vivo, y texto público llegado por la mesh sobre luz publicado en la sala `demo` |
+| Edge: réplica pública del directorio | Desplegada: el edge verifica cada entrada firmada (Ed25519) y la sirve en `/directory`; con la mesh por luz, `directory-fetch` verificó desde la Mac 7 entradas (los seis nodos y una entrada vieja de un gateway anterior), 0 rechazadas |
 | Tramas creadas fuera del Faro | `optical-inject --frame HEX` valida una trama de 128 bytes (por ejemplo hecha con Scapy) y la transmite sin cambios; probado con GPIO simulado |
 | RFC, BOM, esquemático | Completos |
 
@@ -512,7 +513,8 @@ con la dirección del otro y una sesión nueva compartida):
 
 ```bash
 sudo .venv/bin/python -m faronet optical-link --hardware-ready \
-  --peer DIRECCION_DEL_OTRO_FARO --session "$SESSION" --count 10 --half-bit-ms 2
+  --peer DIRECCION_DEL_OTRO_FARO --session "$SESSION" --count 10 \
+  --half-bit-ms 3 --timeout 600
 ```
 
 El resumen JSON final de cada Faro da los valores de la tabla: tasa de
@@ -523,17 +525,50 @@ de bits entregados será 0; la pérdida de tramas es la medida útil del
 canal. Desde el 1 de noviembre, `optical-loopback` también da la BER cruda
 (`ber`), que compara bit a bit las tramas dañadas con las enviadas.
 
-**Estas mediciones no se realizaron**: los dos Faros no llegaron a
-enlazarse por luz ya que el día que se iban a hacer las pruebas existieron varios contratiempos por fallos en el circuito. La tabla queda como procedimiento para hacerlas.
+Las mediciones se hicieron el 2 de noviembre, después del congelamiento
+del código, con ambas Pis en `main` (`b121ccf`). Los resultados y el
+diagnóstico se registraron en la rama `pruebas-dos-faros`, que agrega solo
+herramientas de diagnóstico. El Faro A es la Pi 3 con la placa soldada y
+el Faro B la Pi 2. Las distancias son de lente a lente, en interiores con
+luz LED, y cada fila es el resumen del Faro que envía; «recibidas» las
+cuenta el otro Faro. La carga útil es la de cada resumen: bytes útiles
+enviados y recibidos por ese Faro entre la duración de la corrida.
 
 | Distancia (cm) | *T* (ms) | Faro | Tramas enviadas / confirmadas / recibidas | Intentos / sin ACK | Errores de bit | Carga útil (B/s) |
 | ---: | ---: | --- | --- | --- | ---: | ---: |
-| *(no medido)* | | A | | | | |
-| *(no medido)* | | B | | | | |
-| *(no medido)* | | A | | | | |
-| *(no medido)* | | B | | | | |
-| *(no medido)* | | A | | | | |
-| *(no medido)* | | B | | | | |
+| 5 | 2 | A | 10 / 10 / 10 | 12 / 2 | 0 | — |
+| 5 | 2 | B | 8 / 7 / 8 (la 7 falló tras 3 intentos) | 12 / 5 | 0 | — |
+| 5 | 3 | A | 10 / 10 / 10 | 11 / 1 | 0 | 5,39 |
+| 5 | 3 | B | 10 / 10 / 10 | 11 / 1 | 0 | 5,39 |
+| 25 | 3 | A | 10 / 10 / 10 | 14 / 4 | 0 | 4,74 |
+| 25 | 3 | B | 10 / 10 / 10 | 13 / 3 | 0 | 4,74 |
+| 50, desalineados | 3 | A | 1 / 0 / 1 | 3 / 3 | 0 | 0,00 |
+| 50, desalineados | 3 | B | 1 / 0 / 0 | 3 / 3 | — | 0,14 |
+| 50 | 3 | A | 10 / 10 / 10 | 11 / 1 | 0 | 5,40 |
+| 50 | 3 | B | 10 / 10 / 10 | 11 / 1 | 0 | 5,41 |
+
+Ninguna trama entregada tuvo errores de bit. A 3 ms y bien alineados, los
+dos Faros entregaron 10/10 tramas en cada sentido a las tres distancias,
+sin formas de onda rechazadas; los reintentos que hubo fueron colisiones
+(ambos Faros transmitiendo a la vez), que el CSMA/CA resolvió. La carga
+útil, unos 5,4 B/s con ambos sentidos activos, está limitada por el
+protocolo semidúplex (cada trama de datos espera su ACK) y no por la
+distancia.
+
+- **2 ms no es confiable** en el sentido de A hacia B: B no decodificó
+  tres ACKs seguidos de A cuando A ya no transmitía, así que no eran
+  colisiones. Una captura de flancos a 10 ms mostró que en ese sentido los
+  pulsos de luz duran 0,47 ms más que los oscuros, casi un cuarto de medio
+  bit a 2 ms antes de sumar el *jitter* y la deriva entre los relojes. Con
+  3 ms el margen alcanza.
+- **A 50 cm la alineación decide**: desalineados, B solo recibió una trama
+  de A y A no decodificó ninguna de B, también con la luz apagada; al
+  realinear, sin tocar RV1, pasó 10/10.
+- **Relojes y forma de onda**: la captura de una trama a 10 ms en cada
+  sentido dio diferencias de reloj de 8 y −28 ppm y una desviación máxima
+  de 0,06 medio bit respecto al reloj nominal, lejos del límite de 0,5.
+- El retraso máximo de transmisión fue de 0,16 a 0,26 ms en A (Pi 3) y de
+  0,21 a 0,80 ms en B (Pi 2), bajo el límite de 1,2 ms a 3 ms.
 
 ## Problemas encontrados y limitaciones
 
@@ -556,16 +591,25 @@ enlazarse por luz ya que el día que se iban a hacer las pruebas existieron vari
   del equipo es E-B-C visto desde la cara plana, al revés del supuesto;
   la guía de soldadura se corrigió dos veces hasta comprobar en la pieza
   que la cara plana va hacia la derecha.
+- **Puente faltante en la placa soldada**: el extremo de RV1 que va a GND
+  no estaba soldado, así que el umbral quedaba en VBIAS y el receptor
+  marcaba 1 en todo el recorrido del trimpot.
+- **Enlace entre dos Faros**: a 10 ms una colisión o una trama perdida
+  cuesta los 61 s del plazo del ACK, y a 2 ms un sentido perdió ACKs por
+  margen de tiempo; se usa 3 ms. A 50 cm hubo que realinear las placas.
+  Si un Faro agota sus intentos, deja de enviar en esa sesión y el otro
+  espera sus tramas restantes hasta el tiempo límite.
 - **Cloudflare rechazaba al cliente de Python** con 403 (error 1010) por
   el User-Agent por defecto de `urllib`, antes de llegar al Worker; el
   cliente ahora se identifica como `FaroNet-Gateway/<versión>`.
 - El borrado de llaves en memoria con Python es de mejor esfuerzo.
-- **No se midieron** la tasa efectiva ni la BER a tres distancias entre dos
-  Faros, ni se corrió el enlace óptico de la mesh entre Faros reales.
-- **La placa soldada no se midió ni se probó encendida** antes de la
-  entrega; tampoco se probaron en los Faros reales las funciones agregadas
-  el 1 de noviembre (parpadeo de pánico, `optical-inject`, BER cruda,
-  `/tema` y `/publico` por luz), solo con GPIO simulado o en la LAN.
+- **Las pruebas entre dos Faros se hicieron después del congelamiento del
+  código** (2 de noviembre), con el código de `main`; antes de la entrega
+  la placa soldada no se había probado encendida. `optical-inject`, la BER
+  cruda y `/tema` por luz siguen probados solo con GPIO simulado o en la
+  LAN.
+- La réplica del directorio en el edge conserva hasta que vence la entrada
+  firmada de un nodo borrado con pánico.
 - Los registros LAN no llevan byte de versión propio (la trama óptica, el
   mensaje y las entradas firmadas sí la llevan); agregarlo cambia su tamaño
   fijo de 493 bytes.
