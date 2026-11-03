@@ -952,3 +952,24 @@ r3 > r2 > r1 and printed by alice, and alice's reply "hola bob soy alice"
 went via r1 > r2 > r3 and was printed by bob. No relay reported an optical
 link reset. Pressing a Faro's panic button then stopped its bridge, blinked
 both indicator LEDs and erased that node, which printed the panic message.
+
+### Gateway over the light (on `main`, deployed edge)
+
+Owner-reported. After pressing panic on both Faros (both addresses
+rotated), the mesh was restarted from scratch with new addresses and
+session: r1 and r2 over the light at 3 ms, r3 and the chats on the Mac,
+and a `mesh-node --alias gateway --edge-publish` (no sudo, the owner's
+gateway secret) on Faro 1's Pi, linked to r3. The route from alice to the
+gateway was alice > r1 ≈ r2 > r3 > gateway.
+
+- Alice's `/publico demo hola desde la luz` went to gateway#985efa97 by
+  three relays; the gateway printed "público #demo publicado en el edge"
+  and the text appeared on https://faronet-edge.faronet.workers.dev/rooms/demo.
+- The gateway published each directory entry it learned. `directory-fetch`
+  from the Mac verified 7 entries with 0 rejected: r1, r2, r3, alice, bob,
+  the running gateway#985efa97, and gateway#947e67be, an older gateway
+  entry that remains on the replica until it expires. Panic erases the
+  local node but not entries the edge already holds.
+- Dead drop: `drop-put --slot 2` then `drop-take --slot 2` returned the
+  text and said it was deleted from the edge; a second `drop-take` found
+  the slot empty.
