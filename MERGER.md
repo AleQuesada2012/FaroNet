@@ -940,3 +940,15 @@ At 25 cm (363 s, TX max lateness 0.26 and 0.31 ms) every capture decoded
 At 50 cm the first run failed both ways (also with the room's LED lights
 off). Realigning the boards, with RV1 untouched, fixed it: 318 s, TX max
 lateness 0.22 and 0.80 ms (Faro 2, Pi 2; budget 1.2 ms at 3 ms).
+
+### Mesh over the light, chat and panic (on `main`)
+
+Owner-reported. Both Pis ran `mesh-node --faro-peer ... --half-bit-ms 3`
+(r1 on Faro 1, r2 on Faro 2); the Mac ran r3 (linked to r2 over the LAN)
+and the chats alice (linked to r1) and bob (linked to r3), both with
+`--ttl 3600`. The only route between alice and bob crossed the light.
+Bob's `/peers` showed alice "con ruta"; "hola alice" was sent via
+r3 > r2 > r1 and printed by alice, and alice's reply "hola bob soy alice"
+went via r1 > r2 > r3 and was printed by bob. No relay reported an optical
+link reset. Pressing a Faro's panic button then stopped its bridge, blinked
+both indicator LEDs and erased that node, which printed the panic message.
